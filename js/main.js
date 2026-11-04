@@ -804,15 +804,16 @@ function tick() {
 }
 
 const ATTRACT = CHARS.map((C, k) => ({ i: k % 4, ch: C.id, x: 0, y: 0, fc: 1, st: 'run', t: 0, sc: 1, h: C.h, w: 36, inv: 0, rp: 0, gi: 0, shd: 100 }));
+// the title parade without WebGL: one long loop with every fighter in their own spot, so nobody overlaps
 function drawAttract() {
-  for (const f of ATTRACT) {
-    const k = CHARS.findIndex(C => C.id === f.ch);
-    f.x = ((k * 200 + frameCount * 2.2) % 1800) - 900;
-    const hop = (frameCount + k * 40) % 200 < 30;
-    f.y = hop ? -Math.sin((((frameCount + k * 40) % 200) / 30) * Math.PI) * 90 : 0;
+  const gap = 84, L = ATTRACT.length * gap;
+  ATTRACT.forEach((f, k) => {
+    f.x = ((k * gap + frameCount * 1.8) % L) - 510;
+    const hp = (frameCount + k * 67) % 240, hop = hp < 30;
+    f.y = hop ? -Math.sin((hp / 30) * Math.PI) * 90 : 0;
     f.st = hop ? 'air' : 'run'; f.gi = hop ? -1 : 0;
-  }
-  const view = { stage: 'town', frame: frameCount, fighters: ATTRACT, proj: [], items: [], clouds: [] };
+  });
+  const view = { stage: 'town', frame: frameCount, fighters: ATTRACT.filter(f => Math.abs(f.x) < 470), proj: [], items: [], clouds: [] };
   renderScene(ctx, view, { x: 0, y: -200, z: 0.8, shake: 0 }, frameCount, 1, true);
   if (mode === 'lobby') { ctx.fillStyle = 'rgba(20,10,30,0.62)'; ctx.fillRect(0, 0, W, H); }
 }

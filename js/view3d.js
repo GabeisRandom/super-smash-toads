@@ -638,17 +638,22 @@ const V3D = (() => {
     TCACHE[key] = cv;
     return cv;
   }
-  const ATT = CHARS.map((C, k) => ({ i: 100 + k, ch: C.id, x: 0, y: 0, fc: 1, st: 'run', t: 0, sc: 1, h: C.h, w: 36, inv: 0, rp: 0, gi: 0, shd: 100, dm: 0, sk: 0 }));
+  // the title screen parade: every fighter gets their own place in one long loop, ATT_GAP px apart, so nobody
+  // overlaps; they fade in at the stage's left edge and out at the right, then loop round out of sight
+  const ATT = CHARS.map((C, k) => ({ i: 100 + k, ch: C.id, x: 0, y: 0, fc: 1, st: 'run', t: 0, sc: 1, h: C.h, w: 36, inv: 0, rp: 0, gi: 0, shd: 100, dm: 0, sk: 0, fade: 1 }));
+  const ATT_GAP = 84, ATT_EDGE = 470;
   function attract(fr, dim) {
+    const L = ATT.length * ATT_GAP;
     ATT.forEach((f, k) => {
-      const cyc = (k * 110 + fr * 1.8) % 990;
-      f.x = cyc - 495;
-      const hop = (fr + k * 40) % 200 < 30;
-      f.y = hop ? -Math.sin((((fr + k * 40) % 200) / 30) * Math.PI) * 80 : 0;
+      f.x = ((k * ATT_GAP + fr * 1.8) % L) - ATT_EDGE - 40;
+      // a little hop now and then, never two neighbours at once
+      const hp = (fr + k * 67) % 240, hop = hp < 30;
+      f.y = hop ? -Math.sin((hp / 30) * Math.PI) * 80 : 0;
       f.st = hop ? 'air' : 'run'; f.gi = hop ? -1 : 0;
-      f.inv = Math.abs(f.x) > 470 ? 1 : 0;
+      f.fade = clamp01((ATT_EDGE - Math.abs(f.x)) / 50);
+      if (f.fade <= 0) delete M3D.MEM[f.i]; // start fresh (no leftover easing) each time round
     });
-    const view = { stage: 'town', frame: fr, fighters: ATT.filter(f => Math.abs(f.x) < 470), proj: [], items: [], clouds: [] };
+    const view = { stage: 'town', frame: fr, fighters: ATT.filter(f => f.fade > 0), proj: [], items: [], clouds: [] };
     frame(view, { x: 0, y: -170, z: 0.8, shake: 0 }, fr, { hud: false, tags: false });
     if (dim) { cx2.fillStyle = 'rgba(30,18,10,.58)'; cx2.fillRect(0, 0, 1280, 720); }
   }

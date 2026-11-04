@@ -1213,6 +1213,7 @@ const M3D = (() => {
     if (f.prT > 0) F.tint = [0.8, 0.97, 1, 0.65 * (f.prT / 16)]; // a parry flashes white-blue
     if (rig.ghost && F.alpha == null) F.alpha = 0.88;
     if (f.hide > 0) F.alpha = 0.07; // haunting: all but invisible
+    if (f.fade != null && f.fade < 1) F.alpha = (F.alpha == null ? 1 : F.alpha) * f.fade; // title parade fading in and out
     const unit = ((C.h * 1.05) * PX) / rig.h, scale = unit * (f.sc || 1) * (f.pe > 0 ? 1.06 : 1);
     const X = f.x * PX, Y = -f.y * PX;
     // Yoshi's Egg Roll: curl up inside a big rolling egg

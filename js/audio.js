@@ -152,16 +152,17 @@ const Snd = (() => {
   // (R 3 5 7 8, L = fifth below, A = approach the next chord); comp steps play the chord (x) or one chord tone (1-4);
   // drum lanes are 16 steps (x hit, X accent, g ghost). `dbl` doubles the lead; `odd` parts join on every other loop.
   const SONGS = {
-    // Menus: the main theme
+    // Menus: the main theme. It boots up with a quick funk sting (P, q): a DJ scratch and slap bass under a
+    // rising FM run, then a brass hit that drops into the tune
     title: {
-      bpm: 140, tr: -2, loop: 4, crash: true,
-      sec: 'IIIiAAAAAAAaBBBBBBBbCCCCCCCc',
-      ch: ['C', 'Ab', 'Bb', 'C',
+      bpm: 140, tr: -2, loop: 2, crash: true, nocrash: 'PQ',
+      sec: 'PqAAAAAAAaBBBBBBBbCCCCCCCc',
+      ch: ['Dm9', 'G9',
         'C', 'Am', 'F', 'G', 'C', 'Am', 'Dm7 G7', 'C',
         'F', 'G', 'Em', 'Am', 'Dm', 'G', 'C/E F', 'G7',
         'Am', 'Em', 'F', 'C', 'Dm7', 'Em7', 'F', 'G7'],
-      li: { I: 'brass', A: 'sq', B: 'brass', C: 'flute' },
-      lead: `G4 C5 E5 G5 - . E5 G5 | Ab5 - - - Eb5 - C5 Eb5 | Bb5 - - - F5 - D5 F5 | C6 - - - - - . . |
+      li: { P: 'fm', Q: 'brass', A: 'sq', B: 'brass', C: 'flute' },
+      lead: `. . . . . . . . D4 F4 A4 C5 E5 F5 A5 C6 | B5 . . B5 . . D6 . . . F6 - - - . . |
         E5 F5 G5 - C6 - G5 . | A5 G5 E5 - C5 - D5 E5 | F5 E5 F5 A5 - . G5 F5 | E5 - D5 - . B4 C5 D5 |
         E5 F5 G5 - C6 - G5 . | A5 G5 A5 C6 - . B5 A5 | F5 - A5 - G5 - F5 D5 | C5 - - - . . . . |
         A5 - - - C6 - A5 - | B5 - - - D6 - B5 - | G5 - - E5 G5 - B5 - | A5 - - - . . C6 B5 |
@@ -169,16 +170,19 @@ const Snd = (() => {
         C6 - - - B5 - A5 - | G5 - - - - - E5 - | A5 - - - G5 - F5 - | E5 - - - - - . . |
         D5 - F5 - A5 - C6 - | B5 - - - G5 - E5 - | F5 - A5 - C6 - - - | B5 - - - G5 - F5 D5`,
       ai: 'brass', av: 0.6,
-      alt: 'E4 G4 C5 E5 - . C5 E5 | C5 - - - C5 - Ab4 C5 | D5 - - - D5 - Bb4 D5 | E5 - - - - - . .',
+      alt: '. . . . . . . . . . . . . . . . | G5 . . G5 . . B5 . . . D6 - - - . .',
       dbl: { i: 'bell', oct: 12, v: 0.3, sec: 'A' },
-      bass: { i: 'sbass', p: { I: 'R - - - - - - -', A: 'R . 5 R 8 . 5 A', B: 'R - - 5 8 - 5 -', C: 'R - - - 5 - - -' } },
+      bass: { i: { P: 'slap', Q: 'slap', A: 'sbass', B: 'sbass', C: 'sbass' },
+        p: { P: 'R . . R . . 8 . R . . R . 5 8 .', Q: 'R . . R . . 8 . R . R . 5 . A .', A: 'R . 5 R 8 . 5 A', B: 'R - - 5 8 - 5 -', C: 'R - - - 5 - - -' } },
       comp: [
-        { i: { I: 'pad', A: 'organ', B: 'pad', C: 'pad' }, p: { I: 'x - - - - - - -', A: '. x . x . x . x', B: 'x - - - x - - -', C: 'x - - - - - - -' } },
+        { i: { A: 'organ', B: 'pad', C: 'pad' }, p: { A: '. x . x . x . x', B: 'x - - - x - - -', C: 'x - - - - - - -' } },
+        { i: 'gtr', lo: 62, v: 0.7, p: { P: '. . x . . x . . . . x . . x . x', Q: 'x . . x . . x . . . . . x . . .' } },
+        { i: 'rhodes', lo: 57, v: 0.5, p: { P: 'x - - - - - - -' } },
         { i: 'marimba', lo: 60, v: 0.6, p: { B: '1 2 3 2 1 2 3 2', C: '1 . 2 . 3 . 2 .' } },
       ],
       dr: {
-        I: { k: 'X.......X.......', s: '............g.xx' },
-        i: { k: 'X.......X.......', s: 'g.g.g.g.x.x.xxXX' },
+        P: { k: 'X.....x...X..x..', s: '....X.......X...', h: 'x.xgx.xgx.xgx.xg', c: '....x.......x...', r: 'x...............' },
+        q: { k: 'X..x..x...X.....', s: '....X.....x.XxXX', h: 'x.x.x.x.x.......', r: '........x.......' },
         A: { k: 'X.....x.X.......', s: '....X.......X...', h: 'x.x.x.x.x.x.x...', o: '..............x.' },
         a: { k: 'X.....x.X.......', s: '....X.......XxXX', h: 'x.x.x.x.x.x.....' },
         B: { k: 'X.......X.....x.', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.' },
@@ -561,7 +565,7 @@ const Snd = (() => {
         if (D[lane].length !== 16) fail(`drum lane ${lane} in bar ${b + 1}`);
         for (let k = 0; k < 16; k++) if (VEL[D[lane][k]]) put(b * 16 + k, { I: lane, f: 0, len: 1, v: VEL[D[lane][k]] });
       }
-      if (S.crash && (b === 0 || U !== up(b - 1))) put(b * 16, { I: 'y', f: 0, len: 1, v: 0.7 });
+      if (S.crash && (b === 0 || U !== up(b - 1)) && !(S.nocrash || '').includes(U)) put(b * 16, { I: 'y', f: 0, len: 1, v: 0.7 });
     }
     return (BUILT[id] = { N, loop, d16: 60 / S.bpm / 4, sw: S.sw || 0, ev, used: [...used] });
   }
@@ -860,12 +864,13 @@ const Snd = (() => {
   }
   function duck(on) { if (fx) fx.duck.gain.setTargetAtTime(on ? 0.35 : 1, ac.currentTime, 0.08); }
 
-  // renders a song offline and measures it, for balancing the mix during development
-  async function render(id, secs, solo) {
+  // renders a song offline and measures it, for balancing the mix during development (raw: hand back the audio)
+  async function render(id, secs, solo, raw) {
     const cx = new OfflineAudioContext(2, Math.ceil(44100 * secs), 44100);
     const P = player(cx, makeFx(cx, cx.destination), id, solo);
     run(P, secs);
     const buf = await cx.startRendering(), d = buf.getChannelData(0);
+    if (raw) return buf;
     let pk = 0, sq = 0;
     for (let i = 0; i < d.length; i++) { pk = Math.max(pk, Math.abs(d[i])); sq += d[i] * d[i]; }
     return { peak: pk, rms: Math.sqrt(sq / d.length) };
