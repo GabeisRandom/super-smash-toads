@@ -282,7 +282,7 @@ function doJump(g, f) {
 }
 
 function startAttack(g, f, kind) {
-  f.st = 'atk'; f.at = kind; f.t = 0; f.hits = {}; f.jbuf = 0;
+  f.st = 'atk'; f.at = kind; f.t = 0; f.hits = {}; f.hitsB = null; f.jbuf = 0;
   // the first up-air of each trip through the air carries you upward: an extra way back to the stage
   if (kind === 'uair' && !f.uaUsed) { f.uaUsed = true; f.vy = Math.min(f.vy, -9.5); f.ff = false; g.ev.push({ t: 'uplift', x: f.x, y: f.y }); }
   if (kind !== 'throw') g.ev.push({ t: 'swing', x: f.x, y: f.y, k: kind, s: SMASHES[kind] ? 1 : 0 });
@@ -297,9 +297,13 @@ function updAttack(g, f, c) {
   else if (c.dirX) f.vx = clamp(f.vx + c.dirX * 0.35, -C.air, C.air);
   if (A.lunge && c.onG && A.hb.length && f.t === A.hb[0].a) f.vx += f.fc * A.lunge;
   const mul = A.smash ? f.chgMul : 1;
-  for (const hb of A.hb) {
-    if (f.t >= hb.a && f.t <= hb.b) hitArea(g, f, hb.x * f.sc, hb.y * f.sc, hb.r * f.sc, hb.d * mul, hb.k * (A.smash ? 0.8 + 0.2 * mul : 1), hb.g, hb.ang, {});
-  }
+  A.hb.forEach((hb, n) => {
+    if (f.t < hb.a || f.t > hb.b) return;
+    // a finisher after a flurry keeps its own hit list, so it still lands on foes the flurry already hit
+    const map = hb.sep ? ((f.hitsB || (f.hitsB = {}))[n] || (f.hitsB[n] = {})) : f.hits;
+    hitArea(g, f, hb.x * f.sc, hb.y * f.sc, hb.r * f.sc, hb.d * mul, hb.k * (A.smash ? 0.8 + 0.2 * mul : 1), hb.g, hb.ang,
+      { map, every: hb.every, frz: hb.frz, psn: hb.psn, stun: hb.stun });
+  });
   if (f.t >= A.dur) { f.at = null; f.chgMul = 1; f.st = c.onG ? 'idle' : 'air'; }
 }
 
@@ -552,7 +556,7 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   const K = (k + v.dm * gr * (0.55 + d / 14)) / wt;
   const lag = Math.floor(3 + d * 0.33);
   if (a && !o.proj) a.hl = Math.max(a.hl, lag);
-  g.ev.push({ t: 'hit', x: v.x, y: v.y - v.h * 0.55, p: Math.round(K), c: a ? a.i : -1 });
+  g.ev.push({ t: 'hit', x: v.x, y: v.y - v.h * 0.55, p: Math.round(K), c: a ? a.i : -1, el: a && !o.proj ? CH[a.ch].elem : undefined });
   if (v.tn) v.tn = 0;
   // super armor: Pickaxe Frenzy and armored charges shrug off lighter hits
   if ((v.pick > 0 && K < 26) || (S && S.armor && K < 40)) { v.hl = lag; return true; }
@@ -732,6 +736,18 @@ function updTrap(g, p) {
       p.hits[v.i] = g.frame;
       applyHit(g, v, own, 3 * p.pm, 2, 0.01, 70, v.x >= p.x ? 1 : -1, { proj: true, daze: 30 });
       g.ev.push({ t: 'soup', x: v.x, y: v.y });
+    }
+    // Light Blue Yoshi's frost patch freezes whoever steps on it, then melts
+    if (p.sub === 'frost') {
+      applyHit(g, v, own, 6 * p.pm, 4, 0.04, 70, v.x >= p.x ? 1 : -1, { proj: true, frz: true });
+      g.ev.push({ t: 'shatter', x: p.x, y: p.y - 10 });
+      return true;
+    }
+    // Purple Yoshi's toxic puddle poisons anyone wading through
+    if (p.sub === 'toxic' && (p.hits[v.i] === undefined || g.frame - p.hits[v.i] > 45)) {
+      p.hits[v.i] = g.frame;
+      applyHit(g, v, own, 3 * p.pm, 3, 0.02, 75, v.x >= p.x ? 1 : -1, { proj: true, psn: true });
+      g.ev.push({ t: 'pop', x: v.x, y: v.y - 10, k: 'psn' });
     }
   }
   return false;
@@ -1001,7 +1017,11 @@ const FSDEF = {
   toad: { k: 'wave', sub: 'toads' }, toadsworth: { k: 'wave', sub: 'guards', both: 1 },
   blue: { k: 'freeze' }, yellow: { k: 'meteor', sub: 'sun', r: 250, d: 36 }, chef: { k: 'meteor', sub: 'cake', r: 210, d: 30, pies: 10 },
   green: { k: 'vortex', sub: 'leaf', move: 3.2, life: 210, r: 230 }, wizard: { k: 'vortex', sub: 'rune', move: 0, life: 170, r: 330 },
-  purple: { k: 'flood' }, toadette: { k: 'burst' }, captain: { k: 'rush' },
+  purple: { k: 'flood' }, toadette: { k: 'burst', crown: 1 }, captain: { k: 'rush' },
+  redyoshi: { k: 'rain', sub: 'fire', n: 18 }, blueyoshi: { k: 'vortex', sub: 'feather', move: 3, life: 200, r: 240 }, yellowyoshi: { k: 'pulses', sub: 'quake' },
+  pinkyoshi: { k: 'burst', sub: 'love' }, iceyoshi: { k: 'freeze', sub: 'blizzard' }, purpleyoshi: { k: 'flood', sub: 'bubble' },
+  blackyoshi: { k: 'clone', sub: 'shadow' }, whiteyoshi: { k: 'beam', sub: 'light' }, orangeyoshi: { k: 'rain', sub: 'melon', n: 14, cols: 1 },
+  babyyoshi: { k: 'wave', sub: 'yoshis' },
   yoshi: { k: 'rain', sub: 'egg', n: 16 }, pirate: { k: 'rain', sub: 'cannon', n: 14, side: 1 }, doctor: { k: 'rain', sub: 'pill', n: 18, cols: 1 },
   ninja: { k: 'clone' }, knight: { k: 'beam' }, astro: { k: 'sweep' }, rocker: { k: 'pulses' },
   cowboy: { k: 'lasso' }, ghost: { k: 'swarm', n: 10 }, robo: { k: 'fist' },
@@ -1018,7 +1038,7 @@ function fsLaunch(g, f) {
     case 'meteor': e.life = 200; e.r = D.r; e.d = D.d; e.pies = D.pies || 0; break;
     case 'vortex': e.life = D.life; e.r = D.r; e.move = D.move; e.y = s.y - 130; if (!D.move) e.x = s.x + s.w / 2; break;
     case 'flood': e.life = 250; e.lv = s.y + 260; break;
-    case 'burst': e.life = 84; break;
+    case 'burst': e.life = 84; e.crown = D.crown || 0; break;
     case 'rush': e.life = 130; break;
     case 'rain': e.life = 240; e.n = D.n; e.cnt = 0; e.side = D.side || 0; e.cols = D.cols || 0; break;
     case 'clone': e.life = 400; break;
@@ -1136,7 +1156,7 @@ const FXU = {
   burst(g, e, own) {
     if (!own) return true;
     e.x = own.x; e.y = own.y - own.h * 0.5;
-    if (e.t === 1) own.pe = 900;
+    if (e.t === 1 && e.crown) own.pe = 900; // only Toadette becomes Peachette
     for (const [t0, r, d, k] of [[10, 150, 9, 8], [40, 235, 10, 9], [70, 340, 15, 13]]) {
       if (e.t !== t0) continue;
       g.ev.push({ t: 'hearts', x: e.x, y: e.y, r });
@@ -1237,7 +1257,7 @@ const FXU = {
     for (const t0 of [22, 52, 82, 112]) {
       if (e.t !== t0) continue;
       const last = t0 === 112;
-      g.ev.push({ t: 'amp', x: e.x, y: e.y, big: 1 });
+      g.ev.push({ t: 'amp', x: e.x, y: e.y, big: 1, sub: e.sub });
       for (const v of fsFoes(g, e)) fsHit(g, e, v, last ? 14 : 6, last ? 13 : 6, last ? 0.18 : 0.04, 50, v.x >= e.x ? 1 : -1);
     }
     return e.t >= 116;
@@ -1384,7 +1404,7 @@ function spSlam(o) {
         f.t2 = 1; f.hits = {};
         const S = o.wave;
         hitArea(g, f, 0, -12, S.r * f.sc, S.d, S.k, S.g, S.ang, { radial: true });
-        g.ev.push({ t: 'boom', x: f.x, y: f.y, s: S.r / 100, star: f.ch === 'yoshi', k: o.ev });
+        g.ev.push({ t: 'boom', x: f.x, y: f.y, s: S.r / 100, star: !!CH[f.ch].yoshi, k: o.ev });
       }
       f.t2++;
       return f.t2 > 14 ? 1 : 0;
@@ -1408,7 +1428,7 @@ function spPulse(o) {
       for (const P of o.at) {
         if (f.t !== P.t) continue;
         f.hits = {};
-        hitArea(g, f, (P.x || 0) * f.sc, -f.h * 0.5, P.r * f.sc, P.d, P.k, P.g, P.ang, { radial: !P.fwd, daze: P.daze, psn: P.psn });
+        hitArea(g, f, (P.x || 0) * f.sc, -f.h * 0.5, P.r * f.sc, P.d, P.k, P.g, P.ang, { radial: !P.fwd, daze: P.daze, psn: P.psn, frz: P.frz });
         if (P.ev) g.ev.push({ t: P.ev, x: f.x + f.fc * (P.x || 0), y: f.y - f.h * 0.5, r: P.r, dir: f.fc });
       }
       return f.t >= (o.end || 30) ? 1 : 0;
@@ -1479,7 +1499,7 @@ function spTether(o) {
         else if (k === 12) {
           const F = o.fin;
           if (F.daze) applyHit(g, v, f, F.d * f.pm, 0.5, 0, 30, f.fc, { daze: F.daze });
-          else applyHit(g, v, f, F.d * f.pm, F.k, F.g, F.ang, F.back ? -f.fc : f.fc, {});
+          else applyHit(g, v, f, F.d * f.pm, F.k, F.g, F.ang, F.back ? -f.fc : f.fc, { psn: F.psn });
         }
         if (k >= 22) { f.ctr = -1; return 1; }
         return 0;
@@ -1884,6 +1904,56 @@ const SP = {
   turbo: spDash({ cd: 40, speed: 12, startup: 6, frames: 20, armor: true, hb: { x: 24, y: 0.5, r: 30, d: 10, k: 8, g: 0.12, ang: 35 }, lag: 14, trail: 'jet' }),
   jetboots: spRise({ vy: 20, hold: 10, end: 22, trail: 'jet', hb: { a: 0, b: 10, y: -0.1, r: 28, d: 6, k: 5, g: 0.07, ang: -60 } }),
   steam: spPulse({ slot: 'd', cd: 60, at: [{ t: 12, r: 92, d: 8, k: 9, g: 0.1, ang: 55, ev: 'steam' }], end: 30 }),
+  // --- Red Yoshi: fire ---
+  firespit: spShot({ cd: 22, at: 7, end: 18, ev: 'flame', p: { k: 'fire', vx: 10, vy: 0, grav: 0, d: 7, kb: 5, gr: 0.07, ang: 40, r: 13, life: 70, ghost: 1 } }),
+  flamerush: spDash({ cd: 36, speed: 12.5, startup: 4, frames: 16, hb: { x: 22, y: 0.5, r: 28, d: 3, k: 2, g: 0.01, ang: 50, every: 4 }, fin: { x: 30, d: 7, k: 8, g: 0.12, ang: 40 }, lag: 10, trail: 'flame' }),
+  blazejump: spRise({ vy: 18, hold: 4, end: 26, trail: 'flame', hb: { a: 0, b: 12, y: 0.3, r: 32, d: 8, k: 6, g: 0.1, ang: 80 } }),
+  magmapound: spSlam({ fallV: 22, dive: { d: 12, k: 5, g: 0.12, ang: -75 }, wave: { r: 96, d: 10, k: 8, g: 0.1, ang: 60 }, ev: 'fire' }),
+  // --- Blue Yoshi: wings and wind ---
+  gust: spShot({ cd: 30, at: 8, end: 20, ev: 'gustfx', p: { k: 'gust', vx: 8.5, d: 3, kb: 9, gr: 0.06, ang: 25, r: 24, life: 60, pierce: 1, every: 30, ghost: 1 } }),
+  swoop: spDash({ cd: 34, speed: 12, startup: 4, frames: 18, hop: 6, arc: true, hb: { x: 20, y: 0.5, r: 28, d: 9, k: 7, g: 0.11, ang: 40 }, lag: 10, trail: 'gustfx' }),
+  wingflight: spFloat({ frames: 84, rise: 5.2, drift: 6.5, ev: 'gustfx' }),
+  divebomb: spSlam({ fallV: 25, dive: { d: 12, k: 5, g: 0.12, ang: -70 }, wave: { r: 84, d: 8, k: 7, g: 0.1, ang: 55 } }),
+  // --- Yellow Yoshi: rock and quakes ---
+  rockspit: spShot({ cd: 34, at: 9, end: 22, p: { k: 'rock', vx: 8, vy: -4, grav: 0.45, bounce: 4, bounces: 1, d: 10, kb: 7, gr: 0.1, ang: 45, r: 15, life: 120 } }),
+  stampede: spDash({ cd: 40, speed: 9.5, startup: 6, frames: 22, armor: true, hb: { x: 28, y: 0.45, r: 30, d: 12, k: 8, g: 0.13, ang: 35 }, lag: 14, trail: 'dust' }),
+  springjump: spRise({ vy: 21, end: 26, drift: 4.5, hb: { a: 0, b: 10, y: 1.0, r: 28, d: 8, k: 6, g: 0.1, ang: 88 } }),
+  quakestomp: spSlam({ fallV: 22, dive: { d: 10, k: 5, g: 0.11, ang: -75 }, wave: { r: 130, d: 9, k: 9, g: 0.11, ang: 70 }, ev: 'quake' }),
+  // --- Pink Yoshi: love ---
+  heartkiss: spShot({ cd: 40, at: 10, end: 22, ev: 'sparkle', p: { k: 'heart', vx: 4.5, home: 0.15, vmax: 5, d: 4, kb: 1, gr: 0, ang: 40, r: 16, life: 150, ghost: 1, daze: 55 } }),
+  cartwheel: spDash({ cd: 30, speed: 10, startup: 3, frames: 18, hb: { x: 0, y: 0.5, r: 32, d: 3, k: 2, g: 0.01, ang: 60, every: 5 }, fin: { x: 26, d: 6, k: 8, g: 0.12, ang: 45 }, lag: 10 }),
+  heartfloat: spFloat({ frames: 66, rise: 4.6, drift: 5.5, ev: 'heartfx' }),
+  sweetcounter: spCounter({ win: 30, d: 11, k: 8, ang: 40 }),
+  // --- Light Blue Yoshi: ice ---
+  frostbreath: spPulse({ slot: 'n', cd: 34, ev: 'frostfx', at: [{ t: 8, x: 44, r: 34, d: 3, k: 2, g: 0.02, ang: 40, fwd: 1 }, { t: 14, x: 52, r: 36, d: 5, k: 5, g: 0.06, ang: 40, fwd: 1, frz: 1 }], end: 26 }),
+  iceskate: spDash({ cd: 34, speed: 13, startup: 3, frames: 20, hb: { x: 20, y: 0.3, r: 26, d: 7, k: 6, g: 0.09, ang: 40, frz: true }, lag: 10, trail: 'icetrail' }),
+  snowtwirl: spRise({ vy: 15, hold: 8, end: 30, drift: 5.5, trail: 'frostfx', hb: { a: 2, b: 22, y: 0.5, r: 38, d: 2, k: 2, g: 0.01, ang: 80, every: 5 }, fin: { at: 24, r: 42, d: 5, k: 7, g: 0.11, ang: 75 } }),
+  frostpatch: spTrap({ sub: 'frost', life: 420, r: 44, cd: 180, at: 12, ox: 46 }),
+  // --- Purple Yoshi: poison ---
+  sporespit: spShot({ cd: 36, at: 9, end: 20, p: { k: 'bubble', vx: 5, vy: -1, home: 0.08, vmax: 5, d: 5, kb: 4, gr: 0.05, ang: 50, r: 16, life: 140, ghost: 1, psn: true } }),
+  venomlash: spTether({ cd: 40, range: 130, a: 9, b: 15, ledge: 160, fin: { d: 8, k: 7, g: 0.11, ang: 40, psn: true } }),
+  bubblelift: spFloat({ frames: 72, rise: 4.4, drift: 5.5, ig: 16, ev: 'bubblefx' }),
+  toxicpuddle: spTrap({ sub: 'toxic', life: 420, r: 46, cd: 200, at: 12, ox: 44 }),
+  // --- Black Yoshi: shadow ---
+  shadowball: spShot({ cd: 40, at: 12, end: 24, ev: 'magic', p: { k: 'shade', vx: 6, home: 0.25, vmax: 7, d: 9, kb: 7, gr: 0.1, ang: 45, r: 16, life: 130, ghost: 1 } }),
+  nightdash: spDash({ cd: 40, speed: 15, startup: 3, frames: 12, intang: true, hb: { x: 0, y: 0.5, r: 32, d: 10, k: 8, g: 0.12, ang: 40 }, lag: 12, ev: 'poof' }),
+  shadowleap: spBlink({ up: true, dx: 120, dy: 210, at: 8, end: 18, puff: 'smoke' }),
+  heavystomp: spSlam({ fallV: 24, dive: { d: 15, k: 6, g: 0.14, ang: -80 }, wave: { r: 100, d: 12, k: 9, g: 0.12, ang: 60 } }),
+  // --- White Yoshi: light ---
+  lightbolt: spShot({ cd: 16, at: 6, end: 16, ev: 'laser', p: { k: 'lightbolt', vx: 16, d: 4, kb: 3, gr: 0.03, ang: 25, r: 10, life: 44, ghost: 1 } }),
+  angeldash: spDash({ cd: 34, speed: 12, startup: 3, frames: 16, reflect: true, hb: { x: 22, y: 0.5, r: 28, d: 8, k: 7, g: 0.1, ang: 40 }, lag: 10, trail: 'sparkle' }),
+  halorise: spRise({ vy: 17, hold: 6, end: 28, drift: 6, trail: 'sparkle', hb: { a: 0, b: 14, y: 0.8, r: 32, d: 7, k: 6, g: 0.1, ang: 85 } }),
+  holyshine: spPulse({ slot: 'd', cd: 50, reflect: [2, 22], at: [{ t: 8, r: 64, d: 7, k: 8, g: 0.1, ang: 60, ev: 'zap' }], end: 26 }),
+  // --- Orange Yoshi: fruit ---
+  seedspit: spShot({ cd: 18, at: 5, end: 16, shots: [-0.8, 0, 0.8].map(vy => ({ k: 'seed', vx: 12, vy, grav: 0.05, d: 2.5, kb: 2, gr: 0.02, ang: 30, r: 8, life: 42 })) }),
+  fruitroll: spDash({ cd: 34, speed: 11, startup: 5, frames: 18, hb: { x: 18, y: 0.35, r: 30, d: 9, k: 7, g: 0.11, ang: 40 }, lag: 12, trail: 'dust' }),
+  melonhop: spRise({ vy: 17, hold: 5, end: 28, drift: 5.5, hb: { a: 0, b: 10, y: 0.9, r: 30, d: 7, k: 6, g: 0.1, ang: 85 } }),
+  fruitbomb: spShot({ slot: 'd', cd: 60, at: 10, end: 24, p: { k: 'melon', vx: 6, vy: -7, grav: 0.45, d: 9, kb: 7, gr: 0.1, ang: 50, r: 18, life: 150, explode: { r: 64, d: 8, k: 8, g: 0.1 } } }),
+  // --- Baby Yoshi ---
+  gobble: spTether({ slot: 'n', cd: 30, range: 56, a: 6, b: 10, fin: { d: 9, k: 8, g: 0.12, ang: 40 } }),
+  babyroll: spDash({ cd: 28, speed: 10.5, startup: 3, frames: 16, hb: { x: 14, y: 0.3, r: 26, d: 7, k: 6, g: 0.09, ang: 40 }, lag: 8, trail: 'dust' }),
+  babyflutter: spFloat({ frames: 52, rise: 5.2, drift: 6, ev: 'sparkle' }),
+  tantrum: spPulse({ slot: 'd', cd: 40, at: [{ t: 6, r: 40, d: 3, k: 3, g: 0.02, ang: 60 }, { t: 14, r: 44, d: 3, k: 3, g: 0.02, ang: 60 }, { t: 22, r: 50, d: 6, k: 8, g: 0.11, ang: 55 }], end: 32 }),
   // --- the Smash Mushroom finale (every fighter; see FSDEF) ---
   fs: {
     fall: 2,
@@ -1901,7 +1971,7 @@ const SP = {
 
 // ---------- Snapshots (host -> clients) ----------
 const FKEYS = ['i', 'ch', 'nm', 'tag', 'fc', 'st', 't', 'at', 'sp', 'sk', 'h', 'w', 'inv', 'star', 'pe', 'frz', 'psn', 'pick', 'hold',
-  'shd', 'glide', 'rp', 'hs', 'gi', 'out', 'big', 'small', 'ctrT', 'ctr', 'lx', 'kos', 'falls', 'fs', 'fsLock', 'tn', 'chg', 'prT', 'ig', 'hide', 'boostT'];
+  'shd', 'glide', 'rp', 'hs', 'gi', 'out', 'big', 'small', 'ctrT', 'ctr', 'lx', 'kos', 'falls', 'fs', 'fsLock', 'tn', 'chg', 'prT', 'ig', 'hide', 'boostT', 'jl'];
 const r1 = v => Math.round(v * 10) / 10;
 function snapshot(g, ev) {
   const Hz = g.haz;

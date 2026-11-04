@@ -35,8 +35,9 @@ const V3D = (() => {
 
   // ---------- world ----------
   const PSCALE = { turnip: 2.4, bomb: 1.9, ice: 1.9, fire: 1.9, boom: 2.3, psn: 1.5, egg: 2.1, coin: 2.2,
-    cannon: 2.6, shuriken: 1.8, pancake: 2.2, star: 1.4, laser: 1.5, pill: 2.2, cork: 2.0, tumble: 2.1, boo: 2.2, fist: 2.4, pie: 2.3 };
-  const FSDROP = { egg: 3.8, cannon: 3.6, pill: 3.4 };
+    cannon: 2.6, shuriken: 1.8, pancake: 2.2, star: 1.4, laser: 1.5, pill: 2.2, cork: 2.0, tumble: 2.1, boo: 2.2, fist: 2.4, pie: 2.3,
+    gust: 2.4, rock: 2.2, heart: 2.4, bubble: 2.4, shade: 2.6, lightbolt: 2.0, seed: 2.6, melon: 2.4 };
+  const FSDROP = { egg: 3.8, cannon: 3.6, pill: 3.4, fire: 4.4, melon: 3.4 };
   const fighterOf = (view, i) => (view.fighters || []).find(f => f.i === i);
   const clamp01 = x => (x < 0 ? 0 : x > 1 ? 1 : x);
   // a mesh drawn s times larger keeps the same ink-line width as everything else
@@ -47,6 +48,9 @@ const V3D = (() => {
       const T = M3D.TRAP[p.sub]; if (!T) return;
       if (p.sub === 'soup') G3.draw(T, M4.chain(M4.T(X, Y, 0.35), M4.S(1.26, 1.26, 1.26)), ink(1.26));
       else if (p.sub === 'rune') G3.draw(T, M4.chain(M4.T(X, Y + 0.02, 0.35), M4.RY(fr * 0.03), M4.S(1.06, 1.06, 1.06)), { self: 0.55 + 0.35 * Math.sin(fr * 0.15) });
+      // Light Blue Yoshi's frost patch glints; Purple Yoshi's toxic puddle bubbles
+      else if (p.sub === 'frost') G3.draw(T, M4.chain(M4.T(X, Y + 0.02, 0.35), M4.S(1.3, 1.3, 1.3)), ink(1.3, { self: 0.25 + 0.15 * Math.sin(fr * 0.12) }));
+      else if (p.sub === 'toxic') G3.draw(T, M4.chain(M4.T(X, Y + 0.02, 0.35), M4.S(1.3, 1.3 * (1 + 0.12 * Math.sin(t * 0.3)), 1.3)), ink(1.3, { self: 0.15 }));
       else {
         // the amp thumps on each of its three pulses
         const pump = 1 + [20, 50, 80].reduce((a, t0) => a + Math.max(0, 1 - Math.abs(t - t0) / 5) * 0.14, 0);
@@ -56,7 +60,9 @@ const V3D = (() => {
     }
     if (p.k === 'fsdrop') {
       const s = FSDROP[p.sub] || 3.5;
-      G3.draw(P[p.sub] || P.egg, M4.chain(M4.T(X, Y, 0.4), M4.RZ(-t * 0.12 * dir), M4.S(s, s, s)), ink(s, p.sub === 'pill' ? { self: 0.15 } : null));
+      G3.draw(P[p.sub] || P.egg, M4.chain(M4.T(X, Y, 0.4), M4.RZ(-t * 0.12 * dir), M4.S(s, s, s)), ink(s, p.sub === 'pill' ? { self: 0.15 } : p.sub === 'fire' ? { self: 1 } : null));
+      // Volcano Rain: each fireball trails flames
+      if (p.sub === 'fire') G3.draw(M3D.PROPS.flame, M4.chain(M4.T(X, Y + 0.5, 0.4), M4.RZ(Math.PI), M4.S(2.6, 2.2 + Math.random() * 0.8, 2.6)), { self: 1 });
       return;
     }
     if (p.k === 'haze') {
@@ -72,7 +78,20 @@ const V3D = (() => {
       case 'boom': R = M4.RZ(t * 0.5); break;
       case 'egg': case 'bomb': case 'tumble': case 'pie': R = M4.RZ(-t * 0.2 * dir); break;
       case 'coin': R = M4.RY(t * 0.3); break;
-      case 'fire': o = { self: 1 }; break;
+      case 'fire':
+        o = { self: 1 };
+        G3.draw(M3D.PROPS.flame, M4.chain(M4.T(X - dir * 0.2, Y, 0.3), M4.RZ(dir > 0 ? -Math.PI / 2 : Math.PI / 2), M4.S(0.9, 0.7 + Math.random() * 0.4, 0.9)), { self: 1 });
+        break;
+      // the Yoshi clan's shots
+      case 'gust': R = M4.RZ(t * 0.35 * dir); o = { alpha: 0.8, self: 0.4 }; break;
+      case 'rock': case 'melon': R = M4.RZ(-t * 0.22 * dir); break;
+      case 'heart': R = M4.RZ(Math.sin(t * 0.2) * 0.25); s *= 1 + 0.08 * Math.sin(t * 0.4); o = { self: 0.35 }; break;
+      case 'bubble': dy = Math.sin(t * 0.2) * 0.08; o = { alpha: 0.65, self: 0.35 }; break;
+      case 'shade':
+        R = M4.RZ(t * 0.1); o = { self: 0.2 };
+        G3.draw(P.ball, M4.chain(M4.T(X, Y, 0.3), M4.S(0.85, 0.85, 0.85)), { alpha: 0.22 + 0.08 * Math.sin(t * 0.3), tint: [0.35, 0.2, 0.55, 0.9], self: 0.3 });
+        break;
+      case 'lightbolt': R = M4.RY(dir > 0 ? 0 : Math.PI); o = { self: 1 }; break;
       case 'shuriken': R = M4.RZ(t * 0.9 * dir); break;
       case 'pancake': case 'pill': R = M4.RZ(-t * 0.3 * dir); break;
       case 'star': R = M4.RZ(t * 0.15); dy = -0.42 * s; o = { self: 0.75 }; break;
@@ -121,8 +140,10 @@ const V3D = (() => {
         const R = (e.r || 230) * PX;
         if (e.sub === 'rune') G3.draw(M3D.TRAP.rune, M4.chain(M4.T(X, Y, -1.0), M4.RX(Math.PI / 2), M4.RY(fr * 0.04), M4.S(R * 0.7, R * 0.7, R * 0.7)), { self: 1 });
         else for (let q = 0; q < 26; q++) {
+          // Leaf Storm whirls leaves; Blue Yoshi's Feather Cyclone whirls feathers
           const a = fr * 0.13 + q * 0.83, rr = R * (0.22 + ((q * 37) % 26) / 26 * 0.75), h = (((q * 53) % 20) - 10) * 0.045 * R;
-          G3.draw(F.leaf, M4.chain(M4.T(X + Math.cos(a) * rr, Y + h * 0.5 + Math.sin(a * 0.5) * 0.3, Math.sin(a) * rr * 0.45), M4.RY(a), M4.RZ(a * 2), M4.S(1.7, 1.7, 1.7)), ink(1.7));
+          const fe = e.sub === 'feather';
+          G3.draw(fe ? F.feather : F.leaf, M4.chain(M4.T(X + Math.cos(a) * rr, Y + h * 0.5 + Math.sin(a * 0.5) * 0.3, Math.sin(a) * rr * 0.45), M4.RY(a), M4.RZ(a * 2), M4.S(1.7, 1.7, 1.7)), fe ? { ink: false, self: 0.45 } : ink(1.7));
         }
         break;
       }
@@ -143,6 +164,18 @@ const V3D = (() => {
       } break;
       case 'pulses': {
         const own = fighterOf(view, e.o); if (!own) break;
+        if (e.sub === 'quake') {
+          // Mega Quake: every stomp throws boulders up out of the ground all along the stage
+          const gy = -s0.y * PX;
+          for (const t0 of [22, 52, 82, 112]) {
+            const q = (e.t - t0) / 18; if (q < 0 || q > 1) continue;
+            for (let n = 0; n < 9; n++) {
+              const x = (s0.x + 40 + ((n * 131 + t0 * 7) % (s0.w - 80))) * PX, h = 4 * q * (1 - q) * (1.6 + (n % 3) * 0.7), sc = 2.6 + (n % 2) * 1.2;
+              G3.draw(M3D.PROJ.rock, M4.chain(M4.T(x, gy + h, 0.2 + (n % 3) * 0.35), M4.RZ(q * 4 + n), M4.S(sc, sc, sc)), ink(sc));
+            }
+          }
+          break;
+        }
         const pump = 1 + [22, 52, 82, 112].reduce((a, t0) => a + Math.max(0, 1 - Math.abs(e.t - t0) / 6) * 0.15, 0);
         for (const [dx, dz, sc] of [[-1.7, -1.3, 1.5], [1.7, -1.3, 1.5], [0, -1.8, 1.9]]) G3.draw(M3D.TRAP.amp, M4.chain(M4.T(own.x * PX + dx, -own.y * PX, dz), M4.S(sc, sc * pump, sc)), ink(sc));
         break;
@@ -322,14 +355,7 @@ const V3D = (() => {
         const A = ATK[f.ch] && ATK[f.ch][f.at];
         if (A && A.fx !== 'tongue') for (const hb of A.hb) {
           if (f.t < hb.a - 1 || f.t > hb.b + 3) continue;
-          const k = Math.min(1, Math.max(0, (f.t - hb.a + 1) / (hb.b - hb.a + 4))), x = f.x + hb.x * f.fc * sc, y = f.y + hb.y * sc, r = hb.r * sc, d = Math.hypot(x - cx, y - cy);
-          c.save(); c.globalAlpha = 0.9 * (1 - k * 0.6); c.lineCap = 'round';
-          pshadow(c, s => {
-            c.strokeStyle = s || (A.smash ? '#fff2a0' : CH[f.ch].swoosh || '#ffffff');
-            if (d < 12 || A.fx === 'spin') { c.lineWidth = 6; c.beginPath(); c.arc(cx, cy, r, k * 6, k * 6 + 4.2); c.stroke(); }
-            else { const ang = Math.atan2(y - cy, x - cx); c.lineWidth = r * (A.smash ? 0.6 : 0.45); c.beginPath(); c.arc(cx, cy, d, ang - 0.75, ang + 0.75); c.stroke(); }
-          });
-          c.restore();
+          swoosh(c, f, A, hb, sc, cx, cy);
         }
       }
     }
@@ -386,12 +412,79 @@ const V3D = (() => {
         }
         case 'clone': if (e.vic) for (const i of e.vic) {
           const v = fighterOf(view, i); if (!v || (e.t - 1) % 14 > 6) continue;
-          c.save(); c.globalAlpha = 0.85; c.strokeStyle = '#b8b8ff'; c.lineWidth = 5; c.lineCap = 'round';
+          c.save(); c.globalAlpha = 0.85; c.strokeStyle = e.sub === 'shadow' ? '#ff5a7a' : '#b8b8ff'; c.lineWidth = 5; c.lineCap = 'round';
           const x = v.x, y = v.y - v.h * 0.5; c.beginPath(); c.moveTo(x - 30, y - 30); c.lineTo(x + 30, y + 30); c.moveTo(x + 30, y - 30); c.lineTo(x - 30, y + 30); c.stroke(); c.restore();
         } break;
         case 'freeze': for (let k = 0; k < 18; k++) { const x = -700 + ((k * 151 + fr * 1.2) % 1400), y = -620 + ((k * 89 + fr * 2.2) % 760); paperStar(c, x, y, 5, '#e8fbff', '#bfeeff', fr * 0.02 + k); } break;
       }
     }
+  }
+  // every move template leaves its own trail, in the fighter's element colours; a finisher after a flurry bursts
+  function swoosh(c, f, A, hb, sc, cx, cy) {
+    const fc = f.fc || 1, k = clamp01((f.t - hb.a + 1) / (hb.b - hb.a + 4)), x = f.x + hb.x * fc * sc, y = f.y + hb.y * sc, r = hb.r * sc, d = Math.hypot(x - cx, y - cy);
+    const C = CH[f.ch], E = ELEM_COL[C.elem], main = E ? E[0] : C.swoosh || '#ffffff', acc = E ? E[1] : '#fff2a0';
+    const col = A.smash ? acc : main, blade = C.style === 'blade', fx = hb.sep ? 'burst' : A.fx;
+    c.save(); c.globalAlpha = 0.9 * (1 - k * 0.6); c.lineCap = 'round'; c.lineJoin = 'round';
+    switch (fx) {
+      case 'stab': // a straight thrust with a sharp tip
+        pshadow(c, s => {
+          c.strokeStyle = s || col; c.lineWidth = Math.max(4, r * 0.32);
+          c.beginPath(); c.moveTo(cx + fc * 12 * sc, y); c.lineTo(x + fc * r * 0.7, y); c.stroke();
+          c.fillStyle = s || main; c.beginPath(); c.moveTo(x + fc * r * 1.25, y); c.lineTo(x + fc * r * 0.45, y - r * 0.32); c.lineTo(x + fc * r * 0.45, y + r * 0.32); c.closePath(); c.fill();
+        });
+        break;
+      case 'ring': // a ring that swells outward
+        pshadow(c, s => { c.strokeStyle = s || col; c.lineWidth = 7 * (1 - k) + 2; c.beginPath(); c.arc(x, y, r * (0.45 + k * 0.75), 0, Math.PI * 2); c.stroke(); });
+        if (k < 0.8) { c.strokeStyle = main; c.lineWidth = 2; c.beginPath(); c.arc(x, y, r * (0.25 + k * 0.5), 0, Math.PI * 2); c.stroke(); }
+        break;
+      case 'burst': // rays burst from the hit point
+        for (let n = 0; n < 8; n++) {
+          const a = n * 0.785 + f.t * 0.12, L0 = r * (0.2 + k * 0.3), L1 = r * (0.65 + k * 0.6);
+          pshadow(c, s => { c.strokeStyle = s || (n % 2 ? main : col); c.lineWidth = n % 2 ? 3 : 5; c.beginPath(); c.moveTo(x + Math.cos(a) * L0, y + Math.sin(a) * L0); c.lineTo(x + Math.cos(a) * L1, y + Math.sin(a) * L1); c.stroke(); });
+        }
+        break;
+      case 'flurry': // a blur of fists hammering away
+        for (let n = 0; n < 3; n++) {
+          const q = ((f.t * 5 + n * 7) % 9) / 9, px = x - fc * (1 - q) * r * 0.8, py = y + (n - 1) * r * 0.45;
+          pshadow(c, s => { c.strokeStyle = s || (n === 1 ? col : main); c.lineWidth = 4; c.beginPath(); c.moveTo(px - fc * r * 0.6, py); c.lineTo(px, py); c.stroke(); c.fillStyle = s || main; c.beginPath(); c.arc(px, py, r * 0.22, 0, Math.PI * 2); c.fill(); });
+        }
+        break;
+      case 'kick': { // a crescent where the foot swings through, with an impact star
+        const ang = Math.atan2(y - cy, x - cx), rr = Math.max(d, r * 0.8);
+        pshadow(c, s => { c.strokeStyle = s || col; c.lineWidth = r * 0.42; c.beginPath(); c.arc(cx, cy, rr, ang - 0.35 - k * 0.7, ang + 0.35); c.stroke(); });
+        if (k < 0.6) paperStar(c, x, y, r * 0.35 * (1 - k) + 2, main, acc, f.t * 0.3);
+        break;
+      }
+      case 'chomp': { // jaws snapping shut on the spot
+        const open = r * 0.55 * (1 - k);
+        for (const sg of [-1, 1]) pshadow(c, s => {
+          c.strokeStyle = s || col; c.lineWidth = 4; c.beginPath();
+          for (let n = 0; n <= 4; n++) { const px = x - r * 0.6 + n * r * 0.3, py = y + sg * (open + (n % 2 ? 0 : r * 0.22)); if (n === 0) c.moveTo(px, py); else c.lineTo(px, py); }
+          c.stroke();
+        });
+        break;
+      }
+      case 'stomp': // impact lines under the feet
+        pshadow(c, s => {
+          c.strokeStyle = s || col; c.lineWidth = 4;
+          for (const sg of [-1, 0, 1]) { c.beginPath(); c.moveTo(x + sg * r * 0.55, y - r * 0.5); c.lineTo(x + sg * r * 0.8, y + r * (0.3 + k * 0.4)); c.stroke(); }
+          c.lineWidth = 3; c.beginPath(); c.ellipse(x, y + r * 0.35, r * (0.5 + k * 0.6), r * 0.18, 0, 0, Math.PI * 2); c.stroke();
+        });
+        break;
+      case 'spin': { // a full circle around the body
+        const rr = Math.max(r, d);
+        pshadow(c, s => { c.strokeStyle = s || col; c.lineWidth = 6; c.beginPath(); c.arc(cx, cy, rr, k * 6, k * 6 + 4.2); c.stroke(); });
+        c.strokeStyle = main; c.lineWidth = 2; c.beginPath(); c.arc(cx, cy, rr * 0.78, k * 6 + 0.5, k * 6 + 3.4); c.stroke();
+        break;
+      }
+      default: { // arc / pick: a crescent through the hit point; blades leave a long, thin trail
+        if (d < 12) { pshadow(c, s => { c.strokeStyle = s || col; c.lineWidth = 6; c.beginPath(); c.arc(cx, cy, r, k * 6, k * 6 + 4.2); c.stroke(); }); break; }
+        const ang = Math.atan2(y - cy, x - cx), sw = blade ? 1.05 : 0.75;
+        pshadow(c, s => { c.strokeStyle = s || col; c.lineWidth = r * (blade ? 0.3 : A.smash ? 0.6 : 0.45); c.beginPath(); c.arc(cx, cy, d, ang - sw, ang + sw); c.stroke(); });
+        if (blade || A.smash) { c.strokeStyle = blade ? '#ffffff' : main; c.lineWidth = 2; c.beginPath(); c.arc(cx, cy, d + r * 0.12, ang - sw * 0.85, ang + sw * 0.85); c.stroke(); }
+      }
+    }
+    c.restore();
   }
   const TETHER = { canehook: { range: 84, a: 9, b: 13, col: '#8a5326', w: 5, end: 'hook' }, bandage: { range: 62, a: 8, b: 13, col: '#fbfbf6', w: 7, end: 'wrap' }, lasso: { range: 150, a: 10, b: 16, col: '#c8a060', w: 3, end: 'loop' } };
   function paperRope(c, x0, y0, x1, y1, col, w, end) {
@@ -428,7 +521,11 @@ const V3D = (() => {
       c.save(); c.globalAlpha = Math.min(1, k * 1.5);
       switch (p.type) {
         case 'dot': { const s = p.size * (0.6 + k * 0.6); c.translate(p.x, p.y); c.rotate(p.life * 0.3); c.fillStyle = 'rgba(58,36,20,.25)'; c.fillRect(-s / 2 + 1, -s / 2 + 1.5, s, s * 0.7); c.fillStyle = p.color; c.fillRect(-s / 2, -s / 2, s, s * 0.7); break; }
-        case 'puff': { const s = p.size * (1.5 - k * 0.5); c.fillStyle = 'rgba(255,250,240,.85)'; c.beginPath(); for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; c.lineTo(p.x + Math.cos(a) * s, p.y + Math.sin(a) * s); } c.fill(); break; }
+        case 'puff': { const s = p.size * (1.5 - k * 0.5); c.fillStyle = p.tint || 'rgba(255,250,240,.85)'; c.beginPath(); for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; c.lineTo(p.x + Math.cos(a) * s, p.y + Math.sin(a) * s); } c.fill(); break; }
+        // element particles: bubbles, snowflakes, music notes
+        case 'bubble': { const s = p.size * (0.8 + (1 - k) * 0.5); c.strokeStyle = p.color; c.lineWidth = 2; c.beginPath(); c.arc(p.x, p.y, s, 0, Math.PI * 2); c.stroke(); c.fillStyle = 'rgba(255,255,255,.8)'; c.beginPath(); c.arc(p.x - s * 0.35, p.y - s * 0.35, s * 0.25, 0, Math.PI * 2); c.fill(); break; }
+        case 'flake': { const s = p.size; c.translate(p.x, p.y); c.rotate(p.life * 0.08); c.strokeStyle = p.color; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath(); for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI; c.moveTo(Math.cos(a) * s, Math.sin(a) * s); c.lineTo(-Math.cos(a) * s, -Math.sin(a) * s); } c.stroke(); break; }
+        case 'note': { c.font = `${p.size * 3}px ${FONT}`; c.textAlign = 'center'; c.lineJoin = 'round'; c.strokeStyle = INKC; c.lineWidth = 3; c.strokeText('♪', p.x, p.y); c.fillStyle = p.color; c.fillText('♪', p.x, p.y); break; }
         case 'spark': { const L = Math.hypot(p.vx, p.vy) * 3 + 2, a = Math.atan2(p.vy, p.vx), w = p.size * k * 0.8; c.translate(p.x, p.y); c.rotate(a); c.fillStyle = 'rgba(58,36,20,.3)'; c.beginPath(); c.moveTo(1, 1.5 - w); c.lineTo(-L + 1, 1.5); c.lineTo(1, 1.5 + w); c.fill(); c.fillStyle = p.color; c.beginPath(); c.moveTo(0, -w); c.lineTo(-L, 0); c.lineTo(0, w); c.fill(); break; }
         case 'ring': paperRing(c, p.x, p.y, p.size * (1 - k) + 6, p.color, 3 * k + 1.5); break;
         case 'star': paperStar(c, p.x, p.y, p.size, p.color, shade(p.color.startsWith('#') ? p.color : '#ffe066', 0.8), p.life * 0.2); break;

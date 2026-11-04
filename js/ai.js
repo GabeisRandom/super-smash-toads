@@ -1,11 +1,13 @@
 'use strict';
 // ===== CPU Toads =====
 // side specials that travel, handy for getting back to the stage
-const AI_DASH = { toaddash: 1, iceslide: 1, firedash: 1, cutlass: 1, shadowdash: 1, lance: 1, jetdash: 1, turbo: 1, phase: 1, stagedive: 1 };
+const AI_DASH = { toaddash: 1, iceslide: 1, firedash: 1, cutlass: 1, shadowdash: 1, lance: 1, jetdash: 1, turbo: 1, phase: 1, stagedive: 1,
+  flamerush: 1, swoop: 1, stampede: 1, cartwheel: 1, iceskate: 1, nightdash: 1, angeldash: 1, fruitroll: 1, babyroll: 1 };
 // fighters whose neutral special is a projectile worth throwing from range
-const AI_SHOOT = { turnip: 1, iceball: 1, fireball: 1, boomerang: 1, poison: 1, turnips: 1, egg: 1, cannon: 1, shuriken: 1, pancake: 1, starbolt: 1, raygun: 1, vitamin: 1, powerchord: 1, cork: 1, boo: 1, rocketfist: 1 };
+const AI_SHOOT = { turnip: 1, iceball: 1, fireball: 1, boomerang: 1, poison: 1, turnips: 1, egg: 1, cannon: 1, shuriken: 1, pancake: 1, starbolt: 1, raygun: 1, vitamin: 1, powerchord: 1, cork: 1, boo: 1, rocketfist: 1,
+  firespit: 1, gust: 1, rockspit: 1, heartkiss: 1, sporespit: 1, shadowball: 1, lightbolt: 1, seedspit: 1 };
 // side specials that can hook the ledge from this far away (px)
-const AI_TETHER = { lasso: 160, canehook: 105 };
+const AI_TETHER = { lasso: 160, canehook: 105, venomlash: 140 };
 // finales that reach most of the stage, fine to fire right away
 const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1 };
 
@@ -42,7 +44,9 @@ function aiBits(g, f) {
     if (f.st !== 'air') return out(b);
     // a jump takes two frames to leave the ground; pressing anything else meanwhile would cancel it
     if (a.jw > 0) { a.jw--; return out(b); }
-    const gap = f.x < L ? L - f.x : f.x - R, below = f.y - T, outside = f.x > R + 8 || f.x < L - 8;
+    // below the top, a fighter only rises past the ledge once its whole body is clear of the stage's side;
+    // any closer and it bonks its head on the underside
+    const gap = f.x < L ? L - f.x : f.x - R, below = f.y - T, outside = below < 20 ? f.x > R + 8 || f.x < L - 8 : gap > f.w / 2 + 4;
     // press a button combo cleanly: if any of it is still held from last frame, let go first
     const press = m => {
       if (a.prev & m) return out(b);

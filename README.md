@@ -1,6 +1,6 @@
 # Super Smash Toads
 
-A free, fan-made **platform fighter** you play right in your web browser. Twenty fighters, nineteen Toads plus Yoshi, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
+A free, fan-made **platform fighter** you play right in your web browser. Thirty fighters, nineteen Toads and eleven Yoshis, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
 
 ### ▶ [Play now in your browser](https://gabeisrandom.github.io/super-smash-toads/)
 
@@ -29,7 +29,13 @@ Every hit raises a fighter's damage **%**, and the higher it gets, the farther t
 - **Parry:** press Guard just before a hit lands to cancel it and stun the attacker.
 - **Dodge:** hold Guard and tap a direction to roll, or press Guard in the air to air-dodge.
 - **Taunts:** Booty Shake, Laugh, Yawn and Backflip.
-- **Getting back to the stage:** jump again in the air, then press Up + Attack for a lift (once per trip). Press Jump while touching the side of the stage to wall-jump, then use your up special. Ledges grab themselves, even while you're rising. Getting hit gives all your jumps back. Cowboy Toad's lasso and Toadsworth's cane can hook a ledge from a distance.
+- **Getting back to the stage:** jump again in the air, then press Up + Attack for a lift (once per trip). Press Jump while touching the side of the stage to wall-jump, then use your up special. Ledges grab themselves, even while you're rising. Getting hit gives all your jumps back. Cowboy Toad's lasso, Toadsworth's cane and Purple Yoshi's Venom Lash can hook a ledge from a distance.
+
+## Every fighter fights differently
+
+- **Their own moves:** each fighter has their own set of normal attacks, built from about 60 different moves: punches, flurries, drop kicks, sword slashes and thrusts, tail whips, tongue lashes, head bonks, energy palms, drills, geysers and more. Every move has its own animation and its own swoosh.
+- **Elements:** every fighter's hits carry an element you can see (and sometimes feel). Fire hits hit harder, Ice smash attacks freeze, Poison smashes and combo finishers poison, Electric hits shock, Wind sends foes flying flatter and farther, Rock smash attacks are heavier, Music gives longer reach, Shadow and Light hit a little harder, and Steel hits are tough and solid. The lobby shows each fighter's element.
+- **Animated:** fighters breathe, blink and look around, and each has their own way of standing (Toad bounces like a boxer, Toadsworth leans on his cane, Ninja Toad crouches low, Rocker Toad nods to the beat) and running (Captain Toad and Robo Toad stomp, Ninja Toad sprints with his arms back, Yoshis scamper). They squash when they land, stretch when they jump, flip on double jumps, and flail when they fall.
 
 ## The Smash Mushroom
 
@@ -64,28 +70,38 @@ The title screen, lobby and results screen each have their own music too.
 
 ## Fighters
 
-| Fighter | Special | Side special | Up special | Down special | Smash Mushroom finale |
-|---|---|---|---|---|---|
-| **Toad** | Turnip Pluck | Toad Dash | Spore Spin | Toad Scream | Toad Brigade Stampede |
-| **Toadette** | Pigtail Spin | Pigtail Whip | Toadette Float | Super Crown | Peachette Grand Ball |
-| **Captain Toad** | Turnip Toss | Headlamp Flash | Backpack Boost | Pickaxe Frenzy | Mine Cart Mayhem |
-| **Toadsworth** | "Oh my!" Scold | Cane Hook | Parasol Glide | Toad Brigade | Royal Guard Charge |
-| **Blue Toad** | Ice Ball | Ice Slide | Propeller Mushroom | Ground Pound | Absolute Zero |
-| **Yellow Toad** | Fireball | Fire Dash | Super Jump | Ground Pound | Solar Flare |
-| **Green Toad** | Boomerang Flower | Tail Whip | Tanooki Tail | Leaf Counter | Leaf Storm |
-| **Purple Toad** | Poison Mushroom | Purple Haze | Cloud Flower | Cat Pounce | Toxic Tide |
-| **Yoshi** | Egg Toss | Egg Roll | Flutter Jump | Yoshi Bomb | Egg Storm |
-| **Pirate Toad** | Cannonball | Cutlass Lunge | Parrot Lift | Anchor Drop | Broadside Barrage |
-| **Ninja Toad** | Shuriken Toss | Shadow Dash | Smoke Leap | Log Substitution | Shadow Clone Strike |
-| **Knight Toad** | Shield Bash | Valiant Charge | Spin Slash | Sword Plant | Excalibur Wave |
-| **Chef Toad** | Pancake Flip | Frying Pan | Soufflé Rise | Hot Soup | Banquet Bonanza |
-| **Wizard Toad** | Star Bolt | Blink | Levitate | Magic Rune | Arcane Vortex |
-| **Astro Toad** | Ray Gun | Jet Dash | Jetpack Lift | Gravity Well | Orbital Laser |
-| **Doctor Toad** | Megavitamin | Bandage Wrap | Pulse Hop | Check-up | Megavitamin Cascade |
-| **Rocker Toad** | Power Chord | Stage Dive | Amp Blast | Feedback Loop | Encore Shockwave |
-| **Cowboy Toad** | Cork Shot | Lasso | Lasso Swing | Tumbleweed | High Noon Showdown |
-| **Ghost Toad** | Boo Buddy | Phase Rush | Spirit Float | Haunt | Boo Swarm |
-| **Robo Toad** | Rocket Fist | Turbo Dash | Jet Boots | Steam Vent | Gigaton Rocket Fist |
+| Fighter | Element | Special | Side special | Up special | Down special | Smash Mushroom finale |
+|---|---|---|---|---|---|---|
+| **Toad** | Spore | Turnip Pluck | Toad Dash | Spore Spin | Toad Scream | Toad Brigade Stampede |
+| **Toadette** | Heart | Pigtail Spin | Pigtail Whip | Toadette Float | Super Crown | Peachette Grand Ball |
+| **Captain Toad** | Gold | Turnip Toss | Headlamp Flash | Backpack Boost | Pickaxe Frenzy | Mine Cart Mayhem |
+| **Toadsworth** | None | "Oh my!" Scold | Cane Hook | Parasol Glide | Toad Brigade | Royal Guard Charge |
+| **Blue Toad** | Ice | Ice Ball | Ice Slide | Propeller Mushroom | Ground Pound | Absolute Zero |
+| **Yellow Toad** | Fire | Fireball | Fire Dash | Super Jump | Ground Pound | Solar Flare |
+| **Green Toad** | Leaf | Boomerang Flower | Tail Whip | Tanooki Tail | Leaf Counter | Leaf Storm |
+| **Purple Toad** | Poison | Poison Mushroom | Purple Haze | Cloud Flower | Cat Pounce | Toxic Tide |
+| **Pirate Toad** | Sea | Cannonball | Cutlass Lunge | Parrot Lift | Anchor Drop | Broadside Barrage |
+| **Ninja Toad** | Shadow | Shuriken Toss | Shadow Dash | Smoke Leap | Log Substitution | Shadow Clone Strike |
+| **Knight Toad** | Steel | Shield Bash | Valiant Charge | Spin Slash | Sword Plant | Excalibur Wave |
+| **Chef Toad** | Heat | Pancake Flip | Frying Pan | Soufflé Rise | Hot Soup | Banquet Bonanza |
+| **Wizard Toad** | Magic | Star Bolt | Blink | Levitate | Magic Rune | Arcane Vortex |
+| **Astro Toad** | Cosmic | Ray Gun | Jet Dash | Jetpack Lift | Gravity Well | Orbital Laser |
+| **Doctor Toad** | Electric | Megavitamin | Bandage Wrap | Pulse Hop | Check-up | Megavitamin Cascade |
+| **Rocker Toad** | Music | Power Chord | Stage Dive | Amp Blast | Feedback Loop | Encore Shockwave |
+| **Cowboy Toad** | Dust | Cork Shot | Lasso | Lasso Swing | Tumbleweed | High Noon Showdown |
+| **Ghost Toad** | Spirit | Boo Buddy | Phase Rush | Spirit Float | Haunt | Boo Swarm |
+| **Robo Toad** | Spark | Rocket Fist | Turbo Dash | Jet Boots | Steam Vent | Gigaton Rocket Fist |
+| **Yoshi** | Egg | Egg Toss | Egg Roll | Flutter Jump | Yoshi Bomb | Egg Storm |
+| **Red Yoshi** | Fire | Fire Spit | Flame Rush | Blaze Jump | Magma Pound | Volcano Rain |
+| **Blue Yoshi** (wings) | Wind | Wing Gust | Sky Swoop | Wing Flight | Dive Bomb | Feather Cyclone |
+| **Yellow Yoshi** (boots) | Rock | Rock Spit | Stampede | Spring Jump | Earthquake Stomp | Mega Quake |
+| **Pink Yoshi** | Heart | Heart Kiss | Cartwheel | Heart Balloon | Sweet Counter | Heartbreaker |
+| **Light Blue Yoshi** | Ice | Frost Breath | Ice Skate | Snow Twirl | Frost Patch | Blizzard |
+| **Purple Yoshi** | Poison | Spore Bubble | Venom Lash | Bubble Lift | Toxic Puddle | Bubble Flood |
+| **Black Yoshi** | Shadow | Shadow Orb | Night Dash | Shadow Leap | Heavy Stomp | Shadow Pack |
+| **White Yoshi** | Light | Light Bolt | Angel Dash | Halo Rise | Holy Shine | Sacred Light |
+| **Orange Yoshi** | Fruit | Melon Seeds | Fruit Roll | Melon Bounce | Fruit Bomb | Fruit Frenzy |
+| **Baby Yoshi** (triple jump) | None | Gobble Up | Tumble Roll | Baby Flutter | Tantrum | Yoshi Stampede |
 
 ## Playing online with friends
 

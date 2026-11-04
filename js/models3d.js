@@ -103,7 +103,7 @@ const M3D = (() => {
     const C = CH[id], L = Object.assign({}, C.look, override || {});
     const rig = { kind: 'toad', id, parts: {}, LU: 0.24, handY: -0.27, h: 2.3, wide: C.wide || 1, toadette: !!L.pigtails, captain: !!L.lamp, old: !!L.old,
       ghost: !!L.ghost, robo: !!L.robo, prop: L.prop || null, shield: !!L.shield, look: L,
-      blade: ['cutlass', 'sword', 'pan', 'wand'].includes(L.prop), parrot: L.hat === 'tricorn' };
+      blade: ['cutlass', 'sword', 'pan', 'wand'].includes(L.prop), parrot: L.hat === 'tricorn', eyeY: 0.123 };
     const wd = rig.wide, vest = L.vest, trim = paper(L.trim || '#f4c430'), capCol = paper(L.cap), spot = paper(L.spot);
     const skin = rig.robo ? '#a4adba' : rig.ghost ? '#e2ebfb' : PAPER.skin, metal = '#7a8494';
     part(rig, 'body', BODY_PIV, () => {
@@ -228,29 +228,41 @@ const M3D = (() => {
   }
 
   // ---------- Yoshi ----------
-  function yoshiRig() {
-    const L = CH.yoshi.look, G = L.body, rig = { kind: 'yoshi', id: 'yoshi', parts: {}, LU: 0.16, handY: -0.17, h: 1.95, wide: 1 };
+  function yoshiRig(id) {
+    const L = CH[id].look, G = L.body, spine = L.spines || '#e8342f', belly = L.belly || PAPER.white;
+    const rig = { kind: 'yoshi', id, parts: {}, LU: 0.16, handY: -0.17, h: 1.95, wide: 1, look: L, hs: L.baby ? 1.26 : 1, eyeY: 0.71 };
     part(rig, 'body', BODY_PIV, () => {
       B.ellipsoid([0, 0.66, 0], [0.4, 0.42, 0.38], 5, 11, { col: G, jit: 0.01, seed: 50 });
-      B.ellipsoid([0, 0.6, 0.17], [0.3, 0.34, 0.26], 4, 9, { col: PAPER.white, seed: 51 });
+      B.ellipsoid([0, 0.6, 0.17], [0.3, 0.34, 0.26], 4, 9, { col: belly, seed: 51 });
       B.ellipsoid([0, 1.0, -0.17], [0.32, 0.12, 0.28], 3, 9, { col: L.saddle, seed: 52 });
       B.capsule([0, 0.55, -0.3], [0, 0.36, -0.8], 0.15, 7, { col: G, r2: 0.04 });
       B.lathe([[0, 0.3], [0.2, 0.28], [0.25, 0.1], [0.2, 0], [0, 0]], 8, { c: [0, 0.02, 0], col: G });
+      if (L.spots) {
+        for (const [x, y, z] of [[0.3, 0.75, -0.18], [-0.3, 0.72, -0.2], [0.12, 0.85, -0.33], [-0.18, 0.5, -0.3], [0.05, 0.47, -0.62]]) B.decalAt([x, y, z], [x, 0.1, z], [0.07, 0.06, 0.02], L.spots);
+        for (const sx of [-1, 1]) { B.decalAt([0.4 * sx, 0.62, 0.02], [sx, 0, 0], [0.065, 0.055, 0.02], L.spots); B.decalAt([0.325 * sx, 0.45, -0.118], [0.8 * sx, -0.4, -0.3], [0.06, 0.05, 0.02], L.spots); }
+      }
     });
     part(rig, 'head', HEAD_PIV, () => {
       B.ellipsoid([0, 1.38, 0.02], [0.32, 0.33, 0.34], 5, 11, { col: G, jit: 0.01, seed: 53 });
-      // the top of the head rises up behind the eyes: a green crown plus a bulge cupping each eye
+      // the top of the head rises up behind the eyes: a crown plus a bulge cupping each eye
       B.ellipsoid([0, 1.6, 0.03], [0.27, 0.25, 0.27], 4, 10, { col: G, seed: 59 });
       for (const sx of [-1, 1]) B.ellipsoid([0.145 * sx, 1.66, 0.16], [0.16, 0.245, 0.15], 4, 9, { col: G, seed: 60 + sx });
       B.ellipsoid([0, 1.3, 0.42], [0.3, 0.25, 0.27], 4, 10, { col: G, seed: 54 });
-      B.ellipsoid([0, 1.14, 0.28], [0.28, 0.11, 0.24], 3, 9, { col: PAPER.white, seed: 55 });
+      B.ellipsoid([0, 1.14, 0.28], [0.28, 0.11, 0.24], 3, 9, { col: belly, seed: 55 });
       // big egg-shaped eyes peek out of the front of those bulges, just above the snout
       for (const sx of [-1, 1]) {
         B.ellipsoid([0.145 * sx, 1.67, 0.25], [0.135, 0.225, 0.12], 4, 9, { col: PAPER.white, seed: 56 + sx });
         B.decalAt([0.1 * sx, 1.38, 0.672], [0.13 * sx, 0.3, 1], [0.028, 0.036, 0.01], PAPER.eye, { nLat: 3 });
       }
-      for (const [y, z] of [[1.78, -0.16], [1.6, -0.28], [1.42, -0.34]]) B.ellipsoid([0, y, z], [0.05, 0.08, 0.08], 2, 6, { col: '#e8342f' });
+      for (const [y, z] of [[1.78, -0.16], [1.6, -0.28], [1.42, -0.34]]) B.ellipsoid([0, y, z], [0.05, 0.08, 0.08], 2, 6, { col: spine });
+      if (L.spots) {
+        for (const [x, y, z] of [[0.24, 1.44, -0.2], [-0.26, 1.3, -0.16], [0.02, 1.55, -0.25]]) B.decalAt([x, y, z], [x, 0.2, z], [0.06, 0.05, 0.02], L.spots);
+        // more on the cheeks and crown, where the camera can see them
+        for (const sx of [-1, 1]) { B.decalAt([0.315 * sx, 1.34, 0.08], [sx, 0, 0.25], [0.055, 0.045, 0.02], L.spots); B.decalAt([0.215 * sx, 1.62, -0.13], [0.7 * sx, 0.3, -0.5], [0.05, 0.045, 0.02], L.spots); }
+      }
     });
+    // eyelids, drawn only for a blink
+    part(rig, 'lids', HEAD_PIV, () => { for (const sx of [-1, 1]) B.ellipsoid([0.145 * sx, 1.67, 0.262], [0.143, 0.233, 0.126], 4, 9, { col: G }); });
     part(rig, 'eyes', HEAD_PIV, () => {
       for (const sx of [-1, 1]) {
         B.ellipsoid([0.15 * sx, 1.66, 0.345], [0.075, 0.135, 0.04], 3, 8, { col: PAPER.eye });
@@ -261,7 +273,11 @@ const M3D = (() => {
     part(rig, 'mouthO', HEAD_PIV, () => B.ellipsoid([0, 1.15, 0.55], [0.14, 0.07, 0.1], 3, 8, { col: '#ff6f9a' }), { ink: false, crease: false });
     for (const [nm, x, z, seed] of [['shoeL', -0.2, 0.12, 57], ['shoeR', 0.2, 0.08, 58]]) {
       const c = [x, 0.13, z];
-      part(rig, nm, c, () => B.ellipsoid(c, [0.18, 0.13, 0.3], 4, 9, { seed, col: L.shoe }));
+      // Yellow Yoshi stomps around in big boots
+      part(rig, nm, c, () => {
+        if (L.boots) { B.ellipsoid([c[0], 0.17, c[2]], [0.23, 0.17, 0.35], 4, 9, { seed, col: L.shoe }); B.ellipsoid([c[0], 0.05, c[2] + 0.02], [0.24, 0.06, 0.37], 2, 9, { col: '#3a2a20' }); }
+        else B.ellipsoid(c, [0.18, 0.13, 0.3], 4, 9, { seed, col: L.shoe });
+      });
     }
     for (const [k, sx] of [['N', -1], ['F', 1]]) {
       const s = [0.34 * sx, 0.86, 0.14], e = [s[0], s[1] - rig.LU, s[2]], h = [e[0], e[1] - 0.17, e[2]];
@@ -365,6 +381,36 @@ const M3D = (() => {
       B.box([0, 0.69, 0], [0.66, 0.04, 0.46], { col: '#6a7280' });
       for (const [x, z] of [[-0.4, 0.44], [0.4, 0.44], [-0.4, -0.44], [0.4, -0.44]]) sub(() => B.lathe([[0, 0.08], [0.18, 0.08], [0.2, 0], [0.18, -0.08], [0, -0.08]], 10, { col: '#3a3a44' }), ...toZ(x, 0.18, z));
       for (const [x, z] of [[-0.2, 0.1], [0.15, -0.1], [0.35, 0.15]]) B.ellipsoid([x, 0.74, z], [0.12, 0.09, 0.12], 2, 6, { col: '#ffd23a' });
+    });
+    // ---- Yoshi gear ----
+    // a feathered wing that fans out along +x from the shoulder
+    PROPS.ywing = mesh(() => {
+      for (let k = 0; k < 4; k++) { const a = -0.15 + k * 0.25, L = 0.42 - k * 0.06; B.ellipsoid([Math.cos(a) * L * 0.55, Math.sin(a) * L * 0.55, -k * 0.02], [L * 0.55, 0.07, 0.035], 2, 7, { col: k % 2 ? '#e6eef8' : '#ffffff', frame: { r: [Math.cos(a), Math.sin(a), 0], u: [-Math.sin(a), Math.cos(a), 0], n: [0, 0, 1] } }); }
+      B.ellipsoid([0.04, 0, 0], [0.09, 0.08, 0.06], 2, 6, { col: '#ffffff' });
+    });
+    PROPS.bow = mesh(() => {
+      for (const sx of [-1, 1]) B.ellipsoid([0.1 * sx, 0, 0], [0.11, 0.08, 0.04], 2, 7, { col: '#ff3a8a', frame: { r: [Math.cos(0.3 * sx), Math.sin(0.3 * sx), 0], u: [-Math.sin(0.3 * sx), Math.cos(0.3 * sx), 0], n: [0, 0, 1] } });
+      B.ellipsoid([0, 0, 0.01], [0.04, 0.045, 0.045], 2, 6, { col: '#e8262b' });
+    });
+    PROPS.scarf = mesh(() => {
+      B.lathe([[0.27, 0.06], [0.33, 0.04], [0.33, -0.04], [0.27, -0.06]], 12, { col: '#ff5a5a' });
+      B.capsule([0.12, 0, 0.27], [0.2, -0.3, 0.3], 0.06, 5, { col: '#ff5a5a', r2: 0.05 });
+      for (const y of [-0.12, -0.24]) B.box([0.17, y, 0.31], [0.06, 0.012, 0.012], { col: '#ffffff' });
+    });
+    PROPS.shades = mesh(() => {
+      for (const sx of [-1, 1]) B.ellipsoid([0.15 * sx, 0, 0], [0.13, 0.08, 0.03], 2, 8, { col: '#141418' });
+      B.box([0, 0.03, 0], [0.06, 0.012, 0.012], { col: '#141418' });
+      for (const sx of [-1, 1]) B.ellipsoid([0.12 * sx, 0.03, 0.03], [0.03, 0.015, 0.01], 2, 5, { col: '#8a8f99' });
+    });
+    // White Yoshi's halo: a thin glowing ring
+    PROPS.haloRing = mesh(() => {
+      const ring = [];
+      for (let k = 0; k <= 8; k++) { const a = (k / 8) * Math.PI * 2; ring.push([0.2 + Math.cos(a) * 0.032, Math.sin(a) * 0.032]); }
+      B.lathe(ring, 14, { col: '#ffe680' });
+    }, { ink: false });
+    PROPS.sprout = mesh(() => {
+      B.capsule([0, 0, 0], [0, 0.14, 0], 0.02, 4, { col: '#3f8a2a' });
+      for (const sx of [-1, 1]) B.ellipsoid([0.08 * sx, 0.16, 0], [0.09, 0.03, 0.05], 2, 6, { col: '#5fd04a', frame: { r: [Math.cos(0.5 * sx), Math.sin(0.5 * sx), 0], u: [-Math.sin(0.5 * sx), Math.cos(0.5 * sx), 0], n: [0, 0, 1] } });
     });
   }
   function turnipGeo(c) {
@@ -497,6 +543,33 @@ const M3D = (() => {
       B.box([0, 1.02, 0], [0.12, 0.025, 0.04], { col: '#8a8f99' });
     });
     ITEM.smash = mesh(smashMushGeo);
+    // ---- the Yoshi clan's projectiles ----
+    PROJ.gust = mesh(() => { for (let k = 0; k < 7; k++) { const a = k * 0.9, r = 0.08 + k * 0.035; B.ellipsoid([Math.cos(a) * r, Math.sin(a) * r, 0], [0.09 - k * 0.006, 0.05, 0.05], 2, 6, { col: k % 2 ? '#e6f6ff' : '#ffffff' }); } }, { ink: false, crease: false });
+    PROJ.rock = mesh(() => { B.ellipsoid([0, 0, 0], [0.24, 0.21, 0.22], 3, 7, { col: '#a08a6a', jit: 0.07, seed: 31 }); B.decalAt([-0.08, 0.1, 0.18], [-0.3, 0.4, 1], [0.06, 0.04, 0.01], '#c8b090'); });
+    PROJ.heart = mesh(() => {
+      for (const sx of [-1, 1]) B.ellipsoid([0.1 * sx, 0.06, 0], [0.13, 0.13, 0.1], 3, 8, { col: '#ff5aa8' });
+      sub(() => B.cone([0, 0, 0], 0.2, 0.26, 8, { col: '#ff5aa8' }), p => [p[0], 0.02 - p[1], p[2] * 0.6], n => [n[0], -n[1], n[2]]);
+      B.decalAt([-0.1, 0.12, 0.1], [-0.3, 0.4, 1], [0.04, 0.03, 0.01], '#ffd0e6');
+    });
+    PROJ.bubble = mesh(() => { B.ellipsoid([0, 0, 0], [0.24, 0.24, 0.24], 4, 10, { col: '#c890ff' }); B.decalAt([-0.09, 0.1, 0.2], [-0.4, 0.4, 1], [0.05, 0.04, 0.01], '#ffffff'); }, { ink: false });
+    PROJ.shade = mesh(() => {
+      B.ellipsoid([0, 0, 0], [0.22, 0.22, 0.22], 4, 10, { col: '#2b2440', jit: 0.03, seed: 41 });
+      for (const sx of [-1, 1]) B.decalAt([0.07 * sx, 0.04, 0.21], [0.3 * sx, 0.1, 1], [0.04, 0.05, 0.012], '#ff5a7a');
+    });
+    PROJ.lightbolt = mesh(() => { B.capsule([-0.36, 0, 0], [0.36, 0, 0], 0.07, 6, { col: '#fff6c8' }); B.ellipsoid([0.3, 0, 0], [0.12, 0.12, 0.12], 2, 6, { col: '#ffffff' }); }, { ink: false, crease: false });
+    PROJ.seed = mesh(() => B.ellipsoid([0, 0, 0], [0.1, 0.065, 0.06], 2, 6, { col: '#2b2216' }));
+    PROJ.melon = mesh(() => {
+      B.lathe([[0, 0.26], [0.16, 0.22], [0.26, 0.1], [0.27, -0.04], [0.22, -0.16], [0.1, -0.24], [0, -0.25]], 14, { mat: (m, i, j) => (j % 2 ? '#2f8a2a' : '#5fd04a') });
+      B.capsule([0, 0.25, 0], [0.03, 0.33, 0], 0.02, 4, { col: '#6a4a2e' });
+    });
+    TRAP.frost = mesh(() => {
+      B.ellipsoid([0, 0.02, 0], [1.2, 0.04, 0.55], 2, 14, { col: '#cdf2ff', seed: 33 });
+      for (const [x, z, h] of [[-0.6, 0.1, 0.32], [-0.2, -0.2, 0.42], [0.3, 0.15, 0.36], [0.75, -0.05, 0.28], [0.05, 0.3, 0.25]]) B.cone([x, 0, z], 0.09, h, 5, { col: '#a8e8ff' });
+    }, { ink: false });
+    TRAP.toxic = mesh(() => {
+      B.ellipsoid([0, 0.02, 0], [1.25, 0.05, 0.55], 2, 14, { col: '#7a2aa8', seed: 34 });
+      for (const [x, z, r] of [[-0.5, 0.1, 0.1], [0.2, -0.15, 0.08], [0.6, 0.2, 0.12], [-0.1, 0.25, 0.07]]) B.ellipsoid([x, 0.08, z], [r, r, r], 2, 6, { col: '#c890ff' });
+    });
   }
   // the Smash Mushroom: a rainbow-capped mushroom with a star badge and a determined look
   const RAINBOW = ['#ff4b4b', '#ff9a1f', '#ffd23a', '#4fd36b', '#3f8cff', '#a05ad8'];
@@ -539,6 +612,7 @@ const M3D = (() => {
       for (const [x, z] of [[-0.2, 0.1], [0.15, -0.15], [0.05, 0.25]]) { B.capsule([x, 1.2, z], [x, 1.45, z], 0.035, 5, { col: '#7dbbff' }); B.ellipsoid([x, 1.52, z], [0.045, 0.08, 0.045], 2, 6, { col: '#ffd23a' }); }
     });
     FXM.leaf = mesh(() => { B.ellipsoid([0, 0, 0], [0.32, 0.03, 0.16], 2, 8, { col: '#4fbf3a', seed: 61 }); B.capsule([-0.3, 0, 0], [-0.42, 0, 0], 0.015, 4, { col: '#2f7a24' }); });
+    FXM.feather = mesh(() => { B.ellipsoid([0, 0, 0], [0.34, 0.025, 0.11], 2, 8, { col: '#ffffff', seed: 62 }); B.capsule([-0.36, 0, 0], [0.3, 0, 0], 0.012, 4, { col: '#c8d0dc' }); });
     // Wiggler: a flowered head and four body segments with little feet
     FXM.wigHead = mesh(() => {
       B.ellipsoid([0, 0.95, 0], [0.82, 0.8, 0.78], 5, 12, { col: '#ffc21f', seed: 62 });
@@ -594,10 +668,11 @@ const M3D = (() => {
 
   // ---------- rigs registry ----------
   const RIGS = {}, MINIONS = {};
-  const CROWD = [];
+  const CROWD = [], YCROWD = [];
   function build() {
     buildProps(); buildItems(); buildFx();
-    for (const C of CHARS) RIGS[C.id] = C.yoshi ? yoshiRig() : toadRig(C.id);
+    for (const C of CHARS) RIGS[C.id] = C.yoshi ? yoshiRig(C.id) : toadRig(C.id);
+    for (const C of CHARS) if (C.yoshi) YCROWD.push(RIGS[C.id]);
     MINIONS.mail = toadRig('toad', { spot: '#2f9e4a', vest: '#3a6bd6' });
     MINIONS.bank = toadRig('toad', { spot: '#ffc81a', vest: '#6b3fb0' });
     MINIONS.hint = toadRig('toad', { spot: '#e8262b', vest: '#2557d6' });
@@ -623,70 +698,112 @@ const M3D = (() => {
     if (t <= hb.b + 2) return { k: 1, q: clamp01((t - hb.a) / Math.max(1, hb.b - hb.a + 2)), on: true };
     return { k: 1 - clamp01((t - hb.b - 2) / Math.max(1, A.dur - hb.b - 2)), q: 1, on: false };
   }
+  // the hit progress of a hitbox other than the first (flurry finishers etc.)
+  const hbQ = (t, hb) => clamp01((t - hb.a) / Math.max(1, hb.b - hb.a));
+
+  // ---- normal attacks: every move template has its own animation ----
+  // c: { k (wind-up < 0 .. strike 1 .. recovery), kp = max(0, k), q (0..1 across the active frames), on, t, fc, A, rig, profile(a) }
+  const TPOSE = {
+    punch(P, F, c) { P.af = [lerp(0.05, -1.7, c.kp) + Math.min(0, c.k) * -1.4, 0.12, lerp(-0.2, 0, c.kp), 0]; P.an = [0.4 + 0.3 * c.kp, -0.3, -0.5, 0]; P.lean = 0.16 * c.kp; P.grip = 0.35; c.profile(0.35 * c.kp); },
+    punch2(P, F, c) { P.an = [lerp(0.05, -1.7, c.kp) + Math.min(0, c.k) * -1.4, -0.12, lerp(-0.2, 0, c.kp), 0]; P.af = [0.45 + 0.3 * c.kp, 0.3, -0.5, 0]; P.lean = 0.18 * c.kp; c.profile(0.15 * c.kp); },
+    kick3(P, F, c) { P.srZ = 0.45 * c.kp; P.srY = 0.22 * c.kp; P.srR = -0.7 * c.kp; P.lean = -0.12 * c.kp; P.an = [0.6, -0.6, -0.3, 0]; P.af = [0.6, 0.6, -0.3, 0]; c.profile(0.45 * c.kp); },
+    flurry(P, F, c) {
+      const on = c.t >= 4 && c.t <= 23, alt = Math.floor(c.t / 2) % 2;
+      if (on) { P.af = [alt ? -1.75 : -0.5, 0.12, alt ? 0 : -0.7, 0]; P.an = [alt ? -0.5 : -1.75, -0.12, alt ? -0.7 : 0, 0]; P.side = Math.sin(c.t * 1.7) * 0.05; }
+      else { P.af = [lerp(0.05, -1.8, c.t > 23 ? 1 : 0), 0.12, 0, 0]; P.an = [0.4, -0.3, -0.5, 0]; }
+      P.lean = 0.22; c.profile(0.3); F.mouthO = on;
+    },
+    palm3(P, F, c) { P.an = [lerp(0.3, -1.6, c.kp), -0.28, 0, 0]; P.af = [lerp(0.3, -1.6, c.kp), 0.28, 0, 0]; P.lean = 0.28 * c.kp + Math.min(0, c.k) * 0.4; P.slZ = 0.12 * c.kp; P.srZ = -0.14 * c.kp; c.profile(0.3 * c.kp); },
+    uppercut3(P, F, c) { P.af = [lerp(0.7, -2.9, c.kp), 0.15, lerp(-0.6, 0, c.kp), 0]; P.an = [0.4, -0.4, -0.5, 0]; P.sy = 1 + 0.1 * c.kp; P.hx = -0.25 * c.kp; P.bob = 0.08 * c.kp; },
+    chop(P, F, c) { P.af = [lerp(-2.3, -0.8, c.q), 0.35, -0.2, 0]; P.an = [0.5, -0.3, -0.6, 0]; P.lean = 0.12; c.profile(0.3); },
+    slash1(P, F, c) { P.af = [lerp(-2.1, -0.5, c.q), lerp(0.5, 0.1, c.q), 0, 0]; P.grip = 0.9; P.an = [0.4, -0.35, -0.5, 0]; P.lean = 0.12 * c.kp; c.profile(0.3 * c.kp); },
+    slash2(P, F, c) { P.af = [lerp(-0.6, -2.0, c.q), lerp(-0.2, 0.9, c.q), 0, 0]; P.grip = 0.9; P.an = [0.4, -0.35, -0.5, 0]; P.lean = 0.1 * c.kp; c.profile(0.25 * c.kp); },
+    slash3(P, F, c) { P.af = [lerp(-2.9, -0.4, c.q), 0.1, 0, 0]; P.grip = 0.9; P.an = [0.5, -0.4, -0.4, 0]; P.lean = 0.3 * c.kp; P.sx = 1 + 0.05 * c.kp; P.slZ = 0.14 * c.kp; P.srZ = -0.16 * c.kp; c.profile(0.4 * c.kp); },
+    bite(P, F, c) { P.lean = 0.3 * c.kp; P.hx = 0.28 * c.kp - 0.15 * Math.max(0, -c.k) * 3; F.mouthO = c.k < 0 || c.on; c.profile(0.4 * c.kp); P.an = [0.3, -0.4, -0.6, 0]; P.af = [0.3, 0.4, -0.6, 0]; },
+    tailjab(P, F, c) { P.spin = -Math.sin(c.q * Math.PI) * 2.6 * (c.fc || 1); P.lean = 0.12; P.an = [-0.4, -0.6, -0.4, 0]; P.af = [-0.4, 0.6, -0.4, 0]; },
+    headbutt3(P, F, c) { P.lean = 0.5 * c.kp + Math.min(0, c.k) * 0.6; P.hx = 0.3 * c.kp; P.slZ = 0.16 * c.kp; P.srZ = -0.18 * c.kp; c.profile(0.45 * c.kp); P.an = [0.7, -0.4, -0.3, 0]; P.af = [0.7, 0.4, -0.3, 0]; },
+    shove(P, F, c) { P.lean = lerp(0, 0.42, c.kp) + Math.min(0, c.k) * 0.5; P.af = [lerp(0.6, -1.45, c.kp), 0.08, 0, 0]; P.an = [lerp(0.6, -1.25, c.kp), -0.1, 0, 0]; P.slZ = -0.12; P.srZ = 0.18 * c.kp; P.sx = 1 + 0.06 * c.kp; c.profile(0.4 * c.kp); },
+    roundhouse(P, F, c) { P.spin = (c.fc || 1) * -c.q * Math.PI * 2; P.srZ = 0.42 * Math.sin(c.q * Math.PI); P.srY = 0.28 * Math.sin(c.q * Math.PI); P.srR = -0.8 * Math.sin(c.q * Math.PI); ARMS_UP(P, 1.3); P.lean = -0.08; },
+    dropkick(P, F, c) { P.lean = -0.95 * c.kp; P.slZ = 0.46 * c.kp; P.srZ = 0.5 * c.kp; P.slY = 0.32 * c.kp; P.srY = 0.28 * c.kp; P.slR = -0.9 * c.kp; P.srR = -0.9 * c.kp; P.bob = 0.3 * c.kp; P.an = [1.1, -0.4, 0, 0]; P.af = [1.1, 0.4, 0, 0]; c.profile(0.5 * c.kp); },
+    swing(P, F, c) { P.lean = lerp(0, 0.4, c.kp) + Math.min(0, c.k) * 0.5; P.af = [lerp(0.6, -1.45, c.kp), 0.08, 0, 0]; P.an = [lerp(0.6, -1.0, c.kp), -0.2, 0, 0]; P.grip = 0.9; P.slZ = -0.12; P.srZ = 0.18 * c.kp; c.profile(0.4 * c.kp); },
+    // the arm lifts by as much as the body leans, so the blade stays level
+    thrust(P, F, c) { P.lean = 0.4 * c.kp + Math.min(0, c.k) * 0.4; P.af = [lerp(0.3, -1.55, c.kp) - P.lean * 0.9, 0.05, 0, 0]; P.grip = 0.12; P.an = [0.8 * c.kp, -0.4, -0.3, 0]; P.slZ = 0.22 * c.kp; P.srZ = -0.26 * c.kp; c.profile(0.55 * c.kp); },
+    tailwhip(P, F, c) { P.spin = (c.fc || 1) * -c.q * Math.PI * 2; P.lean = 0.1; P.sy = 0.94; ARMS_UP(P, 0.8); },
+    tongue(P, F, c) { P.lean = 0.2 * c.kp; F.mouthO = true; P.tongue = c.kp; c.profile(0.55 * c.kp); },
+    zapside(P, F, c) { const on = c.t >= 7 && c.t <= 19; P.an = [-1.5, -0.32, -0.3, 0]; P.af = [-1.5, 0.32, -0.3, 0]; P.lean = 0.2; P.side = on ? Math.sin(c.t * 2.3) * 0.05 : 0; c.profile(0.35); F.elemGlow = on ? 0.5 : 0; },
+    headbutt(P, F, c) { ARMS_UP(P, lerp(0.3, 1.6, c.kp)); P.hx = -0.55 * c.kp; P.sy = 1 + 0.12 * c.kp; P.bob = 0.08 * c.kp; },
+    antiair(P, F, c) { P.af = [lerp(0.2, -2.95, c.kp), 0.15, 0, 0]; P.an = [0.3, -0.4, -0.5, 0]; P.sy = 1 + 0.06 * c.kp; P.hx = -0.25 * c.kp; },
+    flipup(P, F, c) { P.tumble = (c.fc || 1) * Math.sin(c.q * Math.PI) * 1.6; P.slY = 0.22 * c.kp; P.srY = 0.22 * c.kp; ARMS_UP(P, 1.8); P.bob = 0.12 * c.kp; },
+    upslash(P, F, c) { P.af = [lerp(1.0, -3.0, c.q), 0.12, 0, 0]; P.grip = 1.2; P.sy = 1 + 0.06 * c.kp; P.hx = -0.2 * c.kp; P.an = [0.3, -0.5, -0.4, 0]; },
+    tongueup(P, F, c) { P.hx = -1.25 * c.kp; F.mouthO = true; P.tongue = c.kp * 1.05; P.sy = 1 + 0.05 * c.kp; },
+    sweep(P, F, c) { P.sy = 0.8; P.sx = 1.14; P.srZ = 0.4 * c.kp; P.srY = 0.04; P.slZ = -0.25 * c.kp; ARMS_UP(P, 1.2); P.grip = 0.4; },
+    lowpoke(P, F, c) { P.sy = 0.82; P.sx = 1.08; P.af = [lerp(0.2, -1.0, c.kp), 0.1, 0, 0]; P.grip = 0.15; P.lean = 0.3 * c.kp; P.an = [0.4, -0.4, -0.5, 0]; c.profile(0.5 * c.kp); },
+    tailsweep(P, F, c) { P.sy = 0.8; P.sx = 1.1; P.spin = (c.fc || 1) * -Math.sin(c.q * Math.PI) * 2.8; ARMS_UP(P, 0.7); },
+    crouchjab(P, F, c) { P.sy = 0.78; P.sx = 1.1; P.af = [lerp(0.2, -1.4, c.kp), 0.1, 0, 0]; P.an = [0.4, -0.4, -0.6, 0]; P.lean = 0.2 * c.kp; c.profile(0.35 * c.kp); },
+    haymaker(P, F, c) { P.lean = lerp(-0.15, 0.5, c.kp); P.af = [lerp(1.0, -1.65, c.kp), 0.1, 0, 0]; P.an = [lerp(-0.6, 0.9, c.kp), -0.3, -0.3, 0]; P.sx = 1 + 0.08 * c.kp; P.slZ = 0.18 * c.kp; P.srZ = -0.2 * c.kp; P.grip = 0.3; c.profile(0.5 * c.kp); F.mouthO = c.on; },
+    bigslash(P, F, c) { P.af = [lerp(-2.9, -0.45, c.q), 0.08, 0, 0]; P.grip = 0.9; P.an = [0.5, -0.4, -0.4, 0]; P.lean = 0.42 * c.kp; P.slZ = 0.18; P.srZ = -0.2; c.profile(0.45 * c.kp); F.mouthO = c.on; },
+    lungethrust(P, F, c) { TPOSE.thrust(P, F, c); P.lean = 0.6 * c.kp; P.af[0] = lerp(0.3, -1.55, c.kp) - P.lean * 0.9; P.slZ = 0.32 * c.kp; P.srZ = -0.36 * c.kp; P.sy = 1 - 0.06 * c.kp; F.mouthO = c.on; },
+    capslam(P, F, c) { P.lean = lerp(-0.3, 0.8, c.kp); P.hx = lerp(-0.25, 0.5, c.kp); P.an = [lerp(-0.5, 1.2, c.kp), -0.3, -0.2, 0]; P.af = [lerp(-0.5, 1.2, c.kp), 0.3, -0.2, 0]; P.slZ = 0.2 * c.kp; P.srZ = -0.24 * c.kp; c.profile(0.5 * c.kp); F.mouthO = c.on; },
+    energypalm(P, F, c) { P.an = [lerp(0.6, -1.6, c.kp), -0.3, 0, 0]; P.af = [lerp(0.6, -1.6, c.kp), 0.3, 0, 0]; P.lean = lerp(-0.2, 0.3, c.kp); P.slZ = 0.16 * c.kp; P.srZ = -0.2 * c.kp; c.profile(0.4 * c.kp); F.elemGlow = c.on ? 0.6 : 0; F.mouthO = c.on; },
+    headbonk(P, F, c) { P.lean = lerp(-0.25, 0.75, c.kp); P.hx = lerp(-0.2, 0.4, c.kp); P.slZ = 0.24 * c.kp; P.srZ = -0.3 * c.kp; P.an = [0.9, -0.4, -0.3, 0]; P.af = [0.9, 0.4, -0.3, 0]; c.profile(0.5 * c.kp); F.mouthO = c.on; },
+    rising(P, F, c) { ARMS_UP(P, lerp(0.5, 3.0, c.kp)); P.sy = 1 + 0.14 * c.kp; P.sx = 1 - 0.05 * c.kp; P.hx = -0.45 * c.kp; P.bob = 0.12 * c.kp; P.grip = 1.4; F.mouthO = c.on; },
+    skyslash(P, F, c) { P.af = [lerp(1.0, -3.0, c.q), 0.12, 0, 0]; P.grip = 1.1; P.an = [0.3, -0.5, -0.4, 0]; P.sy = 1 + 0.1 * c.kp; P.bob = 0.1 * c.kp; P.hx = -0.25 * c.kp; F.mouthO = c.on; },
+    geyser(P, F, c) { ARMS_UP(P, lerp(0.4, 2.9, c.kp)); P.sy = lerp(0.82, 1.16, c.kp); P.sx = lerp(1.1, 0.94, c.kp); P.bob = 0.1 * c.kp; P.hx = -0.35 * c.kp; F.elemGlow = c.on ? 0.6 : 0; F.mouthO = c.on; },
+    capbounce(P, F, c) { P.sy = lerp(0.74, 1.22, c.kp); P.sx = lerp(1.14, 0.92, c.kp); P.bob = 0.22 * c.kp; P.hx = -0.45 * c.kp; ARMS_UP(P, lerp(0.4, 1.4, c.kp)); F.mouthO = c.on; },
+    tailflip(P, F, c) { P.tumble = (c.fc || 1) * Math.sin(c.q * Math.PI) * 1.5; P.sy = 0.9; ARMS_UP(P, 1.6); F.mouthO = c.on; },
+    splitkick(P, F, c) { P.sy = 0.72; P.sx = 1.12; P.slZ = -0.4 * c.kp; P.srZ = 0.4 * c.kp; P.slY = 0.1 * c.kp; P.srY = 0.1 * c.kp; ARMS_UP(P, 1.5); P.hx = 0.1; F.mouthO = c.on; },
+    spinsweep(P, F, c) { P.spin = c.t >= 12 && c.t <= 24 ? (c.t - 12) * 0.75 : 0; P.sy = 0.74; P.sx = 1.12; P.slZ = 0.3; P.srZ = -0.3; P.slY = 0.06; ARMS_UP(P, 1.5); P.grip = 0.4; },
+    groundslam(P, F, c) { if (c.k < 0) { ARMS_UP(P, 2.9); P.sy = 1.06; P.bob = 0.08; } else { P.an = [-0.5, -0.4, -0.4, 0]; P.af = [-0.5, 0.4, -0.4, 0]; P.sy = 0.8; P.sx = 1.14; P.lean = 0.2 * c.kp; } F.elemGlow = c.on ? 0.5 : 0; F.mouthO = c.on; },
+    tailspin(P, F, c) { P.spin = (c.fc || 1) * -c.q * Math.PI * 2; P.sy = 0.82; P.sx = 1.08; ARMS_UP(P, 0.8); },
+    spin(P, F, c) { P.spin = (c.t / Math.max(1, c.A.dur)) * Math.PI * 2; ARMS_UP(P, 1.45); P.slY = 0.1; P.srY = 0.1; P.grip = 0.4; },
+    sexkick(P, F, c) { P.srZ = 0.45 * c.kp; P.srY = 0.24 * c.kp; P.srR = -0.8 * c.kp; P.slY = 0.16; P.lean = -0.18 * c.kp; ARMS_UP(P, 1.2); c.profile(0.4 * c.kp); },
+    aura(P, F, c) { ARMS_UP(P, lerp(0.8, 1.7, c.kp)); P.sx = 1 + 0.08 * c.kp; P.sy = 1 + 0.08 * c.kp; P.slY = 0.14; P.srY = 0.14; F.elemGlow = c.on ? 0.55 : 0; },
+    flutterkick(P, F, c) { const on = c.t >= 5 && c.t <= 26, w = Math.sin(c.t * 1.5); P.slZ = on ? w * 0.38 : 0.1; P.srZ = on ? -w * 0.38 : -0.1; P.slY = 0.12; P.srY = 0.12; ARMS_UP(P, 1.4 + (on ? w * 0.25 : 0)); },
+    axe(P, F, c) { P.af = [lerp(-2.7, -0.45, c.q), 0.2, 0, 0]; P.an = [0.3, -0.6, -0.3, 0]; P.lean = 0.2; P.slY = 0.08; P.srY = 0.06; P.grip = 0.9; c.profile(0.35 * c.q); },
+    meteoraxe(P, F, c) { P.af = [lerp(-2.9, 0.2, c.q), 0.25, 0, 0]; P.an = [lerp(-2.9, 0.2, c.q), -0.25, 0, 0]; P.lean = lerp(-0.2, 0.4, c.q); P.slY = 0.12; P.srY = 0.1; P.grip = 0.9; c.profile(0.3 * c.q); },
+    drill(P, F, c) { const on = c.t >= 6 && c.t <= 26; P.lean = on ? 1.1 : 0.3; P.spin = on ? c.t * 1.1 : 0; ARMS_UP(P, 2.7); P.an[0] = -0.6; P.af[0] = -0.6; P.slY = 0.1; P.srY = 0.1; },
+    airslash(P, F, c) { TPOSE.axe(P, F, c); P.grip = 0.9; },
+    headbonkair(P, F, c) { P.lean = 0.6 * c.kp; P.hx = 0.32 * c.kp; P.slY = 0.12; P.srY = 0.1; P.slZ = -0.1; P.srZ = -0.12; ARMS_UP(P, 1.0); c.profile(0.4 * c.kp); F.mouthO = c.on; },
+    backkick(P, F, c) { P.srZ = -0.45 * c.kp; P.srY = 0.16 * c.kp; P.srR = 0.85 * c.kp; P.slZ = 0.08; P.lean = 0.32 * c.kp; P.an = [-0.8, -0.3, -0.3, 0]; P.af = [-0.8, 0.3, -0.3, 0]; c.profile(-0.45 * c.kp); },
+    tailbair(P, F, c) { P.spin = (c.fc || 1) * Math.sin(c.q * Math.PI) * 1.2; P.lean = 0.25 * c.kp; ARMS_UP(P, 1.0); P.slY = 0.1; P.srY = 0.1; },
+    backslash(P, F, c) { P.af = [lerp(-1.6, 1.5, c.q), 0.2, 0, 0]; P.grip = 0.9; P.an = [-0.4, -0.5, -0.4, 0]; P.lean = 0.15; c.profile(-0.5 * c.kp); },
+    flipkick(P, F, c) { P.tumble = (c.fc || 1) * Math.sin(c.q * Math.PI) * 1.4; P.slY = 0.2 * c.kp; P.srY = 0.24 * c.kp; P.srZ = 0.3 * c.kp; ARMS_UP(P, 1.6); },
+    scissor(P, F, c) { const w = Math.sin(c.t * 0.9); P.slZ = w * 0.4; P.srZ = -w * 0.4; P.slY = 0.3; P.srY = 0.3; P.lean = -0.35; ARMS_UP(P, 1.2); },
+    upslashair(P, F, c) { TPOSE.upslash(P, F, c); P.slY = 0.1; P.srY = 0.1; },
+    headbuttup(P, F, c) { P.hx = -0.6 * c.kp; P.sy = 1 + 0.1 * c.kp; ARMS_UP(P, 1.2); P.slZ = -0.18; P.srZ = -0.1; P.slY = 0.1; },
+    stomp(P, F, c) { P.slY = -0.14; P.srY = -0.14; P.slZ = 0.05; ARMS_UP(P, 2.4); P.sy = 1 + 0.06 * c.kp; },
+    drilldown(P, F, c) { const on = c.t >= 8 && c.t <= 28; P.spin = on ? c.t * 1.1 : 0; P.slY = -0.16; P.srY = -0.16; ARMS_UP(P, 2.6); P.sy = on ? 1.08 : 1; },
+    plunge(P, F, c) { P.af = [-0.2, 0.15, 0, 0]; P.grip = 0; P.an = [-0.25, -0.15, 0, 0]; P.slY = -0.12; P.srY = -0.12; P.sy = 1.04; },
+    pick(P, F, c) { P.af = [lerp(-2.9, -0.6, c.q), 0.1, 0, 0]; P.an = [0.2, -0.3, -0.3, 0]; P.lean = 0.25 * c.q; c.profile(0.35 * c.q); },
+    getup(P, F, c) { TPOSE.punch(P, F, c); },
+    throw(P, F, c) { P.af = [lerp(-2.8, -1.1, clamp01(c.t / 6)), 0.2, 0, 0]; P.lean = 0.1; },
+  };
   function attackPose(P, F, f, rig) {
-    const A = ATK[f.ch] && ATK[f.ch][f.at], K = atkK(f, A), k = K.k, dur = A ? A.dur : 20, kp = Math.max(0, k), q = K.q;
-    const fc = f.fc || 1, blade = rig && rig.blade;
-    // forward strikes turn toward profile so the reach reads across the screen
-    const profile = a => { P.yaw = fc * (0.95 + a); };
-    switch (f.at) {
-      case 'jab': case 'getup':
-        P.af = [lerp(0.05, -1.7, kp) + Math.min(0, k) * -1.4, 0.12, lerp(-0.2, 0, kp), 0]; P.an = [0.4 + 0.3 * kp, -0.3, -0.5, 0]; P.lean = 0.16 * kp;
-        P.grip = 0.35; profile(0.35 * kp);
-        if (f.ch === 'yoshi') F.mouthO = K.on;
-        break;
-      case 'jab2':
-        if (blade) { P.af = [lerp(-2.2, -0.5, q), lerp(0.9, -0.2, q), 0, 0]; P.grip = 0.9; P.an = [0.4, -0.35, -0.5, 0]; P.lean = 0.12 * kp; profile(0.3 * kp); break; }
-        P.an = [lerp(0.05, -1.7, kp) + Math.min(0, k) * -1.4, -0.12, lerp(-0.2, 0, kp), 0]; P.af = [0.45 + 0.3 * kp, 0.3, -0.5, 0]; P.lean = 0.18 * kp; profile(0.15 * kp);
-        if (f.ch === 'yoshi') F.mouthO = K.on;
-        break;
-      case 'jab3':
-        if (blade) { P.af = [lerp(-2.9, -0.4, q), 0.1, 0, 0]; P.grip = 0.9; P.an = [0.5, -0.4, -0.4, 0]; P.lean = 0.3 * kp; P.sx = 1 + 0.05 * kp; profile(0.4 * kp); break; }
-        // the combo finisher is a big kick
-        P.srZ = 0.45 * kp; P.srY = 0.22 * kp; P.srR = -0.7 * kp; P.lean = -0.12 * kp; P.an = [0.6, -0.6, -0.3, 0]; P.af = [0.6, 0.6, -0.3, 0]; profile(0.45 * kp);
-        break;
-      case 'side': case 'fair':
-        if (f.ch === 'yoshi') { P.lean = 0.2 * kp; F.mouthO = true; P.tongue = kp; profile(0.55 * kp); break; }
-        if (f.at === 'fair') { P.af = [lerp(-2.7, -0.45, q), 0.2, 0, 0]; P.an = [0.3, -0.6, -0.3, 0]; P.lean = 0.2; P.slY = 0.08; P.srY = 0.06; P.grip = 0.9; profile(0.35 * q); break; }
-        P.lean = lerp(0, 0.42, kp) + Math.min(0, k) * 0.5; P.af = [lerp(0.6, -1.45, kp), 0.08, 0, 0]; P.an = [lerp(0.6, -1.25, kp), -0.1, 0, 0];
-        P.slZ = -0.12; P.srZ = 0.18 * kp; P.sx = 1 + 0.06 * kp; if (blade) P.grip = 0.9;
-        profile(0.4 * kp);
-        break;
-      case 'bair':
-        P.srZ = -0.45 * kp; P.srY = 0.16 * kp; P.srR = 0.85 * kp; P.slZ = 0.08; P.lean = 0.32 * kp; P.an = [-0.8, -0.3, -0.3, 0]; P.af = [-0.8, 0.3, -0.3, 0]; profile(-0.45 * kp);
-        break;
-      case 'up': case 'uair': {
-        ARMS_UP(P, lerp(0.3, 2.85, kp)); P.hx = -0.35 * kp; P.sy = 1 + 0.08 * kp; P.sx = 1 - 0.04 * kp; P.grip = 1.2;
-        if (f.at === 'uair') { P.slZ = -0.18; P.srZ = -0.1; P.slY = 0.1; }
-        break;
-      }
-      case 'down': P.sy = 0.8; P.sx = 1.14; P.srZ = 0.4 * kp; P.srY = 0.04; P.slZ = -0.25 * kp; ARMS_UP(P, 1.2); P.grip = 0.4; break;
-      case 'fsmash':
-        if (blade) { P.af = [lerp(-2.9, -0.45, q), 0.08, 0, 0]; P.grip = 0.9; P.an = [0.5, -0.4, -0.4, 0]; P.lean = 0.42 * kp; P.slZ = 0.18; P.srZ = -0.2; profile(0.45 * kp); break; }
-        P.lean = lerp(-0.15, 0.5, kp); P.af = [lerp(1.0, -1.65, kp), 0.1, 0, 0]; P.an = [lerp(-0.6, 0.9, kp), -0.3, -0.3, 0]; P.sx = 1 + 0.08 * kp;
-        P.slZ = 0.18 * kp; P.srZ = -0.2 * kp; P.grip = 0.3; profile(0.5 * kp);
-        break;
-      case 'usmash': ARMS_UP(P, lerp(0.5, 3.0, kp)); P.sy = 1 + 0.14 * kp; P.sx = 1 - 0.05 * kp; P.hx = -0.45 * kp; P.bob = 0.12 * kp; P.grip = 1.4; break;
-      case 'dsmash': P.sy = 0.78; P.sx = 1.16; P.spin = q * Math.PI * 2; ARMS_UP(P, 1.5); P.grip = 0.4; break;
-      case 'nair': P.spin = (f.t / dur) * Math.PI * 2; ARMS_UP(P, 1.45); P.slY = 0.1; P.srY = 0.1; P.grip = 0.4; break;
-      case 'dair': P.slY = -0.14; P.srY = -0.14; P.slZ = 0.05; ARMS_UP(P, 2.4); if (blade) { P.af = [-0.2, 0.15, 0, 0]; P.grip = 0; } break;
-      case 'pick': P.af = [lerp(-2.9, -0.6, K.q), 0.1, 0, 0]; P.an = [0.2, -0.3, -0.3, 0]; P.lean = 0.25 * K.q; profile(0.35 * K.q); break;
-      case 'throw': P.af = [lerp(-2.8, -1.1, clamp01(f.t / 6)), 0.2, 0, 0]; P.lean = 0.1; break;
-    }
+    const A = ATK[f.ch] && ATK[f.ch][f.at], K = atkK(f, A), fc = f.fc || 1;
+    const c = { k: K.k, kp: Math.max(0, K.k), q: K.q, on: K.on, t: f.t || 0, fc, A: A || { dur: 20, hb: [] }, rig,
+      profile: a => { P.yaw = fc * (0.95 + a); } };
+    const fn = A && TPOSE[A.tpl];
+    if (fn) fn(P, F, c);
+    // Toads shout as they strike
+    if (rig && rig.kind === 'toad' && K.on && !F.mouthO) F.mouthO = true;
   }
-  // holding a smash attack: wind up and tremble, glowing brighter the longer it charges
+  // holding a smash attack: wind up and tremble, glowing brighter in the fighter's element colour
   function chargePose(P, F, f, fr, rig) {
-    const c = clamp01((f.chg || 0) / 60), fc = f.fc || 1;
+    const c = clamp01((f.chg || 0) / 60), fc = f.fc || 1, A = ATK[f.ch] && ATK[f.ch][f.at], tpl = A ? A.tpl : '';
     switch (f.at) {
       case 'fsmash':
         P.lean = -0.2; P.sy = 0.92; P.sx = 1.06; P.slZ = 0.12; P.srZ = -0.12; P.yaw = fc * 0.75;
-        if (rig && rig.blade) { P.af = [-2.7, 0.15, 0, 0]; P.grip = 0.9; P.an = [0.4, -0.4, -0.4, 0]; }
+        if (tpl === 'bigslash' || tpl === 'lungethrust') { P.af = [-2.7, 0.15, 0, 0]; P.grip = 0.9; P.an = [0.4, -0.4, -0.4, 0]; }
+        else if (tpl === 'capslam' || tpl === 'headbonk') { P.lean = -0.35; P.hx = -0.3; P.an = [-0.6, -0.4, -0.3, 0]; P.af = [-0.6, 0.4, -0.3, 0]; }
+        else if (tpl === 'energypalm') { P.an = [0.7, -0.35, -0.6, 0]; P.af = [0.7, 0.35, -0.6, 0]; F.elemGlow = 0.3 + 0.4 * c; }
         else { P.af = [0.9, 0.25, -0.6, 0]; P.an = [-0.5, -0.4, -0.5, 0]; }
         break;
-      case 'usmash': P.sy = 0.8; P.sx = 1.12; P.an = [0.5, -0.5, -0.4, 0]; P.af = [0.5, 0.5, -0.4, 0]; P.hx = 0.15; break;
-      default: P.sy = 0.78; P.sx = 1.14; ARMS_UP(P, 0.9); P.an[0] = 0.4; P.af[0] = 0.4;
+      case 'usmash': P.sy = 0.8; P.sx = 1.12; P.an = [0.5, -0.5, -0.4, 0]; P.af = [0.5, 0.5, -0.4, 0]; P.hx = 0.15; if (tpl === 'skyslash') { P.af = [1.0, 0.3, 0, 0]; P.grip = 1.1; } break;
+      default: P.sy = 0.78; P.sx = 1.14; ARMS_UP(P, 0.9); P.an[0] = 0.4; P.af[0] = 0.4; if (tpl === 'groundslam') { ARMS_UP(P, 2.6); P.sy = 0.96; }
     }
     P.side = Math.sin(fr * 1.7) * 0.025 * (0.3 + c);
-    F.tint = [1, 0.95, 0.55, 0.1 + 0.32 * c * (0.6 + 0.4 * Math.sin(fr * 0.9))];
+    const ec = hexF((ELEM_COL[CH[f.ch].elem] || ['#fff2a0'])[0]);
+    F.tint = [ec[0], ec[1], ec[2], 0.12 + 0.32 * c * (0.6 + 0.4 * Math.sin(fr * 0.9))];
   }
   function tauntPose(P, F, f, fr) {
     const t = f.t || 0, fc = f.fc || 1;
@@ -718,24 +835,30 @@ const M3D = (() => {
     F.tint = [0.6 + 0.4 * Math.cos(rad(0)), 0.6 + 0.4 * Math.cos(rad(-120)), 0.6 + 0.4 * Math.cos(rad(120)), 0.22];
     if (t < 36) { ARMS_UP(P, lerp(0.4, 2.7, clamp01(t / 14))); P.sy = 1 + 0.05 * Math.sin(t * 0.5); P.hx = -0.2; F.mouthO = t > 10; return; }
     switch (D.k) {
-      case 'beam': P.af = [-1.6, 0.05, 0, 0]; P.grip = 0.1; P.an = [-1.5, -0.1, -0.2, 0]; P.lean = 0.1; P.yaw = fc * 1.4; break;
+      case 'beam': P.af = [-1.6, 0.05, 0, 0]; P.grip = 0.1; P.an = [-1.5, -0.1, -0.2, 0]; P.lean = 0.1; P.yaw = fc * 1.4; F.mouthO = true; break;
       case 'rush': F.cart = 1; P.sy = 0.9; P.an = [-1.2, -0.3, -0.4, 0]; P.af = [-1.2, 0.3, -0.4, 0]; P.lean = 0.2; P.yaw = fc * 1.45; F.mouthO = true; break;
-      case 'pulses': F.guitarPlay = 1; P.af = [-1.2, 0.5, -0.8, 0]; P.an = [-0.9 + Math.sin(t * 0.9) * 0.4, -0.2, -0.8, 0]; P.hx = Math.sin(t * 0.45) * 0.3; break;
+      case 'pulses': if (D.sub) { ARMS_UP(P, 2.6); P.sy = 1 + Math.abs(Math.sin(t * 0.2)) * 0.1; break; }
+        F.guitarPlay = 1; P.af = [-1.2, 0.5, -0.8, 0]; P.an = [-0.9 + Math.sin(t * 0.9) * 0.4, -0.2, -0.8, 0]; P.hx = Math.sin(t * 0.45) * 0.3; break;
       case 'lasso': P.af = [-2.95, 0.15, 0, 0]; F.loopUp = 2.2; P.an = [0.2, -0.5, -0.4, 0]; break;
       case 'clone': P.af = [-1.4, 0.4, 0, 0]; P.lean = 0.3; break;
       case 'burst': ARMS_UP(P, 2.5); P.spin = t * 0.2; break;
-      default: ARMS_UP(P, 2.6); P.hx = -0.15;
+      default: ARMS_UP(P, 2.6); P.hx = -0.15; F.mouthO = true;
     }
   }
   function specialPose(P, F, f, fr, rig) {
-    const t = f.t || 0, fc = f.fc || 1;
+    const t = f.t || 0, fc = f.fc || 1, yo = rig && rig.kind === 'yoshi';
     const throwArm = (a, b, n) => { P.af = [lerp(a, b, clamp01(t / n)), 0.2, 0, 0]; P.an = [0.3, -0.4, -0.4, 0]; };
     const aim = () => { P.af = [-1.55, 0.12, 0, 0]; P.an = [0.3, -0.35, -0.4, 0]; P.grip = 0.2; P.yaw = fc * 1.3; };
     const dash = lean => { P.lean = lean; P.an = [1.1, -0.25, -0.2, 0]; P.af = [1.1, 0.25, -0.2, 0]; P.slZ = -0.12; P.srZ = 0.1; P.yaw = fc * 1.35; };
+    // a Yoshi spits from the mouth: rear back, then lunge the head forward
+    const spit = at => { const k = clamp01(t / at); P.hx = lerp(-0.2, 0.25, k); P.lean = lerp(-0.1, 0.22, k); F.mouthO = t > at - 4 && t < at + 6; P.yaw = fc * 1.2; P.an = [0.4, -0.4, -0.5, 0]; P.af = [0.4, 0.4, -0.5, 0]; };
+    const roll = sp => { P.tumble = -fc * t * sp; P.sy = 0.82; ARMS_UP(P, 0.6); P.slY = 0.2; P.srY = 0.2; };
+    const plunge = () => { if (t < 14) { P.tumble = -fc * (t / 14) * Math.PI * 2; P.sy = 0.9; } else { P.slY = -0.12; P.srY = -0.12; ARMS_UP(P, 2.5); } };
     switch (f.sp) {
       // --- the original crew ---
       case 'turnip': if (t < 12) { P.sy = 0.86; P.sx = 1.08; P.af = [-0.6, 0.15, -0.2, 0]; P.an = [-0.5, -0.15, -0.2, 0]; F.props.turnipLow = t > 6; } else throwArm(-2.6, -1.2, 18); break;
-      case 'turnips': case 'iceball': case 'fireball': case 'poison': case 'egg': case 'boomerang': throwArm(-2.7, -1.1, 9); if (f.ch === 'yoshi') F.mouthO = t < 12; break;
+      case 'turnips': case 'iceball': case 'fireball': case 'poison': case 'boomerang': throwArm(-2.7, -1.1, 9); break;
+      case 'egg': throwArm(-2.7, -1.1, 9); F.mouthO = t < 12; break;
       case 'sporespin': case 'pigspin': P.spin = t * 0.9; ARMS_UP(P, 1.4); break;
       case 'scream': ARMS_UP(P, 1.95); P.an[0] = 0.35; P.af[0] = 0.35; P.hx = -0.32; F.mouthO = true; break;
       case 'scold': P.an = [-2.1, -0.25, 0.3 + Math.sin(fr * 0.8) * 0.3, 0]; P.af = [0.2, 0.3, -0.4, 0]; P.hx = 0.12; F.mouthO = t > 6 && t < 22; break;
@@ -743,10 +866,10 @@ const M3D = (() => {
       case 'propeller': case 'superjump': case 'cloud': ARMS_UP(P, f.sp === 'superjump' ? 2.9 : 2.5); P.sy = 1.06; F.props.propeller = f.sp === 'propeller'; break;
       case 'parasol': P.an = [0, -2.85, 0, 0]; P.af = [0.1, 0.5, -0.3, 0]; F.props.parasol = clamp01((t - 2) / 8); break; // unfolds as it rises
       case 'float': ARMS_UP(P, 1.6); break;
-      case 'boost': P.an = [0.6, -0.5, 0, 0]; P.af = [0.6, 0.5, 0, 0]; F.props.flame = t < 16; break;
+      case 'boost': P.an = [0.6, -0.5, 0, 0]; P.af = [0.6, 0.5, 0, 0]; F.props.flame = t < 20; break;
       case 'tanooki': ARMS_UP(P, 1.2 + Math.sin(t * 0.6) * 0.5); F.props.tail = true; break;
-      case 'flutter': P.slZ = Math.sin(t * 1.3) * 0.3; P.srZ = -Math.sin(t * 1.3) * 0.3; P.slY = 0.1; P.srY = 0.1; ARMS_UP(P, 1.5 + Math.sin(t * 0.9) * 0.3); break;
-      case 'pound': case 'yoshipound': if (t < 14) { P.tumble = -fc * (t / 14) * Math.PI * 2; P.sy = 0.9; } else { P.slY = -0.12; P.srY = -0.12; ARMS_UP(P, 2.5); } break;
+      case 'flutter': case 'babyflutter': P.slZ = Math.sin(t * 1.3) * 0.3; P.srZ = -Math.sin(t * 1.3) * 0.3; P.slY = 0.1; P.srY = 0.1; ARMS_UP(P, 1.5 + Math.sin(t * 0.9) * 0.3); break;
+      case 'pound': case 'yoshipound': case 'magmapound': case 'divebomb': case 'quakestomp': case 'heavystomp': plunge(); if (f.sp === 'divebomb') F.wingFlap = 1; break;
       case 'counter': P.sy = 0.9; P.an = [-1.2, -0.3, -1.0, 0]; P.af = [-1.2, 0.3, -1.0, 0]; if (f.ctrT === 0 && t >= 3 && t <= 32) F.tint = [0.55, 1, 0.6, 0.3]; break;
       case 'pounce': P.lean = 1.1; P.an = [-2.6, -0.2, 0, 0]; P.af = [-2.6, 0.2, 0, 0]; P.slZ = -0.2; P.srZ = -0.25; break;
       case 'crown': ARMS_UP(P, 2.6); break;
@@ -769,7 +892,7 @@ const M3D = (() => {
       // --- Ninja Toad ---
       case 'shuriken': throwArm(-2.4, -0.8, 6); P.yaw = fc * 1.3; break;
       case 'shadowdash': dash(0.75); F.alpha = 0.45; break;
-      case 'smokeleap': ARMS_UP(P, 2.6); F.alpha = t < 8 ? 1 - t / 8 : clamp01((t - 8) / 6); break;
+      case 'smokeleap': case 'shadowleap': ARMS_UP(P, 2.6); F.alpha = t < 8 ? 1 - t / 8 : clamp01((t - 8) / 6); break;
       case 'substitute':
         P.an = [-1.25, -0.55, -1.5, 0]; P.af = [-1.25, 0.55, -1.5, 0]; P.sy = 0.94;
         if (f.ctrT === 0 && t >= 3 && t <= 28) F.tint = [0.75, 0.75, 1, 0.3];
@@ -823,18 +946,96 @@ const M3D = (() => {
       case 'turbo': P.lean = 0.5; P.an = [0.9, -0.3, -0.3, 0]; P.af = [0.9, 0.3, -0.3, 0]; P.yaw = fc * 1.4; F.bootJet = t >= 6; break;
       case 'jetboots': ARMS_UP(P, 2.7); F.bootJet = t < 12; break;
       case 'steam': if (t < 12) { P.sy = 0.86; P.sx = 1.08; } else { ARMS_UP(P, 1.6); P.sy = 1.04; } break;
+      // --- the Yoshi clan ---
+      case 'firespit': spit(7); break;
+      case 'rockspit': spit(9); break;
+      case 'sporespit': spit(9); break;
+      case 'shadowball': spit(12); break;
+      case 'lightbolt': spit(6); break;
+      case 'seedspit': spit(5); F.mouthO = t < 16 && t % 4 < 2; break;
+      case 'heartkiss': P.an = [t < 10 ? -2.2 : -1.4, -0.2, t < 10 ? -1.6 : 0, 0]; P.hx = 0.15; P.lean = 0.12; P.yaw = fc * 1.2; F.mouthO = t > 6 && t < 14; break;
+      case 'gust': F.wingFlap = 1; P.lean = t < 8 ? -0.25 : 0.2; P.an = [-1.2, -0.6, -0.3, 0]; P.af = [-1.2, 0.6, -0.3, 0]; P.yaw = fc * 1.25; break;
+      case 'frostbreath': P.hx = 0.2; P.lean = 0.18; F.mouthO = t > 5 && t < 20; P.yaw = fc * 1.25; P.side = Math.sin(t * 2) * 0.02; break;
+      case 'flamerush': dash(0.62); P.hx = 0.25; F.tint = [1, 0.45, 0.1, 0.3]; F.mouthO = true; break;
+      case 'swoop': dash(0.8); F.wingFlap = 1; break;
+      case 'stampede': dash(0.55); P.hx = 0.35; break;
+      case 'cartwheel': P.tumble = -fc * t * 0.55; ARMS_UP(P, 2.6); P.slY = 0.1; P.srY = 0.1; break;
+      case 'iceskate': P.lean = 0.35; P.an = [-0.4, -1.1, -0.2, 0]; P.af = [-0.4, 1.1, -0.2, 0]; P.slZ = 0.18; P.srZ = -0.3; P.srY = 0.12; P.yaw = fc * 1.4; break;
+      case 'nightdash': dash(0.72); F.alpha = 0.45; break;
+      case 'angeldash': dash(0.55); F.tint = [1, 1, 0.85, 0.3]; break;
+      case 'fruitroll': case 'babyroll': roll(0.6); break;
+      case 'blazejump': ARMS_UP(P, 2.8); P.sy = 1.08; F.tint = [1, 0.5, 0.1, 0.25]; break;
+      case 'springjump': ARMS_UP(P, 2.9); P.sy = t < 6 ? 1.2 : 1.05; P.sx = t < 6 ? 0.88 : 1; break;
+      case 'snowtwirl': P.spin = t * 0.8; ARMS_UP(P, 1.5); break;
+      case 'halorise': ARMS_UP(P, 2.8); P.sy = 1.06; F.tint = [1, 1, 0.8, 0.25]; break;
+      case 'melonhop': ARMS_UP(P, 2.4); P.sy = 1.08; P.spin = t < 12 ? t * 0.5 : 0; break;
+      case 'wingflight': F.wingFlap = 1; ARMS_UP(P, 1.0); P.slY = 0.1; P.srY = 0.1; P.lean = 0.15; break;
+      case 'heartfloat': ARMS_UP(P, 2.7); F.balloon = 1; P.slY = 0.1; P.srY = 0.08; break;
+      case 'bubblelift': ARMS_UP(P, 1.2); F.bubble = 1; P.sy = 0.92; P.slY = 0.15; P.srY = 0.15; break;
+      case 'sweetcounter': P.sy = 0.92; P.an = [-1.3, -0.4, -1.3, 0]; P.af = [-1.3, 0.4, -1.3, 0]; if (f.ctrT === 0 && t >= 3 && t <= 30) F.tint = [1, 0.6, 0.85, 0.32]; break;
+      case 'venomlash': case 'gobble': P.lean = 0.2; F.mouthO = true; P.tongue = f.ctr >= 0 ? 0.6 : clamp01((t - 4) / 6) * (f.sp === 'gobble' ? 0.6 : 1.4); P.yaw = fc * 1.4; break;
+      case 'frostpatch': case 'toxicpuddle': P.hx = clamp01(t / 10) * 0.5; P.lean = 0.28; F.mouthO = t > 6 && t < 16; break;
+      case 'holyshine': ARMS_UP(P, 1.7); P.sy = 1.04; if (t >= 2 && t <= 22) F.tint = [1, 1, 0.85, 0.35 + Math.sin(fr * 0.9) * 0.15]; break;
+      case 'tantrum': P.spin = t * 0.9; P.an = [Math.sin(t * 1.3) * 1.2, -1.2, 0, 0]; P.af = [-Math.sin(t * 1.3) * 1.2, 1.2, 0, 0]; F.mouthO = true; break;
+      case 'fruitbomb': P.hx = lerp(0.2, -0.45, clamp01(t / 10)); F.mouthO = t > 6 && t < 14; P.sy = t < 10 ? 0.9 : 1.04; break;
       case 'fs': fsPose(P, F, f, fr); break;
     }
+    if (yo && (f.sp === 'egg' || f.sp === 'turnips')) F.mouthO = t < 12;
   }
-  function targetPose(f, fr, rig) {
+  // ---- standing around: each fighter has their own idle ----
+  function idlePose(P, F, f, fr, rig) {
+    const C = CH[f.ch], s = Math.sin(fr * 0.07 + f.i), b = Math.sin(fr * 0.14 + f.i);
+    P.bob = s * 0.025; P.sy = 1 + s * 0.015; P.sx = 1 - s * 0.008; // breathing
+    P.hz = Math.sin(fr * 0.013 + f.i * 2) * 0.06; // glancing around
+    switch (C.idle) {
+      case 'fight': P.bob = Math.abs(b) * 0.05; P.an = [-1.1, -0.25, -1.5, 0]; P.af = [-0.9, 0.25, -1.6, 0]; P.lean = 0.08; P.slZ = 0.1; P.srZ = -0.08; break; // boxer bounce, fists up
+      case 'cheer': P.side = Math.sin(fr * 0.12 + f.i) * 0.06; P.an = [0.1, -0.5 - b * 0.1, -0.4, 0]; P.af = [0.1, 0.5 + b * 0.1, -0.4, 0]; break; // a happy sway
+      case 'proud': P.an = [0.25, -0.7, -1.9, 0]; P.af = [0.25, 0.7, -1.9, 0]; P.hx = -0.06; break; // hands on hips
+      case 'elder': P.lean = 0.12; P.hx = 0.08; P.an = [0.6, -0.15, -1.2, 0]; P.af = [-0.55, 0.15, -0.3, 0]; break; // leaning on the cane
+      case 'blade': P.af = [-0.7, 0.2, -0.5, 0]; P.grip = 1.4; P.an = [-0.9, -0.2, -0.6, 0]; F.shieldFwd = 0.5; break; // sword and shield ready
+      case 'ninja': P.sy = 0.92; P.lean = 0.18; P.an = [-0.6, -0.35, -1.4, 0]; P.af = [0.6, 0.3, -0.2, 0]; P.slZ = 0.14; P.srZ = -0.12; break; // low stance
+      case 'mage': P.af = [-0.7 + Math.sin(fr * 0.09) * 0.2, 0.2, -0.8, 0]; P.grip = 1.2; F.wandGlow = Math.sin(fr * 0.09) > 0.6 ? 1 : 0; break; // twirling the wand
+      case 'groove': { const g = Math.abs(Math.sin(fr * 0.18)); P.hx = g * 0.16; P.bob = g * 0.03; P.an = [-0.4, -0.3, -0.9, 0]; break; } // nodding to the beat
+      case 'float': P.an = [-0.5, -0.5, -0.6, 0]; P.af = [-0.5, 0.5, -0.6, 0]; P.side = Math.sin(fr * 0.05) * 0.05; break;
+      case 'robot': P.bob = 0; P.sy = 1; P.sx = 1; P.hz = Math.round(Math.sin(fr * 0.02) * 2) * 0.06; P.an = [0, -0.2, -0.3, 0]; P.af = [0, 0.2, -0.3, 0]; break; // stiff, head clicking round
+      case 'dino': P.side = Math.sin(fr * 0.1 + f.i) * 0.04; P.bob = Math.abs(Math.sin(fr * 0.1)) * 0.03; P.an = [-0.3, -0.3, -0.8, 0]; P.af = [-0.3, 0.3, -0.8, 0]; P.hx = Math.sin(fr * 0.05) * 0.05; break; // shifting weight
+      default: P.an = [0.08, -0.25, -0.25, 0]; P.af = [0.08, 0.25, -0.25, 0];
+    }
+  }
+  function runPose(P, F, f, fr) {
+    const C = CH[f.ch], heavy = C.gait === 'heavy', ph = (fr * 0.42 + f.i * 1.7) * (heavy ? 0.72 : 1), s = Math.sin(ph), c = Math.cos(ph);
+    P.lean = 0.2; P.bob = Math.abs(s) * 0.07; P.sy = 1 + Math.abs(c) * 0.04 - 0.02;
+    P.slY = Math.max(0, c) * 0.13; P.slZ = s * 0.24; P.slR = -s * 0.5; P.srY = Math.max(0, -c) * 0.13; P.srZ = -s * 0.24; P.srR = s * 0.5;
+    P.an = [s * 0.95, -0.2, -0.55, 0]; P.af = [-s * 0.95, 0.2, -0.55, 0];
+    switch (C.gait) {
+      case 'ninja': P.lean = 0.5; P.an = [1.3, -0.15, -0.1, 0]; P.af = [1.3, 0.15, -0.1, 0]; P.hx = 0.2; break; // arms swept back
+      case 'float': P.lean = 0.3; P.slY = P.srY = 0; P.slZ = P.srZ = 0; P.slR = P.srR = 0; P.bob = Math.sin(ph * 0.5) * 0.04; P.an = [0.6, -0.4, -0.3, 0]; P.af = [0.6, 0.4, -0.3, 0]; break;
+      case 'heavy': P.lean = 0.12; P.bob = Math.abs(s) * 0.1; P.side = s * 0.05; P.an = [s * 0.6, -0.25, -0.5, 0]; P.af = [-s * 0.6, 0.25, -0.5, 0]; break; // stomping
+      case 'dino': P.lean = 0.3; P.hx = -0.1; P.bob = Math.abs(s) * 0.06; P.side = s * 0.04; P.an = [s * 0.4 - 0.4, -0.3, -0.8, 0]; P.af = [-s * 0.4 - 0.4, 0.3, -0.8, 0]; break; // a scampering trot
+    }
+  }
+  // anim: render-side extras from drawFighter { vy (estimated), flip, land, lag }
+  function targetPose(f, fr, rig, anim) {
     rig = rig || RIGS[f.ch];
+    anim = anim || {};
     const P = pose0(f.fc), F = { mouthO: false, hurt: false, props: {}, tint: null };
-    const ph = fr * 0.42 + f.i * 1.7;
     switch (f.st) {
-      case 'idle': P.bob = Math.sin(fr * 0.1 + f.i) * 0.03; break;
-      case 'run': { const s = Math.sin(ph), c = Math.cos(ph); P.lean = 0.2; P.bob = Math.abs(s) * 0.07; P.slY = Math.max(0, c) * 0.13; P.slZ = s * 0.24; P.slR = -s * 0.5; P.srY = Math.max(0, -c) * 0.13; P.srZ = -s * 0.24; P.srR = s * 0.5; P.an = [s * 0.95, -0.2, -0.55, 0]; P.af = [-s * 0.95, 0.2, -0.55, 0]; break; }
-      case 'air': P.slY = 0.1; P.slZ = 0.08; P.slR = -0.4; P.srY = 0.06; P.srZ = -0.06; P.srR = 0.3; P.an = [-0.3, -1.0, -0.6, 0]; P.af = [-0.3, 1.0, -0.6, 0]; break;
-      case 'help': ARMS_UP(P, 2.5); P.slY = 0.1; P.srY = 0.1; break;
+      case 'idle': idlePose(P, F, f, fr, rig); break;
+      case 'run': runPose(P, F, f, fr); break;
+      case 'air': {
+        const vy = anim.vy || 0;
+        if (anim.flip > 0) {
+          // the double jump: Toads flip, Yoshis pedal their legs, Ghost Toad spins
+          const k = 1 - anim.flip / 20;
+          if (rig && rig.kind === 'yoshi') { P.slZ = Math.sin(fr * 1.4) * 0.35; P.srZ = -Math.sin(fr * 1.4) * 0.35; P.slY = 0.12; P.srY = 0.12; ARMS_UP(P, 1.6); }
+          else if (rig && rig.ghost) { P.spin = k * Math.PI * 2; ARMS_UP(P, 1.4); }
+          else { P.tumble = -(f.fc || 1) * k * Math.PI * 2; P.sy = 0.86; ARMS_UP(P, 1.0); P.slY = 0.22; P.srY = 0.22; }
+        } else if (vy < -3) { P.sy = 1.07; P.sx = 0.95; P.slY = 0.02; P.srY = 0.06; P.slZ = 0.04; P.an = [-0.5, -0.8, -0.4, 0]; P.af = [-0.5, 0.8, -0.4, 0]; }
+        else if (vy > 3) { const w = Math.sin(fr * 0.45); P.slY = 0.16; P.slZ = 0.12; P.slR = -0.4; P.srY = 0.08; P.srZ = -0.1; P.srR = 0.3; P.an = [-0.3, -1.6 - w * 0.25, -0.5, 0]; P.af = [-0.3, 1.6 + w * 0.25, -0.5, 0]; }
+        else { P.slY = 0.1; P.slZ = 0.08; P.slR = -0.4; P.srY = 0.06; P.srZ = -0.06; P.srR = 0.3; P.an = [-0.3, -1.0, -0.6, 0]; P.af = [-0.3, 1.0, -0.6, 0]; }
+        break;
+      }
+      case 'help': ARMS_UP(P, 2.5); P.an[1] -= Math.sin(fr * 0.5) * 0.3; P.af[1] += Math.sin(fr * 0.5) * 0.3; P.slY = 0.1; P.srY = 0.1; F.hurt = (fr % 60) < 30; break;
       case 'land': P.sy = 0.86; P.sx = 1.12; break;
       case 'crouch': P.sy = 0.74; P.sx = 1.1; P.lean = 0.14; P.hx = 0.12; P.bob = -0.02; P.an = [0.35, -0.38, -0.7, 0]; P.af = [0.35, 0.38, -0.7, 0]; P.slZ = 0.06; P.srZ = -0.05; break;
       case 'shield':
@@ -842,14 +1043,22 @@ const M3D = (() => {
         if (rig && rig.shield) { P.an = [-1.35, -0.15, -0.1, 0]; F.shieldFwd = 1; }
         break;
       case 'dodge': P.spin = (f.t || 0) * 0.6; break;
-      case 'ledge': ARMS_UP(P, 2.85); P.slY = -0.05; P.slZ = 0.12; P.srZ = 0.1; P.lean = 0.15; break;
+      case 'ledge': ARMS_UP(P, 2.85); P.slY = -0.05; P.slZ = 0.12 + Math.sin(fr * 0.1) * 0.08; P.srZ = 0.1 - Math.sin(fr * 0.1) * 0.08; P.lean = 0.15; break;
       case 'stun': P.hz = Math.sin(fr * 0.2) * 0.25; P.an = [0, -0.3, 0, 0]; P.af = [0, 0.3, 0, 0]; F.hurt = true; break;
-      case 'hit': F.hurt = true; ARMS_UP(P, 1.8); P.slY = 0.12; P.slZ = 0.1; P.srY = 0.12; P.srZ = -0.1; if (f.hs > 18) P.tumble = fr * 0.35 * (f.fc || 1); break;
+      case 'hit':
+        F.hurt = true; F.mouthO = true;
+        if (f.hs > 18) { ARMS_UP(P, 1.8); P.slY = 0.12; P.slZ = 0.1; P.srY = 0.12; P.srZ = -0.1; P.tumble = fr * 0.35 * (f.fc || 1); }
+        else { P.hx = -0.3; P.lean = -0.25; P.an = [-0.6, -1.0, -0.4, 0]; P.af = [-0.6, 1.0, -0.4, 0]; P.slZ = 0.14; P.srZ = 0.06; } // a quick flinch
+        break;
       case 'atk': attackPose(P, F, f, rig); break;
       case 'charge': chargePose(P, F, f, fr, rig); break;
       case 'taunt': tauntPose(P, F, f, fr); break;
       case 'spc': specialPose(P, F, f, fr, rig); break;
     }
+    // landing squash, and a little head nod
+    if (anim.land > 0 && (f.st === 'idle' || f.st === 'run' || f.st === 'land' || f.st === 'crouch')) { const k = anim.land / 8; P.sy *= 1 - 0.16 * k; P.sx *= 1 + 0.1 * k; P.hx += 0.14 * k; }
+    // the head lags behind sudden starts and stops
+    if (anim.lag) P.hz += anim.lag;
     // a held turnip rides on top of the head, arms up, Super Mario Bros. 2 style
     if (f.hold) { ARMS_UP(P, 2.6); F.props.turnip = true; }
     // carrying the pickaxe: hold it out in front, head down, so it stays visible below the cap
@@ -863,6 +1072,8 @@ const M3D = (() => {
     if (f.ch === 'toadsworth') F.props.cane = !F.props.parasol;
     // Ghost Toad never quite touches the ground
     if (rig && rig.ghost) P.bob += 0.1 + Math.sin(fr * 0.07 + f.i) * 0.05;
+    // blinking now and then
+    F.blink = !F.hurt && f.st !== 'hit' && f.st !== 'stun' && (fr + f.i * 61) % 230 < 6;
     return { P, F };
   }
   const SMOOTH = ['bob', 'lean', 'side', 'sx', 'sy', 'hx', 'hz', 'slY', 'slZ', 'slR', 'srY', 'srZ', 'srR', 'yaw', 'tongue', 'grip'];
@@ -886,17 +1097,32 @@ const M3D = (() => {
     if (F.props.flame) G3.draw(PROPS.flame, M4.chain(Mb, M4.T(0, 0.02, -0.46), M4.RX(0.45), M4.S(1, jitter(), 1)), { self: 1 });
     // Astro Toad's jetpack nozzles
     if (F.jet) for (const sx of [-1, 1]) G3.draw(PROPS.flame, M4.chain(Mb, M4.T(0.14 * sx, -0.1, -0.5), M4.S(0.45, 0.6 * jitter(), 0.45)), { self: 1 });
-    const hp = v.sub(p.head.pivot, p.body.pivot);
-    const Mh = M4.chain(Mb, M4.T(hp[0], hp[1], hp[2]), M4.RX(P.hx), M4.RZ(P.hz));
+    const hp = v.sub(p.head.pivot, p.body.pivot), hs = rig.hs || 1;
+    const Mh = M4.chain(Mb, M4.T(hp[0], hp[1], hp[2]), M4.RX(P.hx), M4.RZ(P.hz), M4.S(hs, hs, hs));
     G3.draw(p.head.mesh, Mh, d);
-    const eyes = F.hurt && p.eyesHurt ? p.eyesHurt : p.eyes;
-    G3.draw(eyes.mesh, Mh, rig.robo ? Object.assign({ self: 1 }, d) : d);
+    // nobody blinks behind sunglasses (Rocker Toad, Black Yoshi)
+    const eyes = F.hurt && p.eyesHurt ? p.eyesHurt : p.eyes, L0 = rig.look || {}, blink = F.blink && !F.hurt && L0.hat !== 'shades' && !L0.shades;
+    const eo = rig.robo ? Object.assign({ self: 1 }, d) : d;
+    // a Yoshi blinks by closing green (or pink, or...) eyelids over the eyes
+    if (rig.kind === 'yoshi') { if (blink && p.lids) G3.draw(p.lids.mesh, Mh, d); else G3.draw(eyes.mesh, Mh, eo); }
+    else G3.draw(eyes.mesh, blink ? M4.chain(Mh, M4.T(0, rig.eyeY, 0), M4.S(1, 0.12, 1), M4.T(0, -rig.eyeY, 0)) : Mh, eo);
     const mo = F.mouthO && p.mouthO ? p.mouthO : p.mouth;
     if (mo) G3.draw(mo.mesh, Mh, d);
     if (p.lamp) G3.draw(p.lamp.mesh, Mh, { self: 1, tint: F.lampHot ? [1, 1, 0.85, 0.7] : null });
     if (rig.kind === 'toad') {
       if (F.props.propeller) G3.draw(PROPS.propeller, M4.chain(Mh, M4.T(CAP_TOP[0], CAP_TOP[1] - 0.03, CAP_TOP[2]), M4.RY(fr * 0.9)), d);
       if (F.props.crown) G3.draw(PROPS.crown, M4.chain(Mh, M4.T(CAP_TOP[0], CAP_TOP[1] - 0.06, CAP_TOP[2]), M4.RX(-0.1)), d);
+    } else {
+      // each Yoshi's own look
+      const L = rig.look || {};
+      if (L.wings) { const fl = F.wingFlap ? Math.sin(fr * 0.75) * 0.7 : Math.sin(fr * 0.08) * 0.12; for (const sx of [-1, 1]) G3.draw(PROPS.ywing, M4.chain(Mb, M4.T(0.17 * sx, 0.52, -0.27), M4.RY(sx > 0 ? 0.5 : Math.PI - 0.5), M4.RZ(0.35 + fl)), d); }
+      // a big bow on top of the head, so it shows whichever way she faces
+      if (L.bow) G3.draw(PROPS.bow, M4.chain(Mh, M4.T(0, 0.93, -0.1), M4.RX(-0.35), M4.S(1.35, 1.35, 1.35)), d);
+      if (L.scarf) G3.draw(PROPS.scarf, M4.chain(Mb, M4.T(0, 0.52, 0.02)), d);
+      if (L.shades) G3.draw(PROPS.shades, M4.chain(Mh, M4.T(0, 0.72, 0.385)), d);
+      if (L.halo) G3.draw(PROPS.haloRing, M4.chain(Mh, M4.T(0, 1.08 + Math.sin(fr * 0.06) * 0.02, -0.04), M4.RX(-0.25)), { self: 0.9, alpha: al < 0.99 ? al : undefined });
+      if (L.sprout) G3.draw(PROPS.sprout, M4.chain(Mh, M4.T(0, 0.9, -0.02), M4.RZ(Math.sin(fr * 0.08) * 0.15)), d);
+      if (F.props.crown) G3.draw(PROPS.crown, M4.chain(Mh, M4.T(0, 0.92, 0)), d);
     }
     if (F.props.turnip) { const tp = rig.kind === 'toad' ? CAP_TOP : [0, 0.98, 0.02]; G3.draw(PROPS.turnip, M4.chain(Mh, M4.T(tp[0], tp[1] - 0.04, tp[2]), M4.S(1.5, 1.5, 1.5)), d); }
     if (P.tongue > 0.02) G3.draw(PROPS.tongue, M4.chain(Mh, M4.T(0, 0.2, 0.55), M4.S(1, 1, P.tongue * 2.6)), d);
@@ -947,6 +1173,9 @@ const M3D = (() => {
     if (F.minicannon) G3.draw(PROPS.minicannon, M4.chain(M0, M4.T(0, 0, 0.62), M4.S(1.4, 1.4, 1.4)), d);
     if (F.cart) G3.draw(PROPS.cart, M4.chain(M0, M4.RY(Math.PI / 2), M4.T(0, -0.1, 0), M4.S(1.5, 1.5, 1.5)));
     if (F.orb) G3.draw(PROJ.ball, M4.chain(M0, M4.T(0, 0.95, 0.7), M4.S(0.12 + 0.22 * F.orb, 0.12 + 0.22 * F.orb, 0.12 + 0.22 * F.orb)), { tint: [0.35, 0.12, 0.6, 0.85], self: 0.6 });
+    // Pink Yoshi's heart balloon, Purple Yoshi's bubble
+    if (F.balloon) { G3.draw(PROJ.heart, M4.chain(M0, M4.T(0, 2.75 + Math.sin(fr * 0.2) * 0.05, 0.1), M4.RZ(Math.sin(fr * 0.1) * 0.15), M4.S(2.6, 2.6, 2.6)), { self: 0.2 }); }
+    if (F.bubble) G3.draw(PROJ.bubble, M4.chain(M0, M4.T(0, 1.0, 0.05), M4.S(4.6, 4.6, 4.6)), { alpha: 0.32 * al, self: 0.3 });
     // Astro Toad's glass helmet goes on last so it can be see-through
     if (p.dome) G3.draw(p.dome.mesh, Mh, { alpha: 0.26 * al, self: 0.35 });
     if (o && o.extraProp) o.extraProp(Mb, Mh);
@@ -960,11 +1189,22 @@ const M3D = (() => {
   function drawFighter(f, fr) {
     const rig = RIGS[f.ch];
     if (!rig) return;
-    const C = CH[f.ch], { P, F } = targetPose(f, fr, rig);
-    const mem = MEM[f.i];
+    const C = CH[f.ch], mem = MEM[f.i] && MEM[f.i].ch === f.ch ? MEM[f.i] : null;
+    // render-side animation memory: estimated speed, double-jump flip, landing squash, head lag
+    const A = mem ? mem.A : { flip: 0, land: 0, lag: 0 }, vy = mem ? f.y - mem.y : 0, vx = mem ? f.x - mem.x : 0;
+    if (mem) {
+      if (f.gi >= 0 && mem.gi < 0) A.land = 8;
+      if (f.gi < 0 && f.jl != null && mem.jl != null && f.jl < mem.jl) A.flip = 20;
+      if (f.st === 'hit' || f.st === 'dead') A.flip = 0;
+      A.lag += (Math.max(-0.3, Math.min(0.3, -(vx - mem.vx) * 0.06)) - A.lag) * 0.25;
+    }
+    const { P, F } = targetPose(f, fr, rig, { vy, flip: A.flip, land: A.land, lag: A.lag });
+    if (A.flip > 0) A.flip--;
+    if (A.land > 0) A.land--;
     // attacks and hits snap into place so the strike shows on its active frames; everything else eases
-    smoothPose(mem && mem.ch === f.ch ? mem.P : null, P, f.st === 'atk' ? 0.72 : f.st === 'hit' || f.st === 'spc' ? 0.55 : f.st === 'taunt' ? 0.3 : 0.38);
-    MEM[f.i] = { ch: f.ch, P: JSON.parse(JSON.stringify(P)) };
+    smoothPose(mem ? mem.P : null, P, f.st === 'atk' ? 0.72 : f.st === 'hit' || f.st === 'spc' ? 0.55 : f.st === 'taunt' ? 0.3 : 0.38);
+    MEM[f.i] = { ch: f.ch, P: JSON.parse(JSON.stringify(P)), x: f.x, y: f.y, vx, gi: f.gi, jl: f.jl, A };
+    if (F.elemGlow) { const ec = hexF((ELEM_COL[C.elem] || ['#ffffff'])[0]); F.tint = [ec[0], ec[1], ec[2], F.elemGlow * 0.5]; }
     if (f.fs && f.st !== 'spc') F.tint = hueTint(fr, 0.3, 10); // holding the Smash Mushroom's power
     if (f.inv > 0 && f.rp <= 0 && Math.floor(fr / 3) % 2 === 0) F.tint = [1, 1, 1, 0.45];
     if (f.star > 0) F.tint = hueTint(fr, 0.4);
@@ -983,8 +1223,7 @@ const M3D = (() => {
     }
     drawRig(rig, rootMatrix(X, Y, P, scale), P, F, fr);
     if (f.rp > 0) G3.draw(PROJ.halo, M4.chain(M4.T(X, Y - 0.06, 0), M4.S(1.15, 1, 0.7)), { self: 0.3 });
-    if (f.st === 'shield' && !rig.shield) { const r = (f.h * 0.62 * PX) * (0.45 + 0.55 * ((f.shd || 100) / 100)); G3.draw(PROJ.ball, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(r, r, r)), { alpha: 0.32, tint: [...hexF(SLOT_COLORS[f.i]), 0.6], self: 0.4 }); }
-    if (f.st === 'shield' && rig.shield) { const r = (f.h * 0.62 * PX) * (0.45 + 0.55 * ((f.shd || 100) / 100)); G3.draw(PROJ.ball, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(r, r, r)), { alpha: 0.16, tint: [...hexF(SLOT_COLORS[f.i]), 0.6], self: 0.4 }); }
+    if (f.st === 'shield') { const r = (f.h * 0.62 * PX) * (0.45 + 0.55 * ((f.shd || 100) / 100)); G3.draw(PROJ.ball, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(r, r, r)), { alpha: rig.shield ? 0.16 : 0.32, tint: [...hexF(SLOT_COLORS[f.i]), 0.6], self: 0.4 }); }
     if (f.frz > 0) G3.draw(PROJ.ice3, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(f.w * 0.75 * PX, f.h * 0.6 * PX, 0.9)), { alpha: 0.4, self: 0.5 });
   }
   function hexF(h) { const c = B.hex(h); return [c[0] / 255, c[1] / 255, c[2] / 255]; }
@@ -1004,17 +1243,18 @@ const M3D = (() => {
       },
     });
   }
-  // the Toad Brigade Stampede / Royal Guard Charge: a crowd running across the stage
+  // the Toad Brigade Stampede / Royal Guard Charge / Yoshi Stampede: a crowd running across the stage
   const CROWD_Z = [0.9, -0.7, 0.3, -1.3, 1.5, -0.2, 0.7];
   function drawCrowd(e, sy, fr) {
-    const guards = e.sub === 'guards', fronts = e.both ? [[e.x, e.dir], [e.x2, -e.dir]] : [[e.x, e.dir]];
+    const guards = e.sub === 'guards', yo = e.sub === 'yoshis', fronts = e.both ? [[e.x, e.dir], [e.x2, -e.dir]] : [[e.x, e.dir]];
     for (const [x0, dir] of fronts) for (let k = 0; k < 7; k++) {
-      const rig = guards ? MINIONS.guard : CROWD[(k + (dir > 0 ? 0 : 3)) % CROWD.length];
+      const rig = guards ? MINIONS.guard : yo ? YCROWD[(k * 3 + (dir > 0 ? 0 : 5)) % YCROWD.length] : CROWD[(k + (dir > 0 ? 0 : 3)) % CROWD.length];
+      if (!rig) continue;
       const ph = fr * 0.55 + k * 1.3, s = Math.sin(ph), c = Math.cos(ph), x = x0 - dir * (k * 30 + (k % 2) * 10);
       const P = pose0(dir), F = { props: {}, mouthO: k % 3 === 0, hurt: false, tint: null };
       P.lean = 0.28; P.bob = Math.abs(s) * 0.12; P.slY = Math.max(0, c) * 0.15; P.slZ = s * 0.28; P.slR = -s * 0.5; P.srY = Math.max(0, -c) * 0.15; P.srZ = -s * 0.28; P.srR = s * 0.5;
       P.an = guards ? [-0.9, -0.2, -0.4, 0] : [s * 1.1, -0.2, -0.55, 0]; P.af = guards ? [-1.2, 0.2, -0.3, 0] : [-s * 1.1, 0.2, -0.55, 0]; P.yaw = dir * 1.25;
-      const scale = (62 * 0.86 * PX) / rig.h;
+      const scale = ((yo ? 66 : 62) * 0.86 * PX) / rig.h;
       drawRig(rig, M4.chain(M4.T(0, 0, CROWD_Z[k]), rootMatrix(x * PX, -sy * PX, P, scale)), P, F, fr, guards ? {
         extraProp: (Mb, Mh) => {
           G3.draw(PROPS.helmet, M4.chain(Mh, M4.T(CAP_TOP[0], CAP_TOP[1] - 0.5, CAP_TOP[2]), M4.S(1.7, 1.2, 1.7)));
@@ -1028,6 +1268,7 @@ const M3D = (() => {
     const rig = RIGS[id]; if (!rig) return;
     const f = { ch: id, i: 9, fc: 1, st: st || 'idle', t: fr, gi: 0 }, { P, F } = targetPose(f, fr, rig);
     if (id === 'toadsworth') F.props.cane = true;
+    F.blink = false;
     drawRig(rig, M4.chain(M0, M4.RY(P.spin), M4.T(0, P.bob, 0)), Object.assign(P, { yaw: 0 }), F, fr);
   }
   return { PX, build, RIGS, ITEM, PROJ, PROPS, KARTS, TRAP, FXM, drawFighter, drawMinion, drawCrowd, drawRig, drawPreview, rootMatrix, pose0, targetPose, MEM, hexF, hueTint, CAP_TOP };

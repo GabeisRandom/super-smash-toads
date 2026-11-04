@@ -647,6 +647,9 @@ function drawParticles(c) {
       case 'ring': c.strokeStyle = p.color; c.lineWidth = 4 * k + 1; c.beginPath(); c.arc(p.x, p.y, p.size * (1 - k) + 6, 0, Math.PI * 2); c.stroke(); break;
       case 'star': starPath(c, p.x, p.y, p.size, p.size * 0.45, p.life * 0.2); c.fillStyle = p.color; c.fill(); break;
       case 'heart': c.fillStyle = p.color; c.beginPath(); c.arc(p.x - 4, p.y, 4.5, Math.PI, 0); c.arc(p.x + 4, p.y, 4.5, Math.PI, 0); c.lineTo(p.x, p.y + 9); c.closePath(); c.fill(); break;
+      case 'bubble': c.strokeStyle = p.color; c.lineWidth = 2; c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2); c.stroke(); break;
+      case 'flake': starPath(c, p.x, p.y, p.size, p.size * 0.3, p.life * 0.1); c.fillStyle = p.color; c.fill(); break;
+      case 'note': txt(c, '♪', p.x, p.y, p.size * 3, p.color, OUT); break;
       case 'text': txt(c, p.text, p.x, p.y, p.size, p.color, OUT); break;
       case 'ko': {
         c.globalAlpha = k; const n = 14;

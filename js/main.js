@@ -205,8 +205,19 @@ function showCharInfo(id) {
   box.appendChild(el('h3', '', C.name));
   box.appendChild(el('div', '', C.blurb));
   box.appendChild(el('div', 'moves', `Special: ${SPNAME[C.sp.n]}  ·  Side: ${SPNAME[C.sp.s]}  ·  Up: ${SPNAME[C.sp.u]}  ·  Down: ${SPNAME[C.sp.d]}`));
-  box.appendChild(el('div', 'fsname', `Smash Mushroom finale: ${FSNAME[C.id]}`));
+  const fsl = el('div', 'fsname', `Smash Mushroom finale: ${FSNAME[C.id]}`);
+  const E = ELEM_INFO[C.elem];
+  if (E) { const sp = el('span', 'elem', `   ·   ${E}`); sp.style.color = (ELEM_COL[C.elem] || ['#fff'])[0]; fsl.appendChild(sp); }
+  box.appendChild(fsl);
 }
+// what each fighter's element does, for the lobby
+const ELEM_INFO = {
+  fire: 'Fire: hits burn, extra knockback', ice: 'Ice: smash attacks freeze', poison: 'Poison: smashes and combo finishers poison',
+  electric: 'Electric: every hit shocks', wind: 'Wind: hits fly flatter and farther', rock: 'Rock: heavier smash attacks', music: 'Music: longer reach',
+  shadow: 'Shadow: hits a little harder', light: 'Light: hits a little harder', steel: 'Steel: tough, solid hits',
+  spore: 'Spore power', heart: 'Heart power', gold: 'Gold power', leaf: 'Leaf power', water: 'Sea power', heat: 'Kitchen heat',
+  magic: 'Magic sparkles', cosmic: 'Cosmic power', dust: 'Desert dust', spirit: 'Spirit power', spark: 'Spark power', egg: 'Egg power', fruit: 'Fruit power',
+};
 
 function renderLobby() {
   const titles = { local: 'Local Play: pick your Toads', host: 'Online Room: share the code!', client: 'Online Room' };
@@ -584,6 +595,26 @@ function clientView() {
 
 // ---------- Effects from game events (sound + particles, on every machine) ----------
 function say(text, x, y, size, color) { addP({ type: 'text', text, x, y, vy: -1.1, size: size || 22, color: color || '#ffffff', life: 70, drag: 0.98 }); }
+// each fighter's element flavours their hits: flames, frost, bubbles, sparks, music notes...
+const ELEM_FX = {
+  fire: ['dot', 'rise'], heat: ['dot', 'rise'], spark: ['spark'], ice: ['flake'], poison: ['bubble', 'rise'], water: ['bubble'], electric: ['spark', 'zap'],
+  wind: ['puff'], rock: ['dot', 'fall'], dust: ['puff'], music: ['note', 'rise'], heart: ['heart', 'rise'], shadow: ['puff'], spirit: ['puff'],
+  light: ['star'], gold: ['star'], magic: ['star'], cosmic: ['star'], leaf: ['dot', 'fall'], spore: ['dot', 'fall'], egg: ['star'], fruit: ['dot', 'fall'], steel: ['spark'],
+};
+function elemBurst(el, x, y, p, n0) {
+  const F = ELEM_FX[el], C = ELEM_COL[el];
+  if (!F || !C) return;
+  const n = n0 || 4 + Math.min(8, Math.round(p * 0.4)), type = F[0], mode = F[1];
+  for (let k = 0; k < n; k++) {
+    const a = Math.random() * Math.PI * 2, v = 2 + Math.random() * (2 + p * 0.15), col = k % 2 ? C[1] : C[0];
+    const o = { type, x: x + Math.cos(a) * 6, y: y + Math.sin(a) * 6, vx: Math.cos(a) * v, vy: Math.sin(a) * v, color: col, size: type === 'note' ? 6 : type === 'puff' ? 7 : 5, life: 22 + Math.random() * 12, drag: 0.9 };
+    if (mode === 'rise') { o.vy = -1.5 - Math.random() * 2; o.vx *= 0.5; o.drag = 0.96; }
+    if (mode === 'fall') o.g = 0.25;
+    if (type === 'puff') o.tint = col;
+    addP(o);
+  }
+  if (mode === 'zap' && p > 6) Snd.play('zap');
+}
 function handleEvents(evs) {
   for (const e of evs) {
     switch (e.t) {
@@ -593,6 +624,7 @@ function handleEvents(evs) {
         addP({ type: 'ring', x: e.x, y: e.y, size: 30 + e.p * 3, color: '#ffffff', life: 14 });
         if (e.p > 16) cam.shake = Math.max(cam.shake, e.p * 0.7);
         if (e.p > 22) burst(e.x, e.y, 6, '#ffe866', 8, 'star', 7, 30);
+        if (e.el) elemBurst(e.el, e.x, e.y, e.p);
         break;
       case 'block': Snd.play('block'); addP({ type: 'ring', x: e.x, y: e.y, size: 40, color: '#9fe4ff', life: 12 }); break;
       case 'break': Snd.play('break'); burst(e.x, e.y, 12, '#ffe866', 6, 'star', 6, 40); say('Shield break!', e.x, e.y - 20, 22, '#ffe866'); break;
@@ -608,7 +640,7 @@ function handleEvents(evs) {
       case 'land': for (const s of [-1, 1]) addP({ type: 'puff', x: e.x + s * 12, y: e.y - 3, vx: s * 1.2, size: 5, color: 'rgba(255,255,255,0.55)', life: 14 }); break;
       case 'swing': Snd.play('swing'); break;
       case 'pluck': Snd.play('pluck'); burst(e.x, e.y - 4, 7, '#8a5a2b', 3, 'dot', 4, 20); if (e.s) say(e.s, e.x, e.y - 90, 20, '#ffe866'); break;
-      case 'pop': Snd.play('pop'); burst(e.x, e.y, 8, { ice: '#9fe4ff', fire: '#ff8a1f', coin: '#ffd23a', psn: '#9b4fd6' }[e.k] || '#f6f2ff', 4, 'dot', 4, 20); break;
+      case 'pop': Snd.play('pop'); burst(e.x, e.y, 8, { ice: '#9fe4ff', fire: '#ff8a1f', coin: '#ffd23a', psn: '#9b4fd6', gust: '#ffffff', rock: '#a08a6a', heart: '#ff5aa8', bubble: '#c890ff', shade: '#8a7ad8', lightbolt: '#fff6c8', seed: '#5a4a30', melon: '#5fd04a' }[e.k] || '#f6f2ff', 4, 'dot', 4, 20); break;
       case 'throw': case 'shoot': Snd.play('shoot'); break;
       case 'scream': Snd.play('scream'); say('WAAAH!', e.x, e.y, 36, '#ffffff'); break;
       case 'spin': case 'prop': Snd.play('spin'); break;
@@ -618,10 +650,14 @@ function handleEvents(evs) {
       case 'cloud': Snd.play('bounce'); for (let k = 0; k < 6; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 100, y: e.y + 10, size: 10, color: 'rgba(255,255,255,0.9)', life: 22 }); break;
       case 'boom': {
         const s = e.s || 1;
-        Snd.play('boom'); cam.shake = Math.max(cam.shake, 12 * s);
-        burst(e.x, e.y, 16 * s, '#ff8a1f', 7 * s, 'dot', 10, 28); burst(e.x, e.y, 10 * s, '#ffe866', 5 * s, 'dot', 8, 22);
-        addP({ type: 'ring', x: e.x, y: e.y, size: 90 * s, color: '#ffffff', life: 16 });
+        Snd.play('boom'); cam.shake = Math.max(cam.shake, 12 * s * (e.k === 'quake' ? 1.6 : 1));
+        // a few landings and finales carry their own flavour: rocks, feathers, melon bits, hearts...
+        const BK = { quake: ['#c0a882', '#8a7a60'], feather: ['#ffffff', '#e6eef8'], melon: ['#5fd04a', '#ff5a5a'], love: ['#ff8cc6', '#ff5aa8'], bubble: ['#c890ff', '#ffffff'], light: ['#fff6c8', '#ffe066'] }[e.k];
+        burst(e.x, e.y, 16 * s, BK ? BK[0] : '#ff8a1f', 7 * s, 'dot', 10, 28); burst(e.x, e.y, 10 * s, BK ? BK[1] : '#ffe866', 5 * s, 'dot', 8, 22);
+        addP({ type: 'ring', x: e.x, y: e.y, size: 90 * s, color: e.k === 'quake' ? '#e6d2a8' : '#ffffff', life: 16 });
         if (e.star) burst(e.x, e.y - 10, 8, '#ffe866', 7, 'star', 8, 34);
+        if (e.k === 'fire') elemBurst('fire', e.x, e.y - 10, 20, 14);
+        if (e.k === 'quake') for (let k = 0; k < 8; k++) addP({ type: 'puff', x: e.x + (k - 3.5) * 22 * s, y: e.y - 4, vy: -1 - Math.random(), size: 9, tint: 'rgba(214,196,160,0.85)', life: 30 });
         break;
       }
       case 'counter': Snd.play('counter'); say('Counter!', e.x, e.y - 10, 26, '#7dff8a'); break;
@@ -671,7 +707,12 @@ function handleEvents(evs) {
       case 'parrot': Snd.play('flutter'); say('Squawk!', e.x, e.y - 80, 18, '#7dff8a'); break;
       case 'cannon': Snd.play('cannon'); cam.shake = Math.max(cam.shake, 6); addP({ type: 'puff', x: e.x, y: e.y, size: 12, color: 'rgba(220,220,220,0.9)', life: 20 }); break;
       case 'laser': Snd.play('laser'); break;
-      case 'magic': case 'sparkle': if (e.t === 'magic') Snd.play('magic'); addP({ type: 'star', x: e.x + (Math.random() - 0.5) * 24, y: e.y, vy: -0.8, size: 5, color: '#e2c8ff', life: 22 }); break;
+      case 'magic': case 'sparkle': if (e.t === 'magic') Snd.play('magic'); addP({ type: 'star', x: e.x + (Math.random() - 0.5) * 24, y: e.y, vy: -0.8, size: 5, color: e.t === 'magic' ? '#e2c8ff' : '#fff2a0', life: 22 }); break;
+      // the Yoshi clan's trails
+      case 'gustfx': Snd.play('flutter'); for (let k = 0; k < 3; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 20, vx: -(e.dir || 0) * 1.5, vy: 0.6, size: 7, tint: 'rgba(240,250,255,0.85)', life: 20 }); break;
+      case 'heartfx': for (let k = 0; k < 2; k++) addP({ type: 'heart', x: e.x + (Math.random() - 0.5) * 36, y: e.y, vy: 1.2, color: k ? '#ff5aa8' : '#ff8cc6', life: 30 }); break;
+      case 'bubblefx': for (let k = 0; k < 2; k++) addP({ type: 'bubble', x: e.x + (Math.random() - 0.5) * 40, y: e.y + 10, vy: -0.8 - Math.random(), size: 4 + Math.random() * 4, color: '#c890ff', life: 34 }); break;
+      case 'frostfx': if (e.dir) Snd.play('frost'); for (let k = 0; k < 4; k++) addP({ type: 'flake', x: e.x + (e.dir || 0) * (10 + k * 14) + (Math.random() - 0.5) * 16, y: e.y + (Math.random() - 0.5) * 24, vx: (e.dir || 0) * 2, vy: 0.4, size: 5, color: k % 2 ? '#7fd3ff' : '#e8fbff', life: 30, drag: 0.95 }); break;
       case 'ghostpuff': addP({ type: 'puff', x: e.x, y: e.y + 10, vy: 0.5, size: 8, color: 'rgba(210,225,255,0.6)', life: 22 }); break;
       case 'guitar': Snd.play('guitar'); break;
       case 'cork': Snd.play('cork'); break;
@@ -679,7 +720,15 @@ function handleEvents(evs) {
       case 'zap': Snd.play('zap'); burst(e.x, e.y - 30, 10, '#bff4ff', 6, 'spark', 4, 14); break;
       case 'gravwell': Snd.play('magic'); break;
       case 'lassoswing': Snd.play('spin'); break;
-      case 'amp': Snd.play('amp'); addP({ type: 'ring', x: e.x, y: e.y, size: e.big ? 600 : 110, color: e.big ? '#ff7088' : '#ffffff', life: e.big ? 26 : 16 }); if (e.big) cam.shake = Math.max(cam.shake, 14); break;
+      case 'amp':
+        if (e.sub === 'quake') { // Yellow Yoshi's Mega Quake stomps instead of an amp blast
+          Snd.play('boom'); cam.shake = Math.max(cam.shake, 22);
+          addP({ type: 'ring', x: e.x, y: e.y + 40, size: 600, color: '#e6d2a8', life: 26 });
+          for (let k = 0; k < 10; k++) addP({ type: 'puff', x: e.x + (k - 4.5) * 60, y: e.y + 36, vy: -1.2 - Math.random(), size: 10, tint: 'rgba(214,196,160,0.85)', life: 30 });
+          break;
+        }
+        Snd.play('amp'); addP({ type: 'ring', x: e.x, y: e.y, size: e.big ? 600 : 110, color: e.big ? '#ff7088' : '#ffffff', life: e.big ? 26 : 16 }); if (e.big) cam.shake = Math.max(cam.shake, 14);
+        break;
       // --- Smash Mushroom ---
       case 'sbspawn': Snd.play('sbspawn'); say('A Smash Mushroom appeared!', e.x, e.y, 26, '#ffe066'); break;
       case 'sbhit': Snd.play('sbhit'); burst(e.x, e.y, 10, '#ffe066', 6, 'star', 6, 24); addP({ type: 'ring', x: e.x, y: e.y, size: 50, color: '#ff7ad9', life: 14 }); break;
@@ -697,6 +746,19 @@ function handleEvents(evs) {
   }
 }
 function ambientFx(view) {
+  // elemental attacks trail their element on the active frames
+  if (frameCount % 3 === 0) for (const f of view.fighters) {
+    if (f.st !== 'atk' || !f.at || f.st === 'dead') continue;
+    const A = ATK[f.ch] && ATK[f.ch][f.at], el = CH[f.ch] && CH[f.ch].elem, F = ELEM_FX[el], C = ELEM_COL[el];
+    if (!A || !F || !C) continue;
+    const sc = f.sc || 1;
+    for (const hb of A.hb) {
+      if (f.t < hb.a || f.t > hb.b) continue;
+      const x = f.x + hb.x * (f.fc || 1) * sc, y = f.y + hb.y * sc, col = C[Math.random() < 0.5 ? 0 : 1];
+      addP({ type: F[0], x: x + (Math.random() - 0.5) * hb.r, y: y + (Math.random() - 0.5) * hb.r, vy: F[1] === 'fall' ? 0.5 : -1, color: col, tint: F[0] === 'puff' ? col : undefined, size: F[0] === 'note' ? 5 : 4, life: 16 });
+      break;
+    }
+  }
   if (frameCount % 6) return;
   for (const f of view.fighters) {
     if (f.st === 'dead' || f.out) continue;
