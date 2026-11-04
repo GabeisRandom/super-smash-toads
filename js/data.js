@@ -1,7 +1,8 @@
 'use strict';
 // ===== Super Smash Toads: shared data =====
 const W = 1280, H = 720;
-const BLAST = { l: -1150, r: 1150, t: -800, b: 620 };
+// blast lines: cross one and you lose a stock (there's plenty of room below the stages to recover)
+const BLAST = { l: -1150, r: 1150, t: -800, b: 760 };
 const GRAV = 0.62, MAXFALL = 11, FASTFALL = 16;
 // buttons: move, jump, down/crouch, attack (Q), special (E), guard (F) and the four taunts
 const B_L = 1, B_R = 2, B_U = 4, B_D = 8, B_A = 16, B_B = 32, B_S = 64, B_T1 = 128, B_T2 = 256, B_T3 = 512, B_T4 = 1024;

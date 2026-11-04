@@ -67,14 +67,15 @@
   .slot .row { display: flex; gap: 6px; flex-wrap: wrap; }
   #setup { display: flex; gap: 14px; align-items: stretch; margin-top: auto; }
   #stages { display: flex; gap: 10px; }
-  .stg { width: 156px; border: 4px solid #2b1a12; border-radius: 14px; overflow: hidden; cursor: pointer; position: relative; background: #000; }
+  .stg { width: 140px; border: 4px solid #2b1a12; border-radius: 14px; overflow: hidden; cursor: pointer; position: relative; background: #000; }
   .stg canvas { display: block; width: 100%; }
   .stg .nm { position: absolute; bottom: 0; left: 0; right: 0; font-family: 'Lilita One'; font-size: 14px; text-align: center; background: rgba(43,26,18,.85); padding: 2px; }
   .stg.sel { outline: 4px solid #ffe066; outline-offset: -2px; }
   .opts { display: flex; flex-direction: column; gap: 6px; justify-content: center; font-family: 'Lilita One'; font-size: 18px; flex: 1; padding: 6px 14px; }
   .opts .o { display: flex; align-items: center; gap: 8px; }
   .opts .o span.v { min-width: 44px; text-align: center; }
-  #lbStart { font-size: 40px; padding: 10px 34px; align-self: center; }
+  #optMusic { font-size: 13px; min-width: 112px; padding: 6px 6px; }
+  #lbStart { font-size: 36px; padding: 10px 24px; align-self: center; }
   #lbWait { align-self: center; font-family: 'Lilita One'; font-size: 22px; max-width: 220px; text-align: center; }
 
   /* Overlays */
@@ -127,7 +128,7 @@
     <div id="setup">
       <div id="stages"></div>
       <div class="opts panel">
-        <div class="o">Stocks <button class="btn sm gray" data-opt="stocks-">−</button><span class="v" id="optStocks">3</span><button class="btn sm gray" data-opt="stocks+">+</button></div>
+        <div class="o">Stocks <button class="btn sm gray" data-opt="stocks-">−</button><span class="v" id="optStocks">3</span><button class="btn sm gray" data-opt="stocks+">+</button> Music <button class="btn sm blue" id="optMusic" data-opt="music" title="Battle music: Shuffle plays every fight track in turn">Shuffle</button></div>
         <div class="o">Items <button class="btn sm" id="optItems" data-opt="items">ON</button> Hazards <button class="btn sm" id="optHaz" data-opt="hazards">ON</button></div>
       </div>
       <button id="lbStart" class="btn">FIGHT!</button>
@@ -153,7 +154,8 @@
       <b>Smash attacks:</b> tap a direction <i>and</i> Attack together, and hold Attack to charge it up.
       <b>Specials:</b> Special alone, or with Left/Right, Up or Down, gives each fighter four unique moves.
       <b>Parry:</b> press Guard just before a hit lands to stop it cold and stun your attacker.
-      <b>Taunts:</b> Booty Shake, Laugh, Yawn and Backflip.</div>
+      <b>Taunts:</b> Booty Shake, Laugh, Yawn and Backflip.
+      <b>Knocked off?</b> Jump again, use Up + Attack for a lift, press Jump against the stage's side to wall-jump, then your up special. Getting hit gives your jumps back, and ledges grab themselves.</div>
     <div><b>Items:</b> Super Mushroom (huge and tough: take less damage, hit harder, but move slowly), Mini Mushroom (tiny and quick, but you take more damage and hit softer),
       Poison Mushroom, 1-Up, Golden Mushroom (heal), Super Star, Turnips. <b>Smash Mushroom:</b> a glowing rainbow mushroom drifts in now and then.
       Hit it three times to claim it, then press Special to unleash your fighter's own finale!</div>

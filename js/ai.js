@@ -4,6 +4,8 @@
 const AI_DASH = { toaddash: 1, iceslide: 1, firedash: 1, cutlass: 1, shadowdash: 1, lance: 1, jetdash: 1, turbo: 1, phase: 1, stagedive: 1 };
 // fighters whose neutral special is a projectile worth throwing from range
 const AI_SHOOT = { turnip: 1, iceball: 1, fireball: 1, boomerang: 1, poison: 1, turnips: 1, egg: 1, cannon: 1, shuriken: 1, pancake: 1, starbolt: 1, raygun: 1, vitamin: 1, powerchord: 1, cork: 1, boo: 1, rocketfist: 1 };
+// side specials that can hook the ledge from this far away (px)
+const AI_TETHER = { lasso: 160, canehook: 105 };
 // finales that reach most of the stage, fine to fire right away
 const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1 };
 
@@ -30,13 +32,30 @@ function aiBits(g, f) {
   let b = 0;
   const over = f.x > L - 5 && f.x < R + 5;
   if (!over || f.y > T + 10) {
-    // recovery: head home, double jump, a travelling side special, then up special
-    const home = f.x < (L + R) / 2 ? B_R : B_L;
+    // recovery: head home; wall-jump, double jump, the rising up-air, a lasso or cane at the ledge,
+    // a travelling side special, then the up special
+    const side = f.x < (L + R) / 2 ? -1 : 1, edgeX = side < 0 ? L : R;
+    let home = side < 0 ? B_R : B_L;
+    // below the top, line up just outside the ledge first, so the stage's underside doesn't block the way up
+    if (f.y > T + 20) { const tx = edgeX + side * 34; home = f.x < tx - 6 ? B_R : f.x > tx + 6 ? B_L : 0; }
     b |= home;
-    const gap = f.x < L ? L - f.x : f.x - R;
-    if (f.jl > 0 && f.vy > 1 && !(a.prev & B_U)) b |= B_U;
-    else if (gap > 170 && AI_DASH[C.sp.s] && !f.sUsed && f.y < T + 40 && f.st === 'air') b |= B_B;
-    else if (f.jl === 0 && !f.upUsed && f.vy > 0 && (f.st === 'air') && f.y > T - 80) b |= B_U | B_B;
+    if (f.st !== 'air') return out(b);
+    // a jump takes two frames to leave the ground; pressing anything else meanwhile would cancel it
+    if (a.jw > 0) { a.jw--; return out(b); }
+    const gap = f.x < L ? L - f.x : f.x - R, below = f.y - T, outside = f.x > R + 8 || f.x < L - 8;
+    // press a button combo cleanly: if any of it is still held from last frame, let go first
+    const press = m => {
+      if (a.prev & m) return out(b);
+      a.jw = m === B_U ? 3 : 0;
+      return out(b | m);
+    };
+    if (f.wallT > 0 && f.wj < 2 && f.vy > -3) return press(B_U);
+    if (f.jl > 0 && f.vy > 1) return press(B_U);
+    if (!f.uaUsed && f.jl === 0 && f.vy > 1 && below > -60 && (outside || below < 20 || below > 220)) return press(B_U | B_A);
+    if (AI_TETHER[C.sp.s] && gap < AI_TETHER[C.sp.s] && below > -10 && below < 140 && f.vy > 0) return press(B_B);
+    if (gap > 170 && AI_DASH[C.sp.s] && !f.sUsed && f.y < T + 40) return press(B_B);
+    // save the up special until it can reach: close enough, or getting dangerously low
+    if (f.jl === 0 && !f.upUsed && f.vy > 0 && f.y > T - 80 && ((gap < 240 && (outside || below < 20)) || below > 330)) return press(B_U | B_B);
     return out(b);
   }
 

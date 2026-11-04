@@ -47,6 +47,7 @@ function makeFighter(s, sp, stocks) {
     sc: 1, h: C.h, w: 36 * C.wide, pm: 1, lastHit: -1, lastHitT: 0, kos: 0, falls: 0, dealt: 0,
     ctr: -1, ctrT: 0, lx: 0, lcx: 0, lcy: 0, lsi: 0, out: false, outAt: 0,
     fs: 0, fsLock: 0, tn: 0, chg: 0, chgMul: 1, parryAt: -99, prT: 0, dirAt: -99, dTap: -99, ig: 0, hide: 0, boostT: 0,
+    uaUsed: false, wallT: 0, wall: 0, wj: 0,
   };
 }
 
@@ -118,6 +119,7 @@ function updateFighter(g, f, bits) {
   if (f.ig > 0) f.ig--;
   if (f.hide > 0) f.hide--;
   if (f.boostT > 0) f.boostT--;
+  if (f.wallT > 0) f.wallT--;
   for (const k in f.cd) if (f.cd[k] > 0) f.cd[k]--;
   if (f.psn > 0) { f.psn--; if (f.psn % 30 === 0) f.dm += 1; }
   const tsc = f.big ? 1.45 : f.small ? 0.6 : 1;
@@ -193,7 +195,7 @@ function control(g, f, c) {
       f.st = bits & B_D ? 'crouch' : 'idle';
     }
   } else {
-    const m = C.air * spd * (help ? 0.7 : 1);
+    const m = C.air * spd * (help ? 0.85 : 1); // after an up special you can still steer back toward the stage
     if (dirX) {
       if (Math.abs(f.vx) > m && Math.sign(f.vx) === dirX) f.vx *= 0.96;
       else f.vx = clamp(f.vx + dirX * 0.55, -m, m);
@@ -201,7 +203,8 @@ function control(g, f, c) {
     if (!help) f.st = 'air';
   }
   if (help && !onG) return;
-  if (pr & B_U) f.jbuf = 3;
+  // jump waits 2 frames so Up + Attack can mean an up-air instead; pressing Up again doesn't restart the wait
+  if (pr & B_U && f.jbuf <= 0) f.jbuf = 3;
   if (f.jbuf > 0) {
     if (pr & (B_A | B_B)) f.jbuf = 0;
     else if (--f.jbuf === 0) doJump(g, f);
@@ -268,6 +271,10 @@ function doJump(g, f) {
   if (f.gi >= 0) {
     f.vy = -C.jump * jm; f.gi = -1; f.st = 'air';
     g.ev.push({ t: 'jump', x: f.x, y: f.y });
+  } else if (f.wallT > 0 && f.wj < 2) {
+    // wall jump: kick off the side of the stage (saves your double jump), twice per trip through the air
+    f.wj++; f.wallT = 0; f.vy = -Math.max(12.5, C.djump * 0.95) * jm; f.vx = -f.wall * 4.5; f.fc = -f.wall; f.ff = false; f.glide = 0;
+    g.ev.push({ t: 'walljump', x: f.x + f.wall * f.w * 0.5, y: f.y - f.h * 0.5, dir: -f.wall });
   } else if (f.jl > 0) {
     f.jl--; f.vy = -C.djump * jm; f.ff = false; f.glide = 0;
     g.ev.push({ t: 'djump', x: f.x, y: f.y, c: f.ch });
@@ -276,6 +283,8 @@ function doJump(g, f) {
 
 function startAttack(g, f, kind) {
   f.st = 'atk'; f.at = kind; f.t = 0; f.hits = {}; f.jbuf = 0;
+  // the first up-air of each trip through the air carries you upward: an extra way back to the stage
+  if (kind === 'uair' && !f.uaUsed) { f.uaUsed = true; f.vy = Math.min(f.vy, -9.5); f.ff = false; g.ev.push({ t: 'uplift', x: f.x, y: f.y }); }
   if (kind !== 'throw') g.ev.push({ t: 'swing', x: f.x, y: f.y, k: kind, s: SMASHES[kind] ? 1 : 0 });
 }
 
@@ -367,13 +376,15 @@ function physics(g, f, bits) {
       else {
         f.x = f.x < (l + r) / 2 ? l - hw : r + hw;
         f.vx = f.st === 'hit' ? -f.vx * 0.5 : 0;
+        // touching the side of the stage: a jump now kicks off the wall
+        f.wallT = 8; f.wall = f.x < (l + r) / 2 ? 1 : -1;
       }
     } else {
       if (f.vy < 0 || f.drop > 0) continue;
       if (f.x < s.x - 4 || f.x > s.x + s.w + 4) continue;
       if (prevY <= s.y + Math.abs(s.dy) + 1 && f.y >= s.y) {
         if (s.bounce && !(bits & B_D) && f.st !== 'hit') {
-          f.y = s.y; f.vy = -22; f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.glide = 0; f.ff = false;
+          f.y = s.y; f.vy = -22; f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.uaUsed = false; f.wj = 0; f.glide = 0; f.ff = false;
           if (f.st === 'help') f.st = 'air';
           g.ev.push({ t: 'bounce', x: f.x, y: f.y });
         } else landOn(f, k, s.y);
@@ -391,7 +402,7 @@ function landOn(f, k, y) {
 }
 
 function land(g, f) {
-  f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.ff = false; f.glide = 0;
+  f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.uaUsed = false; f.wj = 0; f.ff = false; f.glide = 0;
   if (f.st === 'air') f.st = 'idle';
   else if (f.st === 'help') { f.st = 'land'; f.t = 10; }
   else if (f.st === 'atk' && AERIALS[f.at]) { f.st = 'land'; f.t = 7; f.at = null; }
@@ -399,33 +410,55 @@ function land(g, f) {
   g.ev.push({ t: 'land', x: f.x, y: f.y });
 }
 
+// ledges are generous: grab one while falling past it, or even while rising through an up special
 function tryLedge(g, f) {
-  if (f.vy < 0 || f.ledgeCd > 0) return;
+  if (f.ledgeCd > 0) return;
   if (!(f.st === 'air' || f.st === 'help' || (f.st === 'spc' && f.t > 8 && f.sp !== 'fs'))) return;
+  if (f.vy < (f.st === 'air' ? 0 : -7)) return;
   for (let k = 0; k < g.surf.length; k++) {
     const s = g.surf[k];
     if (!s.solid) continue;
     for (const side of [-1, 1]) {
       const cx = side < 0 ? s.x : s.x + s.w;
       if (side < 0 ? f.x >= cx : f.x <= cx) continue;
-      const toward = -side;
-      const hx = f.x + toward * f.w * 0.5, hy = f.y - f.h * 0.85;
-      if (Math.abs(hx - cx) < 26 && Math.abs(hy - s.y) < 32) {
-        for (const o of g.fighters) if (o !== f && o.st === 'ledge' && o.lcx === cx) return;
-        f.st = 'ledge'; f.t = 200; f.lx = toward; f.lcx = cx; f.lcy = s.y; f.lsi = k;
-        f.x = cx + side * f.w * 0.5; f.y = s.y + f.h * 0.85; f.vx = 0; f.vy = 0; f.fc = toward;
-        f.sp = null; f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.glide = 0; f.ff = false;
-        f.inv = Math.max(f.inv, 30);
-        g.ev.push({ t: 'ledge', x: cx, y: s.y });
-        return;
-      }
+      const hx = f.x - side * f.w * 0.5, hy = f.y - f.h * 0.85;
+      if (Math.abs(hx - cx) < 40 && Math.abs(hy - s.y) < 48 && grabLedge(g, f, k, side)) return;
     }
   }
+}
+function grabLedge(g, f, k, side) {
+  const s = g.surf[k], cx = side < 0 ? s.x : s.x + s.w, toward = -side;
+  for (const o of g.fighters) if (o !== f && o.st === 'ledge' && o.lcx === cx) return false;
+  f.st = 'ledge'; f.t = 200; f.lx = toward; f.lcx = cx; f.lcy = s.y; f.lsi = k;
+  f.x = cx + side * f.w * 0.5; f.y = s.y + f.h * 0.85; f.vx = 0; f.vy = 0; f.fc = toward;
+  f.sp = null; f.at = null; f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.uaUsed = false; f.wj = 0; f.glide = 0; f.ff = false;
+  f.inv = Math.max(f.inv, 30);
+  g.ev.push({ t: 'ledge', x: cx, y: s.y });
+  return true;
+}
+// tether recoveries (Cowboy Toad's lasso, Toadsworth's cane): latch onto a ledge within reach
+function tetherLedge(g, f, reach) {
+  if (f.gi >= 0 || f.ledgeCd > 0) return false;
+  let best = null, bd = reach;
+  for (let k = 0; k < g.surf.length; k++) {
+    const s = g.surf[k];
+    if (!s.solid) continue;
+    for (const side of [-1, 1]) {
+      const cx = side < 0 ? s.x : s.x + s.w;
+      if (side < 0 ? f.x >= cx : f.x <= cx) continue;
+      const dy = s.y - (f.y - f.h * 0.6), d = Math.hypot(cx - f.x, dy);
+      if (dy > 30 || d > bd) continue;
+      best = [k, side]; bd = d;
+    }
+  }
+  if (!best || !grabLedge(g, f, best[0], best[1])) return false;
+  g.ev.push({ t: 'grab', x: f.x, y: f.y - f.h });
+  return true;
 }
 
 function respawn(g, f) {
   f.x = [-150, 150, -50, 50][f.i % 4]; f.y = -330; f.vx = 0; f.vy = 0; f.dm = 0; f.st = 'air';
-  f.rp = 180; f.inv = 180; f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.hold = null;
+  f.rp = 180; f.inv = 180; f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.uaUsed = false; f.wj = 0; f.hold = null;
   f.sp = null; f.at = null; f.gi = -1; f.shd = 100;
   g.ev.push({ t: 'respawn', x: f.x, y: f.y });
 }
@@ -535,8 +568,9 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   v.hs = Math.floor(K * 1.7 + 6 + (o.stun || 0));
   v.st = 'hit'; v.at = null; v.sp = null; v.glide = 0; v.ff = false; v.hl = lag; v.chgMul = 1; v.hide = 0;
   if (o.frz) v.frz = 45;
-  v.upUsed = false; v.sUsed = false;
-  if (v.jl < 1 && CH[v.ch].jumps > 1) v.jl = 1;
+  // getting hit gives back every jump and recovery move, so a launch off the stage isn't the end
+  v.upUsed = false; v.sUsed = false; v.adUsed = false; v.uaUsed = false; v.wj = 0;
+  v.jl = airJumps(v);
   return true;
 }
 
@@ -1322,7 +1356,8 @@ function spRise(o) {
       if (o.ev) g.ev.push({ t: o.ev, x: f.x, y: f.y });
     },
     upd(g, f, c) {
-      airDrift(f, c, o.drift || 4);
+      if (o.tether && f.t >= 3 && tetherLedge(g, f, o.tether * f.sc)) return 0;
+      airDrift(f, c, o.drift || 5);
       if (o.hold && f.t < o.hold) f.vy = -(o.vy || 15);
       const H = o.hb;
       if (H && f.t >= (H.a || 0) && f.t <= H.b) hitArea(g, f, 0, -f.h * (H.y !== undefined ? H.y : 0.8), (H.r || 30) * f.sc, H.d, H.k, H.g, H.ang, { every: H.every, radial: H.radial });
@@ -1425,6 +1460,8 @@ function spTether(o) {
       const a = o.a || 8, b = o.b || 14, reach = o.range * f.sc, cy = f.y - f.h * 0.55;
       if (f.ctr < 0 && f.t >= a && f.t <= b) {
         const ext = reach * Math.min(1, (f.t - a + 1) / Math.max(1, b - a));
+        // off the stage, the line hooks the ledge instead
+        if (o.ledge && !c.onG && tetherLedge(g, f, Math.min(ext + 30 * f.sc, o.ledge * f.sc))) return 0;
         for (const v of g.fighters) {
           if (v === f || !hittable(v)) continue;
           const dx = (v.x - f.x) * f.fc;
@@ -1520,10 +1557,10 @@ const SP = {
   },
   toaddash: spDash({ cd: 30, speed: 11, startup: 5, frames: 14, hb: { x: 22, y: 0.62, r: 28, d: 10, k: 7, g: 0.12, ang: 40 }, lag: 12, ev: 'dash' }),
   sporespin: {
-    start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.vy = -15; f.vx *= 0.5; f.gi = -1; g.ev.push({ t: 'spin', x: f.x, y: f.y }); },
+    start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.vy = -16.5; f.vx *= 0.5; f.gi = -1; g.ev.push({ t: 'spin', x: f.x, y: f.y }); },
     upd(g, f, c) {
-      airDrift(f, c, 4);
-      if (f.t < 28) { f.vy = Math.min(f.vy, -15 + f.t * 0.5); hitArea(g, f, 0, -f.h * 0.6, 38 * f.sc, 2.5, 3, 0.01, 80, { every: 6 }); }
+      airDrift(f, c, 4.5);
+      if (f.t < 28) { f.vy = Math.min(f.vy, -16.5 + f.t * 0.45); hitArea(g, f, 0, -f.h * 0.6, 38 * f.sc, 2.5, 3, 0.01, 80, { every: 6 }); }
       if (f.t === 28) { f.hits = {}; hitArea(g, f, 0, -f.h * 0.6, 44 * f.sc, 5, 6, 0.12, 70, { radial: true }); }
       return f.t >= 34 ? 2 : 0;
     },
@@ -1593,9 +1630,9 @@ const SP = {
     start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.gi = -1; },
     upd(g, f, c) {
       airDrift(f, c, 5);
-      if (f.t === 1 || f.t === 15 || f.t === 29) { f.vy = -11; f.hits = {}; g.ev.push({ t: 'flutter', x: f.x, y: f.y }); }
+      if (f.t === 1 || f.t === 15 || f.t === 29 || f.t === 43) { f.vy = -11; f.hits = {}; g.ev.push({ t: 'flutter', x: f.x, y: f.y }); }
       if (f.t % 15 < 8) hitArea(g, f, -22 * f.sc, -f.h * 0.3, 32 * f.sc, 4, 5, 0.08, 60, { radial: true });
-      return f.t >= 44 ? 2 : 0;
+      return f.t >= 58 ? 2 : 0;
     },
   },
   counter: spCounter({ win: 32 }),
@@ -1614,7 +1651,7 @@ const SP = {
       if (f.upUsed) return false;
       f.upUsed = true; f.gi = -1;
       if (f.cd.u <= 0) { g.clouds.push({ x: f.x - 60, y: f.y + 6, w: 120, life: 300, o: f.i }); f.cd.u = 420; f.vy = -15; f.t2 = 1; }
-      else { f.vy = -10; f.t2 = 0; }
+      else { f.vy = -15; f.t2 = 0; }
       g.ev.push({ t: 'cloud', x: f.x, y: f.y });
     },
     upd(g, f, c) { airDrift(f, c, 5); return f.t >= 12 ? (f.t2 ? 1 : 2) : 0; },
@@ -1641,7 +1678,7 @@ const SP = {
   },
   pigwhip: spPulse({ slot: 's', cd: 20, at: [{ t: 10, x: 58, r: 26, d: 11, k: 8, g: 0.13, ang: 38, fwd: 1 }], end: 26 }),
   float: {
-    start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.vy = f.pe ? -18 : -15; f.gi = -1; g.ev.push({ t: 'float', x: f.x, y: f.y }); },
+    start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.vy = f.pe ? -19 : -17; f.gi = -1; g.ev.push({ t: 'float', x: f.x, y: f.y }); },
     upd(g, f, c) {
       airDrift(f, c, 4.5);
       if (f.t < 12) hitArea(g, f, 0, -f.h, 30 * f.sc, 6, 6, 0.1, 85);
@@ -1694,13 +1731,13 @@ const SP = {
   boost: {
     start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.gi = -1; },
     upd(g, f, c) {
-      airDrift(f, c, 4);
-      if (f.t < 16) {
-        f.vy = -12.5;
+      airDrift(f, c, 6);
+      if (f.t < 22) {
+        f.vy = -13;
         if (f.t % 3 === 0) g.ev.push({ t: 'smoke', x: f.x - f.fc * 16, y: f.y - 14 });
         hitArea(g, f, 0, 8, 26 * f.sc, 4, 4, 0.04, -60, { every: 8 });
       }
-      return f.t >= 22 ? 2 : 0;
+      return f.t >= 26 ? 2 : 0;
     },
   },
   pickaxe: {
@@ -1721,9 +1758,9 @@ const SP = {
       return f.t >= 30 ? 1 : 0;
     },
   },
-  canehook: spTether({ cd: 36, range: 84, a: 9, b: 13, fin: { d: 9, k: 8, g: 0.12, ang: 40 } }),
+  canehook: spTether({ cd: 36, range: 84, ledge: 120, a: 9, b: 13, fin: { d: 9, k: 8, g: 0.12, ang: 40 } }),
   parasol: {
-    start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.vy = -16; f.gi = -1; g.ev.push({ t: 'float', x: f.x, y: f.y }); },
+    start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.vy = -17.5; f.gi = -1; g.ev.push({ t: 'float', x: f.x, y: f.y }); },
     upd(g, f, c) {
       airDrift(f, c, 4);
       if (f.t < 14) hitArea(g, f, 0, -f.h - 8, 32 * f.sc, 6, 6, 0.1, 85, { every: 5 });
@@ -1793,17 +1830,17 @@ const SP = {
   // --- Knight Toad ---
   shieldbash: spDash({ slot: 'n', cd: 30, speed: 5, startup: 4, frames: 16, guard: [1, 22], reflect: true, hb: { x: 30, y: 0.5, r: 30, d: 8, k: 8, g: 0.11, ang: 30 }, lag: 10 }),
   lance: spDash({ cd: 40, speed: 9, startup: 6, frames: 22, armor: true, hb: { x: 36, y: 0.5, r: 30, d: 13, k: 9, g: 0.15, ang: 35 }, lag: 14, trail: 'dust' }),
-  swordspin: spRise({ vy: 14, end: 28, hb: { a: 2, b: 22, y: 0.5, r: 42, d: 2.5, k: 3, g: 0.01, ang: 80, every: 5 }, fin: { at: 24, r: 46, d: 6, k: 7, g: 0.12, ang: 70 } }),
+  swordspin: spRise({ vy: 15.5, hold: 6, end: 30, hb: { a: 2, b: 22, y: 0.5, r: 42, d: 2.5, k: 3, g: 0.01, ang: 80, every: 5 }, fin: { at: 24, r: 46, d: 6, k: 7, g: 0.12, ang: 70 } }),
   swordplant: spSlam({ fallV: 22, dive: { d: 13, k: 5, g: 0.13, ang: -80 }, wave: { r: 92, d: 10, k: 8, g: 0.11, ang: 60 }, ev: 'sword' }),
   // --- Chef Toad ---
   pancake: spShot({ cd: 24, at: 8, end: 20, p: { k: 'pancake', vx: 7.5, vy: -9, grav: 0.45, bounce: 5, bounces: 1, d: 7, kb: 5, gr: 0.08, ang: 50, r: 15, life: 120 } }),
   panswing: spDash({ cd: 26, speed: 1.5, startup: 6, frames: 8, guard: [3, 14], reflect: true, hb: { x: 36, y: 0.55, r: 32, d: 14, k: 9, g: 0.16, ang: 40 }, lag: 14, ev: 'pan' }),
-  souffle: spRise({ vy: 15.5, end: 26, hb: { a: 1, b: 12, y: 1.0, r: 30, d: 7, k: 6, g: 0.1, ang: 85 }, trail: 'steam' }),
+  souffle: spRise({ vy: 15, hold: 8, end: 28, hb: { a: 1, b: 12, y: 1.0, r: 30, d: 7, k: 6, g: 0.1, ang: 85 }, trail: 'steam' }),
   soup: spTrap({ sub: 'soup', life: 360, r: 44, cd: 200, at: 12, ox: 46 }),
   // --- Wizard Toad ---
   starbolt: spShot({ cd: 34, at: 10, end: 24, ev: 'magic', p: { k: 'star', vx: 7, home: 0.35, vmax: 8, d: 8, kb: 6, gr: 0.09, ang: 45, r: 14, life: 130, ghost: 1 } }),
   blink: spBlink({ dx: 170, cd: 40, at: 6, end: 14, puff: 'magic' }),
-  levitate: spFloat({ frames: 70, rise: 3.8, drift: 5, ev: 'sparkle' }),
+  levitate: spFloat({ frames: 70, rise: 4.3, drift: 5, ev: 'sparkle' }),
   rune: spTrap({ sub: 'rune', life: 480, r: 34, cd: 150, one: true, at: 10, ox: 30 }),
   // --- Astro Toad ---
   raygun: spShot({ cd: 12, at: 5, end: 14, ev: 'laser', p: { k: 'laser', vx: 18, d: 3, kb: 2, gr: 0.02, ang: 20, r: 9, life: 40, ghost: 1 } }),
@@ -1813,17 +1850,17 @@ const SP = {
   // --- Doctor Toad ---
   vitamin: spShot({ cd: 28, at: 8, end: 20, p: { k: 'pill', vx: 6.5, vy: -5, grav: 0.5, bounce: 6, bounces: 3, d: 6, kb: 5, gr: 0.07, ang: 45, r: 12, life: 150 } }),
   bandage: spTether({ cd: 40, range: 62, a: 8, b: 13, fin: { d: 4, daze: 70 } }),
-  pulsehop: spRise({ vy: 16, end: 26, hb: { a: 2, b: 10, y: 0.5, r: 40, d: 7, k: 7, g: 0.1, ang: 80, radial: true }, ev: 'zap' }),
+  pulsehop: spRise({ vy: 16, hold: 6, end: 28, hb: { a: 2, b: 10, y: 0.5, r: 40, d: 7, k: 7, g: 0.1, ang: 80, radial: true }, ev: 'zap' }),
   checkup: spHeal({ frames: 50, heal: 12, cd: 1200 }),
   // --- Rocker Toad ---
   powerchord: spShot({ cd: 40, at: 10, end: 26, ev: 'guitar', p: { k: 'note', vx: 9, d: 7, kb: 6, gr: 0.08, ang: 35, r: 22, grow: 0.4, life: 50, pierce: 1, ghost: 1 } }),
   stagedive: spDash({ cd: 40, speed: 10, startup: 6, frames: 30, hop: 8, arc: true, endOnLand: true, hb: { x: 16, y: 0.45, r: 30, d: 12, k: 8, g: 0.13, ang: 50 }, lag: 12 }),
-  ampblast: spRise({ vy: 17, end: 26, fin: { at: 2, r: 62, d: 8, k: 8, g: 0.1, ang: 70 }, ev: 'amp' }),
+  ampblast: spRise({ vy: 17, hold: 5, end: 28, fin: { at: 2, r: 62, d: 8, k: 8, g: 0.1, ang: 70 }, ev: 'amp' }),
   feedback: spTrap({ sub: 'amp', life: 95, r: 30, cd: 200, at: 12, ox: 36 }),
   // --- Cowboy Toad ---
   cork: spShot({ cd: 18, at: 5, end: 16, ev: 'cork', p: { k: 'cork', vx: 15, vy: -0.5, grav: 0.08, d: 5, kb: 6, gr: 0.06, ang: 30, r: 8, life: 34 } }),
-  lasso: spTether({ cd: 50, range: 150, a: 10, b: 16, fin: { d: 9, k: 9, g: 0.12, ang: 45, back: 1 } }),
-  lassoswing: spRise({ vy: 14, end: 26, drift: 6, ev: 'lassoswing', hb: { a: 4, b: 14, y: 1.1, r: 32, d: 5, k: 6, g: 0.08, ang: 80 } }),
+  lasso: spTether({ cd: 50, range: 150, ledge: 180, a: 10, b: 16, fin: { d: 9, k: 9, g: 0.12, ang: 45, back: 1 } }),
+  lassoswing: spRise({ vy: 15, hold: 8, end: 30, drift: 6, tether: 160, ev: 'lassoswing', hb: { a: 4, b: 14, y: 1.1, r: 32, d: 5, k: 6, g: 0.08, ang: 80 } }),
   tumbleweed: spShot({ slot: 'd', cd: 60, at: 10, end: 22, p: { k: 'tumble', vx: 6.5, vy: -2, grav: 0.5, bounce: 6.5, d: 6, kb: 5, gr: 0.06, ang: 50, r: 17, life: 160, pierce: 1, every: 30 } }),
   // --- Ghost Toad ---
   boo: spShot({ cd: 50, at: 10, end: 22, p: { k: 'boo', vx: 3.5, home: 0.18, vmax: 4.5, d: 7, kb: 5, gr: 0.07, ang: 50, r: 16, life: 160, ghost: 1 } }),

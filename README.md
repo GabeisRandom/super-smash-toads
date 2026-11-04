@@ -29,6 +29,7 @@ Every hit raises a fighter's damage **%**, and the higher it gets, the farther t
 - **Parry:** press Guard just before a hit lands to cancel it and stun the attacker.
 - **Dodge:** hold Guard and tap a direction to roll, or press Guard in the air to air-dodge.
 - **Taunts:** Booty Shake, Laugh, Yawn and Backflip.
+- **Getting back to the stage:** jump again in the air, then press Up + Attack for a lift (once per trip). Press Jump while touching the side of the stage to wall-jump, then use your up special. Ledges grab themselves, even while you're rising. Getting hit gives all your jumps back. Cowboy Toad's lasso and Toadsworth's cane can hook a ledge from a distance.
 
 ## The Smash Mushroom
 
@@ -50,6 +51,16 @@ Every so often a glowing rainbow **Smash Mushroom** drifts onto the stage. Hit i
 - **Captain Toad Diorama:** spike traps flash a warning, then pop up. Blocks move around, and turnip sprouts grow.
 - **Toad's Turnpike:** karts race across the road, and dash panels fling you along it.
 - **Mushroom Gorge:** bouncy mushrooms on both sides, and strong gusts of wind push everyone sideways.
+
+## Music
+
+Pick the battle music with the **Music** button in the lobby:
+
+- **Shuffle** (the default) plays all eight fight tracks in a random order, and switches to a new one partway through long fights.
+- **Stage theme** plays each stage's own song.
+- Or pick a single track: **Spore Funk** (slap-bass disco funk), **Toad Hop** (boom-bap hip-hop), **Turbo Toad** (a fast, bright chase), **Shroom Session** (acid-jazz funk), or one of the four stage themes.
+
+The title screen, lobby and results screen each have their own music too.
 
 ## Fighters
 

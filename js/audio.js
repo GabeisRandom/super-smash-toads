@@ -271,6 +271,159 @@ const Snd = (() => {
         f: { k: 'X.....x.X.......', z: 'g.x.g.x.........', n: '........x.x.x.xx', w: 'x..x...x........' },
       },
     },
+    // Lobby: a laid-back lounge groove while everyone picks a Toad
+    lobby: {
+      bpm: 102, sw: 0.16, tr: 2, loop: 2,
+      sec: 'IIAAAAAAAaBBBBBBBb',
+      ch: ['Fmaj7', 'Em7 A7',
+        'Dm9', 'G9', 'Cmaj9', 'Am7', 'Dm9', 'G9', 'Em7 A7', 'Dm7 G7',
+        'Fmaj7', 'Em7', 'Dm7', 'Cmaj7', 'Bbmaj7', 'Am7', 'Dm7', 'G9'],
+      li: { I: 'flute', A: 'flute', B: 'bell' },
+      lead: `. . . . . . . . | . . . . . . G5 F5 |
+        . . A5 - G5 - E5 F5 | G5 - - - . . . . | . . E5 - D5 - B4 C5 | C5 - - - A4 - . . |
+        . . A5 - C6 - A5 G5 | A5 - G5 - F5 - E5 D5 | E5 - - G5 - - C#5 - | D5 - - - . . . . |
+        E5 - F5 - A5 - C6 - | B5 - - - G5 - - - | F5 - A5 - C6 - D6 - | B5 - - - . . . . |
+        A5 - Bb5 - D6 - F5 - | G5 - - E5 - - C5 - | D5 - F5 - A5 - G5 F5 | E5 - - - D5 - - -`,
+      dbl: { i: 'bell', oct: 12, v: 0.22, sec: 'A', odd: true },
+      bass: { i: 'ubass', p: { I: 'R - - - 5 - - -', A: 'R - . 5 8 - 5 A', B: 'R - . 5 R - 3 A' } },
+      comp: [
+        { i: 'rhodes', lo: 57, v: 0.8, p: { I: 'x - - - - - - -', A: '. x - . x - . .', B: 'x - . x - . x .' } },
+        { i: 'gtr', lo: 64, v: 0.45, p: { B: '. . x . . . x .' } },
+      ],
+      dr: {
+        I: { k: 'X.......x.......', z: 'g.g.g.g.g.g.g.g.' },
+        A: { k: 'X......x..X.....', c: '....x.......x...', h: 'x.x.x.x.x.x.x.x.', z: '..g...g...g...g.' },
+        a: { k: 'X......x..X.....', c: '....x.......x...', h: 'x.x.x.x.x.x.....', t: '............x.x.' },
+        B: { k: 'X.......X.....x.', s: '....g.......g...', c: '....x.......x...', h: 'x.xgx.xgx.xgx.xg', o: '..............x.' },
+        b: { k: 'X.......X.......', c: '....x.......x...', s: '..........g.xxXX' },
+      },
+    },
+    // ---- extra battle tracks (shuffled in with the stage themes) ----
+    // Spore Funk: slap-bass disco funk with chicken-scratch guitar and brass hits
+    funk: {
+      bpm: 118, sw: 0.06, tr: -3, loop: 4, crash: true, vol: 1.15,
+      sec: 'IIIiAAAAAAAaBBBBBBBbCCCc',
+      ch: ['Am7', 'Am7', 'Am7', 'D9',
+        'Am7', 'D9', 'Am7', 'D9', 'Am7', 'D9', 'Fmaj7', 'E7',
+        'Fmaj7', 'G', 'Em7', 'Am7', 'Dm7', 'G7', 'Cmaj7', 'E7',
+        'Am7', 'Am7', 'D9', 'E7'],
+      li: { I: 'fm', A: 'fm', B: 'brass', C: 'brass' },
+      lead: `. . . . . . . . | . . . . . . . . | . . . . . . . . | . . . . . . E5 G5 |
+        A5 . C6 . A5 . G5 . . . E5 . G5 - - . | F#5 - - . E5 . D5 . E5 - - - . . . . |
+        A5 . C6 . A5 . G5 . . . A5 . C6 . D6 . | E6 - - . D6 . C6 . A5 - - - . . . . |
+        C6 . . A5 . . G5 . A5 . . G5 . E5 . . | D5 . E5 . F#5 . A5 - - - . . . . . . |
+        A5 - - . G5 . F5 . E5 - - . C5 . . . | B4 - - - - - . . G#4 . B4 . D5 . E5 . |
+        A5 - - - C6 - A5 - | B5 - - - D6 - B5 - | G5 - - E5 - - B4 - | C5 - - - E5 - - - |
+        F5 - - - A5 - F5 - | G5 - - - B5 - D6 - | E6 - - - D6 - C6 B5 | G#5 - - - E5 - - - |
+        E5 . . E5 . . E5 . . . . . . . . . | G5 . . G5 . . G5 . . . . . . . . . |
+        F#5 . . F#5 . . A5 . . . . . . . . . | G#5 . B5 . D6 . E6 - - - . . . . . .`,
+      dbl: { i: 'sq', oct: -12, v: 0.3, sec: 'A', odd: true },
+      bass: { i: 'slap', p: {
+        I: 'R . R 8 . R . 8 . 5 . R . . 8 .', A: 'R . 8 . R R . 8 . R 5 . 8 . 7 .',
+        B: 'R . . 8 . R . 5 . 8 . R . 5 A .', C: 'R . . R . . R . . . . . . . 5 A' } },
+      comp: [
+        { i: 'gtr', lo: 62, v: 0.7, p: { I: '. . x . . . x . . . x . . x . .', A: '. . x . . x . . . . x . . x . x', B: '. . x . . . x . . . x . . . x .', C: 'x . . x . . x . . . . . . . . .' } },
+        { i: 'rhodes', lo: 55, v: 0.55, p: { A: 'x - - - - - - -', B: 'x - - - x - - -' } },
+      ],
+      dr: {
+        I: { k: 'X...X...X...X...', h: 'xgxgxgxgxgxgxgxg', c: '....x.......x...' },
+        i: { k: 'X...X...X...X...', h: 'xgxgxgxgxg......', s: '..........x.xxXX' },
+        A: { k: 'X...X...X...X...', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', o: '..x...x...x...x.', c: '....x.......x...' },
+        a: { k: 'X...X...X...X...', s: '....X.....x.XxXX', h: 'x.x.x.x.x.x.....' },
+        B: { k: 'X.....x.X.....x.', s: '....X.......X...', h: 'xgxgxgxgxgxgxgxg', w: '...x.......x....' },
+        b: { k: 'X.....x.X.......', s: '....X...x.x.XxXX', h: 'xgxgxgxg........' },
+        C: { k: 'X..X..X.........', s: '............X...', c: 'X..X..X.........' },
+        c: { k: 'X..X..X.....X...', s: '........x.x.XXXX' },
+      },
+    },
+    // Toad Hop: a head-nodding boom-bap beat with Rhodes, flute and a little scratching
+    hop: {
+      bpm: 94, sw: 0.22, tr: -2, loop: 2, vol: 1.1,
+      sec: 'IIAAAAAAAaBBBBBBBb',
+      ch: ['Am9', 'Am9',
+        'Dm9', 'G9', 'Cmaj9', 'Fmaj7', 'Bm7b5', 'E7', 'Am9', 'Am9',
+        'Fmaj7', 'Em7', 'Dm9', 'Cmaj9', 'Fmaj7', 'Em7', 'Bm7b5', 'E7'],
+      li: { I: 'flute', A: 'flute', B: 'sax' },
+      lead: `. . . . . . . . | . . . . . . . . |
+        . . E5 - F5 - A5 - | G5 - - - F5 E5 D5 . | E5 - - - D5 - B4 - | C5 - - - . . . . |
+        . . D5 - F5 - A5 - | G#5 - - - F5 - E5 D5 | E5 - - - - - . . | . . . . C5 D5 E5 G5 |
+        A5 - - - G5 - E5 - | G5 - - - - - D5 E5 | F5 - - - E5 - C5 - | D5 - - - - - . . |
+        A5 - C6 - B5 - A5 - | G5 - - - E5 - D5 - | F5 - - - D5 - B4 - | G#4 - - - B4 - D5 -`,
+      dbl: { i: 'bell', oct: 12, v: 0.18, sec: 'A', odd: true },
+      bass: { i: 'ubass', p: { I: 'R - - - . . . .', A: 'R - . . . R 5 .', B: 'R - - . 5 - . A' } },
+      comp: [{ i: 'rhodes', lo: 55, v: 0.75, p: { I: 'x - - - - - - -', A: 'x - - . . x - .', B: 'x - - - x - . .' } }],
+      dr: {
+        I: { k: 'X.........x.....', z: 'g.g.g.g.g.g.g.g.' },
+        A: { k: 'X.........X.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', r: '..............x.' },
+        a: { k: 'X.........X..x..', s: '....X.......X.g.', h: 'x.x.x.x.x.x.....', r: '..........x.x...' },
+        B: { k: 'X.....x...X.....', s: '....X.......X...', h: 'x.xgx.x.x.xgx.x.', c: '....x.......x...' },
+        b: { k: 'X.....x...X.....', s: '....X...g.g.XxXX', h: 'x.x.x.x.........' },
+      },
+    },
+    // Turbo Toad: a fast, bright chase with an FM lead and slap bass
+    turbo: {
+      bpm: 152, tr: -2, loop: 4, crash: true,
+      sec: 'IIIiAAAAAAAaBBBBBBBb',
+      ch: ['C', 'Bb', 'F', 'G',
+        'C', 'Em7', 'F', 'G', 'C', 'Em7', 'Fmaj7', 'G',
+        'Am7', 'Em7', 'Fmaj7', 'G', 'Am7', 'Em7', 'Dm7', 'G7'],
+      li: { I: 'fm', A: 'fm', B: 'saw' },
+      lead: `. . . . . . . . | . . . . . . . . | . . . . . . . . | . . . . G4 B4 D5 F5 |
+        G5 - C6 - E6 - D6 C6 | B5 - - - G5 - E5 - | A5 - C6 - F6 - E6 C6 | D6 - - - - - . . |
+        G5 - C6 - E6 - G6 - | E6 - D6 - B5 - G5 - | A5 - C6 - E6 - C6 A5 | B5 - - - D6 - - - |
+        C6 - - B5 - - A5 - | G5 - - - E5 - - - | A5 - - G5 - - F5 - | D5 - - - G5 - B5 - |
+        C6 - - B5 - - A5 - | B5 - - - G5 - E5 - | F5 - A5 - C6 - D6 - | B5 - - - G5 - F5 D5`,
+      dbl: { i: 'sq', oct: -12, v: 0.35, sec: 'B', odd: true },
+      bass: { i: 'slap', p: { I: 'R . R . 8 . R . R . 8 . 5 . 8 .', A: 'R . 8 R . 8 R . R . 8 R . 5 8 .', B: 'R . . R 8 . R . R . . 5 8 . A .' } },
+      comp: [
+        { i: 'brass', lo: 60, v: 0.5, p: { I: 'x . . x . . x .', A: '. . . . . . x .', B: 'x - - . x - - .' } },
+        { i: 'gtr', lo: 64, v: 0.5, p: { A: '. x . x . x . x', B: '. x . x . x . x' } },
+      ],
+      dr: {
+        I: { k: 'X.......X.......', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.' },
+        i: { k: 'X.......X.......', s: '....X...X.X.XXXX', h: 'x.x.x.x.........' },
+        A: { k: 'X.....x.X.....x.', s: '....X.......X...', h: 'xgxgxgxgxgxgxgxg', o: '..............x.' },
+        a: { k: 'X.....x.X.......', s: '....X.....x.XxXX', h: 'xgxgxgxgxg......' },
+        B: { k: 'X...X...X...X...', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', c: '....x.......x...' },
+        b: { k: 'X...X...X.......', s: '....X...xxxxXXXX' },
+      },
+    },
+    // Shroom Session: stylish acid-jazz funk with a sax lead and brass shouts
+    jazz: {
+      bpm: 132, sw: 0.1, tr: -4, loop: 4, crash: true, vol: 1.15,
+      sec: 'IIIiAAAAAAAaBBBBBBBbCCCc',
+      ch: ['Am9', 'Am9', 'Fmaj7', 'E7',
+        'Am9', 'Am9', 'Fmaj7', 'E7', 'Am9', 'Am9', 'Dm9', 'E7',
+        'Fmaj7', 'Em7', 'Dm7', 'Cmaj7', 'Bbmaj7', 'Am7', 'Dm9', 'E7',
+        'Fmaj7', 'G6', 'Am9', 'E7'],
+      li: { I: 'sax', A: 'sax', B: 'sax', C: 'brass' },
+      lead: `. . . . . . . . | . . . . . . . . | . . . . . . . . | . . . . . . E5 G5 |
+        E5 . . G5 . . A5 . C6 - - - B5 . A5 . | G5 - - - E5 . . . D5 . E5 . . . . . |
+        F5 . . A5 . . C6 . E6 - - - D6 . C6 . | B5 - - - G#5 - - - E5 - - - . . . . |
+        E5 . . G5 . . A5 . C6 - - - D6 . E6 . | G6 - - - E6 . . . D6 . C6 . . . . . |
+        F5 . . A5 . . C6 . D6 - C6 - A5 . F5 . | G#5 - - - B5 - - - E6 - - - . . . . |
+        A5 - - - C6 - E6 - | D6 - - - B5 - G5 - | F5 - - - A5 - C6 - | B5 - - - - - . . |
+        D6 - - - F6 - D6 - | C6 - - - A5 - E5 - | F5 - E5 - D5 - C5 - | B4 - - - G#4 - - - |
+        C6 . C6 . A5 . C6 - | D6 . D6 . B5 . D6 - | E6 - - - C6 - B5 - | G#5 - B5 - D6 - E6 -`,
+      dbl: { i: 'fm', oct: 0, v: 0.3, sec: 'C' },
+      bass: { i: 'slap', p: {
+        I: 'R . . R . . 8 . R . . 5 . . 8 .', A: 'R . . R . 8 . R . . R . 5 . 8 A',
+        B: 'R . . 5 . . 8 . R . . 5 . 8 . A', C: 'R . R . 8 . R . R . R . 8 . A .' } },
+      comp: [
+        { i: 'rhodes', lo: 55, v: 0.7, p: { I: 'x . . x . . x .', A: '. . x . . x . x', B: 'x - . x - . x .', C: 'x . x . x . x .' } },
+        { i: 'gtr', lo: 64, v: 0.45, p: { A: '. x . x . x . x', B: '. x . x . x . x' } },
+      ],
+      dr: {
+        I: { k: 'X.......X.......', h: 'x.x.x.x.x.x.x.x.', c: '....x.......x...' },
+        i: { k: 'X.......X.......', s: '....x.......xxXX', h: 'x.x.x.x.x.x.....' },
+        A: { k: 'X.....x...X.....', s: '....X.......X...', h: 'xgxgxgxgxgxgxgxg', c: '....x.......x...', o: '..............x.' },
+        a: { k: 'X.....x...X.....', s: '....X.....x.XxXX', h: 'xgxgxgxgxg......' },
+        B: { k: 'X.....x...X...x.', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', z: 'g.g.g.g.g.g.g.g.' },
+        b: { k: 'X.....x...X.....', s: '....X...x.xxXXXX', h: 'x.x.x.x.........' },
+        C: { k: 'X...X...X...X...', s: '....X.......X...', o: '..x...x...x...x.', c: '....x.......x...' },
+        c: { k: 'X...X...X.......', s: '....X...xxxxXXXX' },
+      },
+    },
     // Results: victory fanfare, then a happy loop
     results: {
       bpm: 120, sw: 0.1, loop: 4, crash: true, vol: 0.85,
@@ -299,7 +452,8 @@ const Snd = (() => {
 
   // ---- song compiler: turns the notation into per-step events ----
   const NT = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-  const QUAL = { '': [0, 4, 7], m: [0, 3, 7], 7: [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10], 6: [0, 4, 7, 9], m6: [0, 3, 7, 9] };
+  const QUAL = { '': [0, 4, 7], m: [0, 3, 7], 7: [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10], 6: [0, 4, 7, 9], m6: [0, 3, 7, 9],
+    9: [0, 4, 7, 10, 14], m9: [0, 3, 7, 10, 14], maj9: [0, 4, 7, 11, 14], sus4: [0, 5, 7], dim: [0, 3, 6], m7b5: [0, 3, 6, 10] };
   const VEL = { x: 0.8, X: 1, g: 0.38 };
   const acc = a => (a === '#' ? 1 : a === 'b' ? -1 : 0);
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -317,7 +471,7 @@ const Snd = (() => {
       return 12 * (+m[3] + 1) + NT[m[1]] + acc(m[2]);
     };
     const chordOf = s => {
-      const m = /^([A-G])([#b]?)(maj7|m7|m6|m|7|6)?(?:\/([A-G])([#b]?))?$/.exec(s);
+      const m = /^([A-G])([#b]?)(maj9|maj7|m7b5|m7|m6|m9|sus4|dim|m|7|6|9)?(?:\/([A-G])([#b]?))?$/.exec(s);
       if (!m) fail('bad chord ' + s);
       const r = (NT[m[1]] + acc(m[2]) + 12) % 12;
       return { r, iv: QUAL[m[3] || ''], b: m[4] ? (NT[m[4]] + acc(m[5]) + 12) % 12 : r };
@@ -545,6 +699,49 @@ const Snd = (() => {
       osc(X, 'triangle', f, t, t + d + 0.02, lp);
       osc(X, 'sine', f * 2, t, t + d + 0.02, amp(X, lp, 0.35));
     } },
+    // slap bass: a thumb-struck pluck with a bright filter snap and a solid sub
+    slap: { lvl: 1.25, rv: 0.04, fn(X, t, f, L, v, o) {
+      const d = Math.min(0.5, 0.12 + L * 0.6), g = hit(X, o, t, 0.42 * v, 0.002, d);
+      const lp = filt(X, g, 'lowpass', f * 3, 3);
+      sweep(lp, t, Math.min(9000, f * 16), f * 2.2, 0.035);
+      osc(X, 'sawtooth', f, t, t + d + 0.03, lp); osc(X, 'square', f, t, t + d + 0.03, amp(X, lp, 0.45));
+      osc(X, 'sine', f, t, t + d + 0.03, amp(X, g, 0.7));
+      nhit(X, o, t, 0.012, 'bandpass', 2400, 1.2, 0.1 * v);
+    } },
+    // electric piano: a sine tone with a bell-like tine on the attack
+    rhodes: { lvl: 1.3, rv: 0.28, ec: 0.1, fn(X, t, f, L, v, o) {
+      const d = Math.min(1.6, 0.4 + L * 1.1);
+      osc(X, 'sine', f, t, t + d + 0.05, hit(X, o, t, 0.2 * v, 0.004, d));
+      osc(X, 'sine', f * 2, t, t + d * 0.6, hit(X, o, t, 0.06 * v, 0.003, d * 0.5), 3);
+      osc(X, 'sine', f * 7.1, t, t + 0.12, hit(X, o, t, 0.028 * v, 0.001, 0.08));
+      osc(X, 'triangle', f, t, t + d, hit(X, o, t, 0.045 * v, 0.006, d * 0.8), -4);
+    } },
+    // chicken-scratch funk guitar: short, muted, bright stabs
+    gtr: { lvl: 1.15, pan: 0.22, rv: 0.12, fn(X, t, f, L, v, o) {
+      const d = Math.min(0.2, 0.05 + L * 0.22);
+      const bp = filt(X, hit(X, o, t, 0.16 * v, 0.002, d), 'bandpass', Math.min(3500, f * 3), 1.2);
+      osc(X, 'sawtooth', f, t, t + d + 0.02, bp); osc(X, 'square', f * 1.005, t, t + d + 0.02, amp(X, bp, 0.4));
+      nhit(X, o, t, 0.02, 'bandpass', 2200, 1, 0.05 * v);
+    } },
+    // FM lead, bright and glassy like an old sound chip
+    fm: { lvl: 1.15, rv: 0.22, ec: 0.18, fn(X, t, f, L, v, o) {
+      const [g, end] = adsr(X, o, t, L * 0.9, 0.22 * v, 0.004, 0.18, 0.55, 0.04);
+      const car = osc(X, 'sine', f, t, end, g);
+      const m = X.cx.createOscillator(), mg = X.cx.createGain();
+      m.frequency.setValueAtTime(f * 2, t); mg.gain.setValueAtTime(f * 2.2, t); mg.gain.setTargetAtTime(f * 0.6, t + 0.01, 0.12);
+      m.connect(mg); mg.connect(car.frequency); m.start(t); m.stop(end);
+      if (L > 0.24) vib(X, [car], t, end, 5.8, 12, 0.15);
+    } },
+    // saxophone-ish lead: a reedy saw with breath and vibrato
+    sax: { lvl: 1.2, rv: 0.28, ec: 0.14, fn(X, t, f, L, v, o) {
+      const [g, end] = adsr(X, o, t, L * 0.95, 0.2 * v, 0.03, 0.15, 0.8, 0.05);
+      const top = Math.min(5000, f * 5), lp = filt(X, g, 'lowpass', top, 1.6);
+      lp.frequency.setValueAtTime(f * 1.5, t); lp.frequency.linearRampToValueAtTime(top, t + 0.06);
+      const x = osc(X, 'sawtooth', f, t, end, lp);
+      osc(X, 'square', f, t, end, amp(X, filt(X, lp, 'bandpass', f * 2, 2), 0.3));
+      nhit(X, g, t, Math.min(0.3, L), 'bandpass', 2500, 0.8, 0.035 * v, 0.02);
+      if (L > 0.2) vib(X, [x], t, end, 5.4, 18, 0.12);
+    } },
     // drum kit (the frequency argument is unused)
     k: { lvl: 1.25, fn(X, t, f, L, v, o) { drop(X, o, t, 150, 46, 0.11, 0.9 * v, 0.3); nhit(X, o, t, 0.012, 'highpass', 2500, 0.7, 0.18 * v); } },
     s: { lvl: 2.6, rv: 0.12, fn(X, t, f, L, v, o) {
@@ -563,6 +760,17 @@ const Snd = (() => {
     b: { lvl: 1, pan: 0.25, rv: 0.1, fn(X, t, f, L, v, o) {
       const bp = filt(X, hit(X, o, t, 0.28 * v, 0.001, 0.16), 'bandpass', 820, 1.5);
       osc(X, 'square', 545, t, t + 0.18, bp); osc(X, 'square', 815, t, t + 0.18, bp);
+    } },
+    // hand clap: three quick bursts and a short tail
+    c: { lvl: 2.2, pan: -0.05, rv: 0.2, fn(X, t, f, L, v, o) {
+      for (const dt of [0, 0.011, 0.022]) nhit(X, o, t + dt, dt === 0.022 ? 0.14 : 0.012, 'bandpass', 1500, 0.8, 0.4 * v);
+    } },
+    // a DJ scratch: noise swept up and back down
+    r: { lvl: 1.4, pan: 0.1, rv: 0.08, fn(X, t, f, L, v, o) {
+      const s = X.cx.createBufferSource(); s.buffer = X.nb;
+      const bp = filt(X, hit(X, o, t, 0.3 * v, 0.005, 0.16), 'bandpass', 900, 3);
+      bp.frequency.setValueAtTime(600, t); bp.frequency.linearRampToValueAtTime(2600, t + 0.06); bp.frequency.linearRampToValueAtTime(700, t + 0.14);
+      s.connect(bp); s.start(t, Math.random() * 0.5); s.stop(t + 0.2);
     } },
   };
 
@@ -602,7 +810,7 @@ const Snd = (() => {
       ch[I] = g;
     }
     F.dl.delayTime.setValueAtTime(C.d16 * 3, cx.currentTime);
-    return { id, C, ch, X: kit(cx), pos: 0, pass: 0, t: cx.currentTime + 0.06, gains: [out, rs, es], solo };
+    return { id, C, ch, X: kit(cx), pos: 0, pass: 0, t: cx.currentTime + 0.06, t0: cx.currentTime, wrapped: false, gains: [out, rs, es], solo };
   }
   function run(P, until) {
     const C = P.C;
@@ -613,11 +821,11 @@ const Snd = (() => {
         INST[e.I].fn(P.X, t, e.f, e.len * C.d16, e.v, P.ch[e.I]);
       }
       P.t += C.d16;
-      if (++P.pos >= C.N) { P.pos = C.loop; P.pass++; }
+      if (++P.pos >= C.N) { P.pos = C.loop; P.pass++; P.wrapped = true; }
     }
   }
 
-  let want = null, cur = null;
+  let want = null, cur = null, PL = null;
   function startSong(id) {
     const now = ac.currentTime;
     if (cur) {
@@ -629,11 +837,26 @@ const Snd = (() => {
     if (!id || !SONGS[id]) return;
     try { cur = player(ac, fx, id); } catch (e) { cur = null; console.warn(e); }
   }
-  function tick() { if (cur) run(cur, ac.currentTime + 0.22); }
+  function tick() {
+    if (!cur) return;
+    run(cur, ac.currentTime + 0.22);
+    // a battle playlist moves on at the end of a loop once the song has had its turn
+    if (cur.wrapped) {
+      cur.wrapped = false;
+      if (PL && cur.id === PL.list[PL.i] && ac.currentTime - cur.t0 >= PL.min) { PL.i = (PL.i + 1) % PL.list.length; want = PL.list[PL.i]; startSong(want); }
+    }
+  }
   // switch to a song (null = silence); before the first click it waits for the browser to allow audio
-  function music(id) {
+  function music(id, keepList) {
+    if (!keepList) PL = null;
     want = id || null;
     if (ac && (cur ? cur.id : null) !== want) startSong(want);
+  }
+  // play songs one after another (each for at least `min` seconds, switching at a loop's end)
+  function playlist(list, min) {
+    list = (list || []).filter(id => SONGS[id]);
+    PL = list.length > 1 ? { list, i: 0, min: min || 100 } : null;
+    music(list[0] || null, true);
   }
   function duck(on) { if (fx) fx.duck.gain.setTargetAtTime(on ? 0.35 : 1, ac.currentTime, 0.08); }
 
@@ -655,7 +878,7 @@ const Snd = (() => {
     return muted;
   }
   return {
-    init, music, duck, tick, toggleMute,
+    init, music, playlist, duck, tick, toggleMute,
     isMuted: () => muted,
     play(name, a) { if (!ac || muted) return; if (S[name]) S[name](a); },
     dev: { SONGS, build, render, state: () => ({ ctx: ac && ac.state, song: cur && cur.id, pos: cur && cur.pos }) },

@@ -95,7 +95,21 @@ function getBits(f) {
 }
 
 // ---------- Lobby state ----------
-const Lobby = { slots: [], stage: 'town', stocks: 3, items: true, hazards: true, active: 0, mySlot: 0 };
+const Lobby = { slots: [], stage: 'town', stocks: 3, items: true, hazards: true, music: 'shuffle', active: 0, mySlot: 0 };
+// battle music: the four stage themes plus four extra fight tracks; "Shuffle" plays them all in a random order
+const BATTLE_SONGS = ['funk', 'hop', 'turbo', 'jazz', 'town', 'diorama', 'turnpike', 'gorge'];
+const MUSIC_OPTS = [['shuffle', 'Shuffle'], ['stage', 'Stage theme'], ['funk', 'Spore Funk'], ['hop', 'Toad Hop'], ['turbo', 'Turbo Toad'], ['jazz', 'Shroom Session'],
+  ['town', 'Toad Town'], ['diorama', 'Diorama'], ['turnpike', 'Turnpike'], ['gorge', 'Mushroom Gorge']];
+const musicName = id => (MUSIC_OPTS.find(m => m[0] === id) || MUSIC_OPTS[0])[1];
+function battleOrder(stage) {
+  const m = Lobby.music || 'shuffle';
+  if (m === 'stage') return [stage];
+  if (m !== 'shuffle') return [m];
+  const list = BATTLE_SONGS.slice();
+  for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  return list;
+}
+{ const m = store('sst-music'); if (MUSIC_OPTS.some(o => o[0] === m)) Lobby.music = m; }
 let myChar = store('sst-char') || 'toad';
 if (!CH[myChar]) myChar = 'toad';
 function localDefaults() {
@@ -238,6 +252,7 @@ function renderLobby() {
   $('optItems').className = 'btn sm ' + (Lobby.items ? 'green' : 'gray');
   $('optHaz').textContent = Lobby.hazards ? 'ON' : 'OFF';
   $('optHaz').className = 'btn sm ' + (Lobby.hazards ? 'green' : 'gray');
+  $('optMusic').textContent = musicName(Lobby.music);
   for (const b of document.querySelectorAll('[data-opt]')) b.disabled = role === 'client';
   $('lbStart').classList.toggle('hidden', role === 'client');
   $('lbWait').classList.toggle('hidden', role !== 'client');
@@ -252,6 +267,11 @@ for (const b of document.querySelectorAll('[data-opt]')) {
     if (o === 'stocks+') Lobby.stocks = Math.min(9, Lobby.stocks + 1);
     if (o === 'items') Lobby.items = !Lobby.items;
     if (o === 'hazards') Lobby.hazards = !Lobby.hazards;
+    if (o === 'music') {
+      const i = MUSIC_OPTS.findIndex(m => m[0] === Lobby.music);
+      Lobby.music = MUSIC_OPTS[(i + 1) % MUSIC_OPTS.length][0];
+      store('sst-music', Lobby.music);
+    }
     Snd.play('select');
     lobbyChanged();
   });
@@ -265,7 +285,7 @@ function showLobby() {
   mode = 'lobby'; G = null; paused = false;
   showScreen('lobby');
   renderLobby();
-  Snd.music('title'); Snd.duck(false);
+  Snd.music('lobby'); Snd.duck(false);
 }
 function toTitle(msg) {
   mode = 'title'; G = null; paused = false;
@@ -290,19 +310,20 @@ function buildCfg() {
   });
   return { stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, slots };
 }
-function enterGame(stage) {
+function enterGame(stage, songs) {
   mode = 'game'; paused = false; resultsShown = false; goT = 0;
   showScreen(null);
   PT.length = 0;
   cam.x = 0; cam.y = -150; cam.z = 0.8; cam.shake = 0;
   for (const k in hudMem) delete hudMem[k];
-  Snd.music(stage); Snd.duck(false);
+  Snd.playlist(songs && songs.length ? songs : [stage], 100); Snd.duck(false);
 }
 function startMatch() {
   G = makeGame(buildCfg());
   pendingEv = [];
-  enterGame(G.stage);
-  if (role === 'host') netBroadcast({ t: 'start', stage: G.stage });
+  const songs = battleOrder(G.stage);
+  enterGame(G.stage, songs);
+  if (role === 'host') netBroadcast({ t: 'start', stage: G.stage, songs });
 }
 function backToLobby() {
   showLobby();
@@ -386,7 +407,7 @@ function netBroadcast(m) { for (const e of Net.conns.values()) if (e.conn.open) 
 function lobbyPublic() {
   return {
     slots: Lobby.slots.map(s => ({ type: s.type, ch: s.ch, name: s.type === 'host' ? myName() : s.name || '', lvl: s.lvl })),
-    stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, code: Net.code,
+    stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, music: Lobby.music, code: Net.code,
   };
 }
 function broadcastLobby() {
@@ -517,11 +538,17 @@ function onClientData(d) {
       Lobby.slots = (L.slots || []).slice(0, 4).map(s => ({ type: s.type, ch: CH[s.ch] ? s.ch : 'toad', name: cleanName(s.name), lvl: s.lvl | 0 }));
       Lobby.stage = STG[L.stage] ? L.stage : 'town';
       Lobby.stocks = L.stocks | 0; Lobby.items = !!L.items; Lobby.hazards = !!L.hazards;
+      Lobby.music = MUSIC_OPTS.some(m => m[0] === L.music) ? L.music : 'shuffle';
       Lobby.mySlot = d.you | 0; Lobby.active = Lobby.mySlot;
       if (mode !== 'lobby') { titleMsg(''); showLobby(); } else renderLobby();
       break;
     }
-    case 'start': SN.prev = SN.cur = null; enterGame(STG[d.stage] ? d.stage : 'town'); break;
+    case 'start': {
+      SN.prev = SN.cur = null;
+      const songs = Array.isArray(d.songs) ? d.songs.filter(s => BATTLE_SONGS.includes(s)).slice(0, BATTLE_SONGS.length) : null;
+      enterGame(STG[d.stage] ? d.stage : 'town', songs);
+      break;
+    }
     case 's': onSnap(d.d); break;
     case 'busy': leaveOnline(); toTitle('That room is mid-match. Try again in a moment.'); break;
     case 'full': leaveOnline(); toTitle('That room is full.'); break;
@@ -576,6 +603,8 @@ function handleEvents(evs) {
         break;
       case 'jump': Snd.play('jump'); for (const s of [-1, 1]) addP({ type: 'puff', x: e.x + s * 10, y: e.y - 4, vx: s * 1.5, size: 7, color: 'rgba(255,255,255,0.7)', life: 18 }); break;
       case 'djump': Snd.play('djump'); addP({ type: 'ring', x: e.x, y: e.y - 6, size: 28, color: 'rgba(255,255,255,0.8)', life: 14 }); break;
+      case 'walljump': Snd.play('djump'); for (let k = 0; k < 4; k++) addP({ type: 'puff', x: e.x, y: e.y + (k - 1.5) * 12, vx: (e.dir || 1) * 1.6, size: 6, color: 'rgba(255,255,255,0.85)', life: 16 }); break;
+      case 'uplift': Snd.play('flutter'); addP({ type: 'ring', x: e.x, y: e.y - 6, size: 22, color: 'rgba(255,246,170,0.9)', life: 12 }); break;
       case 'land': for (const s of [-1, 1]) addP({ type: 'puff', x: e.x + s * 12, y: e.y - 3, vx: s * 1.2, size: 5, color: 'rgba(255,255,255,0.55)', life: 14 }); break;
       case 'swing': Snd.play('swing'); break;
       case 'pluck': Snd.play('pluck'); burst(e.x, e.y - 4, 7, '#8a5a2b', 3, 'dot', 4, 20); if (e.s) say(e.s, e.x, e.y - 90, 20, '#ffe866'); break;
