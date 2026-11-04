@@ -105,7 +105,7 @@ The title screen, lobby and results screen each have their own music too.
 
 ## Playing online with friends
 
-1. Everyone opens the game. The [Play now](https://gabeisrandom.github.io/super-smash-toads/) link is the easiest way, and it keeps everyone on the same version.
+1. Everyone opens the game and presses **Start**. The [Play now](https://gabeisrandom.github.io/super-smash-toads/) link is the easiest way, and it keeps everyone on the same version. (The main page also has a quick "Play with friends" guide.)
 2. One person is the **host**. Type your name and click **Host Online**. A 4-letter room code appears at the top of the lobby.
 3. Send that code to your friends (Discord, a text, anything).
 4. Each friend types their name, enters the code under **Room code**, and clicks **Join**.
@@ -119,7 +119,7 @@ Tips:
 
 ## Playing on one computer
 
-Click **Local Play**. Player 1 uses the left side of the keyboard and Player 2 the right side (see the controls above). Gamepads work too.
+Press **Start**, then click **Local Play**. Player 1 uses the left side of the keyboard and Player 2 the right side (see the controls above). Gamepads work too.
 
 In the lobby, press **Change** on a slot to switch it between Player 2, CPU and empty. To choose a slot's fighter, click the slot, then click a fighter in the roster.
 

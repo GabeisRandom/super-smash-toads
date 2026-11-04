@@ -3,7 +3,8 @@
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
 const STEP = 1000 / 60;
-let mode = 'title', role = 'local', G = null, paused = false, frameCount = 0, pendingEv = [], resultsShown = false, goT = 0;
+// mode: 'start' (the press-start screen) -> 'title' (the main page) -> 'lobby' -> 'game'
+let mode = 'start', role = 'local', G = null, paused = false, frameCount = 0, pendingEv = [], resultsShown = false, goT = 0;
 let fsBanner = null; // the finale title card: { ch, i, t }
 const cam = { x: 0, y: -150, z: 0.8, shake: 0 };
 // origami 3D renderer when WebGL is available; the 2D vector renderer stays as a fallback
@@ -42,8 +43,11 @@ const KEYSETS = [
   { L: ['KeyA'], R: ['KeyD'], U: ['KeyW', 'Space'], D: ['KeyS'], A: ['KeyQ'], B: ['KeyE'], S: ['KeyF'], T: ['Digit1', 'Digit2', 'Digit3', 'Digit4'] },
   { L: ['KeyJ', 'ArrowLeft'], R: ['KeyL', 'ArrowRight'], U: ['KeyI', 'ArrowUp'], D: ['KeyK', 'ArrowDown'], A: ['KeyU'], B: ['KeyO'], S: ['KeyH'], T: ['Digit7', 'Digit8', 'Digit9', 'Digit0'] },
 ];
+// keys that never count as "press start"
+const NOT_START = ['KeyM', 'Escape', 'Tab', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'CapsLock'];
 addEventListener('keydown', e => {
   Snd.init();
+  if (mode === 'start' && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey && !NOT_START.includes(e.code)) { e.preventDefault(); pressStart(); return; }
   if (e.target.tagName === 'INPUT') return;
   keys.add(e.code); tapped.add(e.code);
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
@@ -289,8 +293,15 @@ for (const b of document.querySelectorAll('[data-opt]')) {
 }
 
 function showScreen(id) {
-  for (const s of ['title', 'lobby']) $(s).classList.toggle('hidden', s !== id);
+  for (const s of ['start', 'title', 'lobby']) $(s).classList.toggle('hidden', s !== id);
   for (const s of ['pause', 'results']) $(s).classList.add('hidden');
+}
+// the start menu: the first press also wakes up the sound, so the boot-up sting plays right as you start
+function pressStart() {
+  if (mode !== 'start') return;
+  Snd.init();
+  mode = 'title';
+  showScreen('title');
 }
 function showLobby() {
   mode = 'lobby'; G = null; paused = false;
@@ -772,6 +783,8 @@ function ambientFx(view) {
 // ---------- Main loop ----------
 function tick() {
   frameCount++;
+  // a gamepad button works as "press start" too
+  if (mode === 'start' && frameCount > 30 && padList().some(p => p.buttons.some(b => b && b.pressed))) pressStart();
   if (mode === 'game') {
     if (role !== 'client') {
       if (G && !paused) {
@@ -874,6 +887,7 @@ try {
 (function loop() { pump(); draw(); requestAnimationFrame(loop); })();
 
 // ---------- Title wiring ----------
+$('start').onclick = pressStart;
 $('btnLocal').onclick = () => { Snd.init(); leaveOnline(); role = 'local'; localDefaults(); titleMsg(''); showLobby(); };
 $('btnHost').onclick = () => hostOnline(0);
 $('btnJoin').onclick = () => joinOnline($('codeIn').value);
