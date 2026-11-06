@@ -103,7 +103,7 @@ const M3D = (() => {
     const C = CH[id], L = Object.assign({}, C.look, override || {});
     const rig = { kind: 'toad', id, parts: {}, LU: 0.24, handY: -0.27, h: 2.3, wide: C.wide || 1, toadette: !!L.pigtails, captain: !!L.lamp, old: !!L.old,
       ghost: !!L.ghost, robo: !!L.robo, prop: L.prop || null, shield: !!L.shield, look: L,
-      blade: ['cutlass', 'sword', 'pan', 'wand'].includes(L.prop), parrot: L.hat === 'tricorn', eyeY: 0.123 };
+      blade: ['cutlass', 'sword', 'pan', 'wand'].includes(L.prop), parrot: L.hat === 'tricorn', eyeY: 0.123, mount: L.mount || null };
     const wd = rig.wide, vest = L.vest, trim = paper(L.trim || '#f4c430'), capCol = paper(L.cap), spot = paper(L.spot);
     const skin = rig.robo ? '#a4adba' : rig.ghost ? '#e2ebfb' : PAPER.skin, metal = '#7a8494';
     part(rig, 'body', BODY_PIV, () => {
@@ -402,6 +402,32 @@ const M3D = (() => {
       B.box([0, 0.03, 0], [0.06, 0.012, 0.012], { col: '#141418' });
       for (const sx of [-1, 1]) B.ellipsoid([0.12 * sx, 0.03, 0.03], [0.03, 0.015, 0.01], 2, 5, { col: '#8a8f99' });
     });
+    // ---- Buttercup, Moo Toad's cow (built facing +z, feet on y = 0; the saddle top is COW_SADDLE high) ----
+    PROPS.cowBody = mesh(() => {
+      const W = '#fbfbf6', K = '#2b2b2b', P = '#ffb3bd';
+      B.ellipsoid([0, 0.95, 0], [0.42, 0.36, 0.86], 5, 12, { col: W, jit: 0.01, seed: 70 });
+      for (const [d, a] of [[[1, 0.3, 0.4], 0.5], [[1, -0.1, -0.5], 0.42], [[-1, 0.25, -0.1], 0.55], [[-1, -0.2, 0.55], 0.36], [[0.2, 1, -0.6], 0.4]]) B.spotPatch([0, 0.95, 0], [0.42, 0.36, 0.86], d, a, K, 9, 0.012, 0.25);
+      // head with a pink snout, black eyes, cream horns and floppy ears
+      B.ellipsoid([0, 1.16, 0.95], [0.27, 0.26, 0.3], 4, 10, { col: W, seed: 71 });
+      B.spotPatch([0, 1.16, 0.95], [0.27, 0.26, 0.3], [0.6, 0.6, -0.2], 0.45, K, 7, 0.01, 0.2);
+      B.ellipsoid([0, 1.03, 1.2], [0.21, 0.15, 0.13], 3, 9, { col: P, seed: 72 });
+      for (const sx of [-1, 1]) {
+        B.decalAt([0.08 * sx, 1.04, 1.32], [0.3 * sx, 0, 1], [0.025, 0.03, 0.01], '#7a3a40');
+        B.decalAt([0.14 * sx, 1.24, 1.16], [0.5 * sx, 0.2, 1], [0.035, 0.045, 0.012], PAPER.eye);
+        B.cone([0.15 * sx, 1.36, 0.9], 0.05, 0.16, 5, { col: '#f6ecd6' });
+        B.ellipsoid([0.3 * sx, 1.25, 0.88], [0.12, 0.05, 0.08], 2, 6, { col: W, frame: { r: [Math.cos(0.5 * sx), Math.sin(0.5 * sx), 0], u: [-Math.sin(0.5 * sx), Math.cos(0.5 * sx), 0], n: [0, 0, 1] } });
+      }
+      // cowbell on a red strap, and a saddle with a blanket for the rider
+      B.lathe([[0.27, 0.06], [0.3, 0.02], [0.3, -0.02], [0.27, -0.06]], 10, { c: [0, 0.98, 0.72], col: '#d8343a' });
+      B.lathe([[0, 0.05], [0.05, 0.04], [0.08, -0.06], [0.07, -0.08], [0, -0.08]], 8, { c: [0, 0.78, 0.86], col: '#ffd23a' });
+      B.box([0, 1.27, -0.05], [0.44, 0.03, 0.42], { col: '#d8343a' });
+      B.box([0, 1.31, -0.05], [0.3, 0.04, 0.3], { col: '#8a5a2b' });
+    });
+    // a leg hangs down from its hip at the origin; the hoof sits at y = -0.72
+    PROPS.cowLeg = mesh(() => { B.capsule([0, 0, 0], [0, -0.62, 0], 0.11, 6, { col: '#fbfbf6' }); B.ellipsoid([0, -0.68, 0.02], [0.12, 0.07, 0.14], 2, 7, { col: '#2b2b2b' }); });
+    PROPS.cowTail = mesh(() => { B.capsule([0, 0, 0], [0, -0.42, -0.12], 0.035, 5, { col: '#fbfbf6' }); B.ellipsoid([0, -0.47, -0.14], [0.07, 0.1, 0.07], 2, 6, { col: '#2b2b2b' }); });
+    // Moo Toad's milk splash
+    PROJ.milk = mesh(() => { B.ellipsoid([0, 0, 0], [0.16, 0.13, 0.13], 3, 8, { col: '#ffffff', seed: 73 }); B.ellipsoid([0.1, 0.06, 0], [0.07, 0.06, 0.06], 2, 6, { col: '#ffffff' }); }, { ink: false });
     // White Yoshi's halo: a thin glowing ring
     PROPS.haloRing = mesh(() => {
       const ring = [];
@@ -1054,7 +1080,31 @@ const M3D = (() => {
       case 'charge': chargePose(P, F, f, fr, rig); break;
       case 'taunt': tauntPose(P, F, f, fr); break;
       case 'spc': specialPose(P, F, f, fr, rig); break;
+      // grabs: reach out with both hands, hold the foe up front, then throw
+      case 'grab': {
+        const t = f.t || 0, k = t < 6 ? t / 6 : t <= 10 ? 1 : Math.max(0, 1 - (t - 10) / 12);
+        P.an = [lerp(0.3, -1.55, k), -0.28, -0.1, 0]; P.af = [lerp(0.3, -1.55, k), 0.28, -0.1, 0]; P.lean = 0.35 * k; P.yaw = (f.fc || 1) * (0.95 + 0.4 * k); P.slZ = 0.12 * k; P.srZ = -0.14 * k;
+        break;
+      }
+      case 'hold': P.an = [-1.3, -0.4, -0.5, 0]; P.af = [-1.3, 0.4, -0.5, 0]; P.lean = 0.12; P.yaw = (f.fc || 1) * 1.3; P.bob = Math.abs(Math.sin(fr * 0.2)) * 0.02; F.mouthO = (f.t || 0) % 28 < 6; break;
+      case 'held': {
+        const w = Math.sin(fr * 0.9);
+        F.hurt = true; F.mouthO = true; P.side = w * 0.06; ARMS_UP(P, 1.3 + w * 0.3); P.slZ = w * 0.15; P.srZ = -w * 0.15; P.slY = 0.08; P.srY = 0.08;
+        if (f.t > 0) { P.hx = -0.35; P.lean = -0.3; } // flinching from a pummel
+        break;
+      }
+      case 'throw': {
+        const t = f.t || 0, fc = f.fc || 1;
+        if (f.thr === 'b') { const k = clamp01(t / 10); P.yaw = t < 10 ? lerp(fc * 0.95, -fc * 0.95, k) : fc * 0.95; ARMS_UP(P, 1.5); P.lean = -0.1; }
+        else if (f.thr === 'u') { ARMS_UP(P, lerp(1.2, 2.9, clamp01(t / 9))); P.sy = 1 + 0.06 * clamp01(t / 9); P.hx = -0.3; }
+        else if (f.thr === 'd') { const k = clamp01(t / 9); P.lean = 0.55 * k; P.an = [lerp(-1.3, -0.2, k), -0.3, 0, 0]; P.af = [lerp(-1.3, -0.2, k), 0.3, 0, 0]; P.sy = t >= 8 && t <= 11 ? 0.9 : 1; }
+        else { const k = clamp01(t / 6); P.lean = lerp(-0.2, 0.4, k); P.an = [lerp(0.4, -1.65, k), -0.2, 0, 0]; P.af = [lerp(0.4, -1.65, k), 0.2, 0, 0]; P.yaw = fc * 1.3; }
+        F.mouthO = t >= 5 && t <= 12;
+        break;
+      }
     }
+    // riding a cow: sit still in the saddle (the cow does the running)
+    if (rig && rig.mount) { P.slY = P.srY = 0.05; P.slZ = P.srZ = 0; P.slR = P.srR = 0; if (f.st === 'run') { P.lean *= 0.4; P.bob = Math.abs(Math.sin(fr * 0.42)) * 0.03; P.an = [0.3, -0.5, -0.6, 0]; P.af = [0.3, 0.5, -0.6, 0]; } }
     // landing squash, and a little head nod
     if (anim.land > 0 && (f.st === 'idle' || f.st === 'run' || f.st === 'land' || f.st === 'crouch')) { const k = anim.land / 8; P.sy *= 1 - 0.16 * k; P.sx *= 1 + 0.1 * k; P.hx += 0.14 * k; }
     // the head lags behind sudden starts and stops
@@ -1214,8 +1264,20 @@ const M3D = (() => {
     if (rig.ghost && F.alpha == null) F.alpha = 0.88;
     if (f.hide > 0) F.alpha = 0.07; // haunting: all but invisible
     if (f.fade != null && f.fade < 1) F.alpha = (F.alpha == null ? 1 : F.alpha) * f.fade; // title parade fading in and out
-    const unit = ((C.h * 1.05) * PX) / rig.h, scale = unit * (f.sc || 1) * (f.pe > 0 ? 1.06 : 1);
+    const unit = (((C.drawH || C.h) * 1.05) * PX) / rig.h, scale = unit * (f.sc || 1) * (f.pe > 0 ? 1.06 : 1);
     const X = f.x * PX, Y = -f.y * PX;
+    if (rig.mount) {
+      // Moo Toad: the cow and her rider turn and tumble together; the Toad sits in the saddle
+      const fc = f.fc || 1, cyaw = fc * 1.15, pv = 0.9 * scale, al = F.alpha != null ? F.alpha : 1;
+      const Mcow = M4.chain(M4.T(X, Y, 0), M4.T(0, pv, 0), M4.RZ(P.tumble), M4.T(0, -pv, 0), M4.RY(cyaw), M4.S(scale, scale, scale));
+      const legs = f.st === 'run' ? 'run' : f.gi < 0 && f.st !== 'ledge' ? 'air' : f.st === 'atk' && (f.at === 'bair' || f.at === 'dsmash') ? 'kick' : 'idle';
+      drawCow(M4.chain(Mcow, M4.S(COW_K, COW_K, COW_K)), fr * 0.42 + f.i * 1.7, legs, fr, al < 0.99 ? { tint: F.tint, alpha: al } : { tint: F.tint });
+      drawRig(rig, M4.chain(Mcow, M4.T(0, COW_SADDLE * COW_K, -0.05), M4.RY(P.yaw + P.spin - cyaw), M4.S(P.sx, P.sy, P.sx), M4.T(0, P.bob, 0)), P, F, fr);
+      if (f.st === 'shield') { const r = (f.h * 0.62 * PX) * (0.45 + 0.55 * ((f.shd || 100) / 100)); G3.draw(PROJ.ball, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(r, r, r)), { alpha: 0.32, tint: [...hexF(SLOT_COLORS[f.i]), 0.6], self: 0.4 }); }
+      if (f.frz > 0) G3.draw(PROJ.ice3, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(f.w * 0.75 * PX, f.h * 0.6 * PX, 0.9)), { alpha: 0.4, self: 0.5 });
+      if (f.rp > 0) G3.draw(PROJ.halo, M4.chain(M4.T(X, Y - 0.06, 0), M4.S(1.5, 1, 0.8)), { self: 0.3 });
+      return;
+    }
     // Yoshi's Egg Roll: curl up inside a big rolling egg
     if (F.egg) {
       const s = 6 * F.egg * (f.sc || 1);
@@ -1228,6 +1290,20 @@ const M3D = (() => {
     if (f.frz > 0) G3.draw(PROJ.ice3, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(f.w * 0.75 * PX, f.h * 0.6 * PX, 0.9)), { alpha: 0.4, self: 0.5 });
   }
   function hexF(h) { const c = B.hex(h); return [c[0] / 255, c[1] / 255, c[2] / 255]; }
+  // Buttercup the cow at matrix M (feet on the ground, facing +z). legs: 'run' gallops, 'air' tucks, 'kick' bucks the back legs
+  // COW_K: the cow is drawn this much bigger than the rider's units
+  const COW_SADDLE = 1.35, COW_K = 1.4, COW_HIPS = [[-0.24, 0.74, 0.55, 0], [0.24, 0.74, 0.55, Math.PI], [-0.24, 0.74, -0.55, Math.PI], [0.24, 0.74, -0.55, 0]];
+  function drawCow(M, ph, legs, fr, d) {
+    const run = legs === 'run', s = Math.sin(ph), bob = run ? Math.abs(s) * 0.05 : 0;
+    const Mb = M4.chain(M, M4.T(0, bob, 0));
+    G3.draw(PROPS.cowBody, Mb, d);
+    COW_HIPS.forEach(([x, y, z, off], n) => {
+      const front = z > 0;
+      const a = run ? Math.sin(ph + off) * 0.75 : legs === 'air' ? (front ? -0.55 : 0.55) : legs === 'kick' && !front ? 1.25 : Math.sin(fr * 0.05 + n) * 0.04;
+      G3.draw(PROPS.cowLeg, M4.chain(Mb, M4.T(x, y, z), M4.RX(a)), d);
+    });
+    G3.draw(PROPS.cowTail, M4.chain(Mb, M4.T(0, 1.12, -0.84), M4.RX(0.35 + (run ? 0.5 : 0)), M4.RZ(Math.sin(fr * 0.15) * 0.45)), d);
+  }
   // a small Toad Brigade helper (projectile kind 'minion')
   function drawMinion(p, fr) {
     const rig = MINIONS[p.sub] || MINIONS.mail;
@@ -1248,6 +1324,18 @@ const M3D = (() => {
   const CROWD_Z = [0.9, -0.7, 0.3, -1.3, 1.5, -0.2, 0.7];
   function drawCrowd(e, sy, fr) {
     const guards = e.sub === 'guards', yo = e.sub === 'yoshis', fronts = e.both ? [[e.x, e.dir], [e.x2, -e.dir]] : [[e.x, e.dir]];
+    if (e.sub === 'cows') {
+      // Moo Toad's Cattle Stampede: a herd of cows with cheering Toad riders
+      for (const [x0, dir] of fronts) for (let k = 0; k < 6; k++) {
+        const x = x0 - dir * (k * 56 + (k % 2) * 14), rig = CROWD[(k + (dir > 0 ? 0 : 3)) % CROWD.length], sc = (46 * 1.05 * PX) / rig.h;
+        const Mcow = M4.chain(M4.T(x * PX, -sy * PX, CROWD_Z[k]), M4.RY(dir * 1.35), M4.S(sc, sc, sc));
+        drawCow(M4.chain(Mcow, M4.S(COW_K, COW_K, COW_K)), fr * 0.6 + k * 1.1, 'run', fr, {});
+        const P = pose0(dir), F = { props: {}, mouthO: k % 2 === 0, hurt: false, tint: null };
+        ARMS_UP(P, 2.4 + Math.sin(fr * 0.4 + k) * 0.3); P.slY = P.srY = 0.05; P.yaw = 0;
+        drawRig(rig, M4.chain(Mcow, M4.T(0, COW_SADDLE * COW_K, -0.05)), P, F, fr);
+      }
+      return;
+    }
     for (const [x0, dir] of fronts) for (let k = 0; k < 7; k++) {
       const rig = guards ? MINIONS.guard : yo ? YCROWD[(k * 3 + (dir > 0 ? 0 : 5)) % YCROWD.length] : CROWD[(k + (dir > 0 ? 0 : 3)) % CROWD.length];
       if (!rig) continue;
@@ -1270,6 +1358,8 @@ const M3D = (() => {
     const f = { ch: id, i: 9, fc: 1, st: st || 'idle', t: fr, gi: 0 }, { P, F } = targetPose(f, fr, rig);
     if (id === 'toadsworth') F.props.cane = true;
     F.blink = false;
+    // Moo Toad's portrait shows Buttercup below, turned side-on
+    if (rig.mount) drawCow(M4.chain(M0, M4.T(0, -COW_SADDLE * COW_K, 0.05), M4.RY(0.95), M4.S(COW_K, COW_K, COW_K)), 0, 'idle', fr, {});
     drawRig(rig, M4.chain(M0, M4.RY(P.spin), M4.T(0, P.bob, 0)), Object.assign(P, { yaw: 0 }), F, fr);
   }
   return { PX, build, RIGS, ITEM, PROJ, PROPS, KARTS, TRAP, FXM, drawFighter, drawMinion, drawCrowd, drawRig, drawPreview, rootMatrix, pose0, targetPose, MEM, hexF, hueTint, CAP_TOP };

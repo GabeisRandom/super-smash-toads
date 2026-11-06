@@ -48,6 +48,10 @@ function makeFighter(s, sp, stocks) {
     ctr: -1, ctrT: 0, lx: 0, lcx: 0, lcy: 0, lsi: 0, out: false, outAt: 0,
     fs: 0, fsLock: 0, tn: 0, chg: 0, chgMul: 1, parryAt: -99, prT: 0, dirAt: -99, dTap: -99, ig: 0, hide: 0, boostT: 0,
     uaUsed: false, wallT: 0, wall: 0, wj: 0,
+    // grabs: gv = the foe I'm holding, gby = who holds me, gt = how long the hold lasts, pmT = pummel cooldown, thr = throw
+    gv: -1, gby: -1, gt: 0, pmT: 0, thr: '',
+    // anti-spam: parry cooldown, tiring dodges, and the queue of recent moves that landed (stale moves hit softer)
+    parryCd: 0, dodgeN: 0, dodgeT: -999, stq: [], use: 0, useHit: -1, useSm: 1,
   };
 }
 
@@ -56,7 +60,8 @@ function makeGame(cfg) {
   const g = {
     frame: 0, stage: st.id, fighters: [], proj: [], items: [], clouds: [], fx: [], ev: [], phase: 'count', pt: 200,
     itemsOn: cfg.items, hazOn: cfg.hazards, nextItem: 540, kart: null, surf: [], results: null, winner: -1, pid: 1,
-    sbT: 1500 + RND() * 900, haz: initHaz(st),
+    // items: true = everything, 'smash' = only Smash Mushrooms (and much more often), false = none
+    sbT: cfg.items === 'smash' ? 420 + RND() * 300 : 1500 + RND() * 900, haz: initHaz(st),
   };
   let n = 0;
   for (const s of cfg.slots) {
@@ -120,6 +125,7 @@ function updateFighter(g, f, bits) {
   if (f.hide > 0) f.hide--;
   if (f.boostT > 0) f.boostT--;
   if (f.wallT > 0) f.wallT--;
+  if (f.parryCd > 0) f.parryCd--;
   for (const k in f.cd) if (f.cd[k] > 0) f.cd[k]--;
   if (f.psn > 0) { f.psn--; if (f.psn % 30 === 0) f.dm += 1; }
   const tsc = f.big ? 1.45 : f.small ? 0.6 : 1;
@@ -133,7 +139,7 @@ function updateFighter(g, f, bits) {
     f.rp--;
     if (bits) f.rp = 0; else { f.vx = 0; f.vy = 0; return; }
   }
-  if (f.star > 0) hitArea(g, f, 0, -f.h * 0.5, Math.max(f.w, f.h) * 0.6, 5, 7, 0.08, 45, { every: 30, radial: true, map: f.sh2 });
+  if (f.star > 0) hitArea(g, f, 0, -f.h * 0.5, Math.max(f.w, f.h) * 0.6, 5, 7, 0.08, 45, { every: 30, radial: true, map: f.sh2, mv: '' });
 
   switch (f.st) {
     case 'hit':
@@ -161,14 +167,22 @@ function updateFighter(g, f, bits) {
       if (f.t <= 0) f.st = onG ? 'idle' : 'air';
       break;
     case 'ledge': updLedge(g, f, c); return;
-    case 'shield':
+    case 'grab': updGrab(g, f, c); break;
+    case 'hold': updHold(g, f, c); break;
+    case 'throw': updThrow(g, f, c); break;
+    case 'held': updHeld(g, f, c); return; // the grabber moves me
+    case 'shield': {
       if (!(bits & B_S) || !onG) { f.st = onG ? 'idle' : 'air'; break; }
       f.vx *= 0.7; f.shd -= 0.2;
       if (f.shd <= 0) { f.shd = 30; f.st = 'stun'; f.t = 160; g.ev.push({ t: 'break', x: f.x, y: f.y - f.h }); break; }
-      if (pressed & B_U) { f.st = 'idle'; doJump(g, f); }
-      else if (pressed & (B_L | B_R)) { f.st = 'dodge'; f.t = 22; f.inv = Math.max(f.inv, 18); f.vx = dirX * 8.5; f.fc = -dirX; g.ev.push({ t: 'dodge', x: f.x, y: f.y }); }
-      else if (pressed & B_D) { f.st = 'dodge'; f.t = 20; f.inv = Math.max(f.inv, 18); f.vx = 0; g.ev.push({ t: 'dodge', x: f.x, y: f.y }); }
+      // dodging over and over tires you out: less invincibility, more time stuck in the roll
+      const tired = () => { f.dodgeN = g.frame - f.dodgeT < 110 ? Math.min(4, f.dodgeN + 1) : 0; f.dodgeT = g.frame; return f.dodgeN; };
+      if (pressed & (B_A | B_G)) { startGrab(g, f); break; } // grab straight out of a shield
+      if (pressed & (B_U | B_J)) { f.st = 'idle'; doJump(g, f); }
+      else if (pressed & (B_L | B_R)) { const n = tired(); f.st = 'dodge'; f.t = 22 + n * 5; f.inv = Math.max(f.inv, 18 - n * 3); f.vx = dirX * 8.5; f.fc = -dirX; g.ev.push({ t: 'dodge', x: f.x, y: f.y }); }
+      else if (pressed & B_D) { const n = tired(); f.st = 'dodge'; f.t = 20 + n * 5; f.inv = Math.max(f.inv, 18 - n * 3); f.vx = 0; g.ev.push({ t: 'dodge', x: f.x, y: f.y }); }
       break;
+    }
     default: control(g, f, c);
   }
   if (f.st !== 'shield' && f.shd < 100) f.shd = Math.min(100, f.shd + 0.1);
@@ -176,7 +190,8 @@ function updateFighter(g, f, bits) {
 }
 
 function control(g, f, c) {
-  const C = c.C, onG = c.onG, dirX = c.dirX, pr = c.pressed, bits = c.bits;
+  const C = c.C, dirX = c.dirX, pr = c.pressed, bits = c.bits;
+  let onG = c.onG;
   const help = f.st === 'help';
   if (pr & (B_L | B_R | B_U | B_D)) f.dirAt = g.frame;
   // Super Mushroom: slow and mighty; Mini Mushroom: quick and fragile
@@ -203,11 +218,19 @@ function control(g, f, c) {
     if (!help) f.st = 'air';
   }
   if (help && !onG) return;
-  // jump waits 2 frames so Up + Attack can mean an up-air instead; pressing Up again doesn't restart the wait
-  if (pr & B_U && f.jbuf <= 0) f.jbuf = 3;
+  // the jump button jumps at once; Up waits 2 frames so Up + Attack can mean an up attack instead (pressing Up again
+  // doesn't restart the wait)
+  if (pr & B_J) { f.jbuf = 0; doJump(g, f); onG = f.gi >= 0; } // jump + attack together gives an air attack
+  else if (pr & B_U && f.jbuf <= 0) f.jbuf = 3;
   if (f.jbuf > 0) {
     if (pr & (B_A | B_B)) f.jbuf = 0;
     else if (--f.jbuf === 0) doJump(g, f);
+  }
+  // grab: the Grab button, or Guard + Attack together (on the ground)
+  if (onG && !help && (pr & B_G || (bits & B_S && pr & B_A))) {
+    if (f.hold) { throwItem(g, f, c); return; }
+    startGrab(g, f);
+    return;
   }
   if (pr & B_A) {
     if (f.hold) { throwItem(g, f, c); return; }
@@ -240,16 +263,19 @@ function control(g, f, c) {
     const which = bits & B_U ? 'u' : bits & B_D ? 'd' : dirX ? 's' : 'n';
     if (which === 's' || (which === 'n' && dirX)) f.fc = dirX || f.fc;
     const id = C.sp[which];
-    if (SP[id] && SP[id].start(g, f, c) !== false) { f.st = 'spc'; f.sp = id; f.jbuf = 0; }
+    if (SP[id] && SP[id].start(g, f, c) !== false) { f.st = 'spc'; f.sp = id; f.jbuf = 0; f.use++; }
     return;
   }
   if (bits & B_S) {
     if (onG) {
-      // guard: pressing it just before a hit lands is a parry
-      if (pr & B_S) f.parryAt = g.frame;
+      // guard: pressing it just before a hit lands is a parry. A parry try then needs 45 frames to recharge
+      // (a successful one is ready again at once), so mashing Guard doesn't work
+      if (pr & B_S && f.parryCd <= 0) { f.parryAt = g.frame; f.parryCd = 45; }
       f.st = 'shield'; f.vx *= 0.5;
     } else if (pr & B_S && !f.adUsed) {
-      f.adUsed = true; f.st = 'dodge'; f.t = 24; f.inv = Math.max(f.inv, 20);
+      const n = g.frame - f.dodgeT < 110 ? Math.min(4, f.dodgeN + 1) : 0;
+      f.dodgeN = n; f.dodgeT = g.frame;
+      f.adUsed = true; f.st = 'dodge'; f.t = 24 + n * 4; f.inv = Math.max(f.inv, 20 - n * 3);
       f.vx = dirX * 7; f.vy = bits & B_U ? -7 : bits & B_D ? 7 : dirX ? 0 : -1; f.glide = 0;
       g.ev.push({ t: 'dodge', x: f.x, y: f.y });
     }
@@ -282,10 +308,16 @@ function doJump(g, f) {
 }
 
 function startAttack(g, f, kind) {
-  f.st = 'atk'; f.at = kind; f.t = 0; f.hits = {}; f.hitsB = null; f.jbuf = 0;
-  // the first up-air of each trip through the air carries you upward: an extra way back to the stage
-  if (kind === 'uair' && !f.uaUsed) { f.uaUsed = true; f.vy = Math.min(f.vy, -9.5); f.ff = false; g.ev.push({ t: 'uplift', x: f.x, y: f.y }); }
+  f.st = 'atk'; f.at = kind; f.t = 0; f.hits = {}; f.hitsB = null; f.jbuf = 0; f.use++;
+  // off the stage, the first up-air of each trip carries you upward: an extra way back. Over the stage it's just an attack
+  if (kind === 'uair' && !f.uaUsed && offStage(g, f)) { f.uaUsed = true; f.vy = Math.min(f.vy, -9.5); f.ff = false; g.ev.push({ t: 'uplift', x: f.x, y: f.y }); }
   if (kind !== 'throw') g.ev.push({ t: 'swing', x: f.x, y: f.y, k: kind, s: SMASHES[kind] ? 1 : 0 });
+}
+
+// outside the main stage's edges, or below its top
+function offStage(g, f) {
+  const s = STG[g.stage].solids[0];
+  return f.x < s.x - 4 || f.x > s.x + s.w + 4 || f.y > s.y + 4;
 }
 
 function updAttack(g, f, c) {
@@ -339,11 +371,116 @@ function throwItem(g, f, c) {
   g.ev.push({ t: 'throw', x: f.x, y: f.y });
 }
 
+// ---------- Grabs ----------
+// Grab (the Grab button, Guard + Attack, or Attack while shielding) catches a foe right in front, even one hiding
+// behind a shield. Then Attack pummels and a direction throws. The hold lasts longer at high damage, and the held
+// foe can mash any button to break free sooner.
+const THROWS = {
+  f: { at: 6, d: 8, k: 6.5, g: 0.11, ang: 40, end: 18 },
+  b: { at: 10, d: 9, k: 7, g: 0.12, ang: 40, end: 20 },
+  u: { at: 9, d: 7, k: 6.5, g: 0.1, ang: 88, end: 20 },
+  d: { at: 9, d: 6, k: 5, g: 0.07, ang: 70, end: 22 },
+};
+function startGrab(g, f) {
+  const dash = Math.abs(f.vx) > 3;
+  f.st = 'grab'; f.t = 0; f.at = null; f.jbuf = 0; f.use++;
+  f.vx = dash ? f.fc * Math.min(Math.abs(f.vx), 6) : f.vx * 0.3; // a running grab slides in
+  g.ev.push({ t: 'swing', x: f.x, y: f.y, k: 'grab' });
+}
+function updGrab(g, f, c) {
+  f.t++;
+  f.vx *= c.onG ? 0.84 : 0.95;
+  if (f.t >= 6 && f.t <= 9) {
+    const reach = f.w / 2 + 30 * CH[f.ch].reach * f.sc;
+    for (const v of g.fighters) {
+      if (v === f || !hittable(v) || v.st === 'held' || v.st === 'ledge' || v.gby >= 0) continue;
+      const dx = (v.x - f.x) * f.fc;
+      if (dx < -6 || dx > reach + v.w / 2 || v.y < f.y - f.h * 0.9 || v.y - v.h > f.y + 4) continue;
+      catchFoe(g, f, v);
+      return;
+    }
+  }
+  if (f.t >= 28) f.st = c.onG ? 'idle' : 'air'; // missed: a grab whiff is easy to punish
+}
+function catchFoe(g, f, v) {
+  if (v.st === 'hold' || v.st === 'throw') releaseHeld(g, v, 0);
+  f.st = 'hold'; f.t = 0; f.gv = v.i; f.pmT = 8; f.vx = 0;
+  f.gt = Math.min(150, 70 + v.dm * 0.5);
+  v.st = 'held'; v.gby = f.i; v.t = 0; v.at = null; v.sp = null; v.vx = 0; v.vy = 0; v.hs = 0; v.glide = 0; v.tn = 0; v.chg = 0; v.chgMul = 1;
+  holdPos(f, v);
+  g.ev.push({ t: 'grab', x: v.x, y: v.y - v.h / 2 });
+}
+function holdPos(f, v) {
+  v.x = f.x + f.fc * (f.w / 2 + v.w / 2 - 8 * f.sc); v.y = f.y; v.vx = 0; v.vy = 0; v.fc = -f.fc; v.gi = -1;
+}
+// let go of whoever `f` holds (push > 0 shoves them away)
+function releaseHeld(g, f, push) {
+  const v = f.gv >= 0 ? fighterBy(g, f.gv) : null;
+  f.gv = -1;
+  if (v && v.st === 'held' && v.gby === f.i) {
+    v.gby = -1; v.st = 'air'; v.gi = -1; v.vx = f.fc * push; v.vy = push ? -5 : 0; v.inv = Math.max(v.inv, 8);
+  }
+}
+function updHold(g, f, c) {
+  const v = fighterBy(g, f.gv);
+  if (!v || !alive(v) || v.st !== 'held' || v.gby !== f.i) { f.gv = -1; f.st = c.onG ? 'idle' : 'air'; return; }
+  f.t++; f.vx = 0;
+  if (f.pmT > 0) f.pmT--;
+  holdPos(f, v);
+  const p = c.pressed, held = f.t >= 12 ? c.bits : 0, dirs = (p | held) & (B_U | B_D | B_L | B_R);
+  // a direction throws (pressed, or held for a moment)
+  if (dirs) { startThrow(g, f, dirs & B_U ? 'u' : dirs & B_D ? 'd' : ((dirs & B_R ? 1 : -1) === f.fc ? 'f' : 'b')); return; }
+  if (p & (B_A | B_G) && f.pmT <= 0) {
+    // pummel
+    const d = 1.3 * f.pm;
+    f.pmT = 14; v.dm = Math.min(999, v.dm + d); f.dealt += d; v.lastHit = f.i; v.lastHitT = g.frame; v.t = 8;
+    g.ev.push({ t: 'hit', x: v.x, y: v.y - v.h * 0.55, p: 2, c: f.i });
+  }
+  if (--f.gt <= 0) {
+    // they broke free: both are pushed apart
+    releaseHeld(g, f, 5);
+    f.st = 'land'; f.t = 10; f.vx = -f.fc * 2;
+    g.ev.push({ t: 'grabbreak', x: v.x, y: v.y - v.h / 2 });
+  }
+}
+function updHeld(g, f, c) {
+  const a = fighterBy(g, f.gby);
+  if (!a || !alive(a) || (a.st !== 'hold' && a.st !== 'throw') || a.gv !== f.i) { f.gby = -1; f.st = 'air'; f.gi = -1; return; }
+  if (f.t > 0) f.t--;
+  // mash to break free sooner
+  if (c.pressed && a.st === 'hold') a.gt -= 5;
+}
+function startThrow(g, f, dir) {
+  f.st = 'throw'; f.thr = dir; f.t = 0; f.use++;
+  g.ev.push({ t: 'swing', x: f.x, y: f.y, k: 'throw' });
+}
+function updThrow(g, f, c) {
+  const v = fighterBy(g, f.gv), T = THROWS[f.thr] || THROWS.f;
+  f.t++; f.vx = 0;
+  if (v && v.st === 'held' && v.gby === f.i) {
+    // carry the foe through the throw: forward toss, a swing over the head for back, lifted overhead for up, a slam for down
+    const k = Math.min(1, f.t / T.at), fw = f.w / 2 + v.w / 2 - 8 * f.sc;
+    if (f.thr === 'f') { v.x = f.x + f.fc * fw * (1 + 0.35 * k); v.y = f.y - 12 * k; }
+    else if (f.thr === 'b') { const an = k * Math.PI; v.x = f.x + f.fc * fw * Math.cos(an); v.y = f.y - Math.sin(an) * 46 * f.sc; }
+    else if (f.thr === 'u') { v.x = f.x + f.fc * fw * (1 - k); v.y = f.y - f.h * 1.05 * k; }
+    else { v.x = f.x + f.fc * fw * (1 - 0.4 * k); v.y = f.y; }
+    v.vx = 0; v.vy = 0;
+    if (f.t >= T.at) {
+      const dir = f.thr === 'b' ? -f.fc : f.fc;
+      v.gby = -1; f.gv = -1; v.st = 'air';
+      if (f.thr === 'b') f.fc = -f.fc; // turned around while swinging them
+      applyHit(g, v, f, T.d * f.pm, T.k, T.g, T.ang, dir, { mv: 't:' + f.thr, use: f.use });
+      g.ev.push({ t: 'throw', x: v.x, y: v.y - v.h / 2, k: f.thr });
+    }
+  } else if (f.gv >= 0) { f.gv = -1; f.st = c.onG ? 'idle' : 'air'; return; } // someone knocked them out of my hands
+  if (f.t >= T.end) { f.gv = -1; f.st = c.onG ? 'idle' : 'air'; }
+}
+
 function updLedge(g, f, c) {
   f.t--; f.vx = 0; f.vy = 0;
   const pr = c.pressed, toward = f.lx;
   const dirPress = pr & (B_L | B_R) ? c.dirX : 0;
-  if (pr & B_U || pr & B_A || (dirPress && dirPress === toward)) {
+  if (pr & (B_U | B_J) || pr & B_A || (dirPress && dirPress === toward)) {
     f.x = f.lcx + toward * (f.w * 0.6 + 4); f.y = f.lcy; f.vy = 0; f.gi = f.lsi; f.st = 'idle';
     f.inv = Math.max(f.inv, 10);
     if (pr & B_A) startAttack(g, f, 'getup');
@@ -376,8 +513,14 @@ function physics(g, f, bits) {
       const l = s.x, r = s.x + s.w, t = s.y, b = s.y + s.h;
       if (f.x + hw <= l || f.x - hw >= r || f.y < t || f.y - f.h >= b) continue;
       if (prevY <= t + 1 && f.vy >= 0) landOn(f, k, t);
-      else if (prevTop >= b - 1 && f.vy < 0) { f.y = b + f.h; f.vy = 0; }
-      else {
+      else if (prevTop >= b - 1 && f.vy < 0) {
+        f.y = b + f.h;
+        // rising into the underside close to the edge slides you out around the corner and you keep going up, so an
+        // up special from below still reaches the ledge; deeper underneath you just bump your head
+        const inL = f.x + hw - l, inR = r - (f.x - hw), near = Math.min(inL, inR);
+        if (near < hw * 2 + 34) f.x += (inL < inR ? -1 : 1) * Math.min(9, near + 1);
+        else f.vy = 0;
+      } else {
         f.x = f.x < (l + r) / 2 ? l - hw : r + hw;
         f.vx = f.st === 'hit' ? -f.vx * 0.5 : 0;
         // touching the side of the stage: a jump now kicks off the wall
@@ -494,6 +637,8 @@ function hitArea(g, f, ox, oy, r, d, k, gr, ang, o) {
   const cx = f.x + ox * f.fc, cy = f.y + oy, map = o.map || f.hits;
   const fresh = key => map[key] === undefined || (o.every && g.frame - map[key] >= o.every);
   let any = false;
+  // which move this is (for stale-move tracking), unless the caller said
+  if (o.mv === undefined) o = Object.assign({}, o, { mv: f.st === 'atk' ? 'a:' + f.at : f.st === 'spc' ? 's:' + f.sp : f.st === 'throw' ? 't:' + f.thr : '', use: f.use });
   for (const v of g.fighters) {
     if (v === f || !hittable(v) || !fresh(v.i)) continue;
     if (!circRect(cx, cy, r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
@@ -532,7 +677,7 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   if (!o.fs && v.st === 'shield') {
     // parry: guard pressed in the six frames before the hit
     if (g.frame - v.parryAt <= 6) {
-      v.prT = 16; v.inv = Math.max(v.inv, 12); v.hl = 6;
+      v.prT = 16; v.inv = Math.max(v.inv, 12); v.hl = 6; v.parryCd = 0; v.parryAt = -99;
       if (a && !o.proj) { a.st = 'stun'; a.t = 34; a.at = null; a.sp = null; a.vx = -dir * 4; a.hl = 8; a.chgMul = 1; }
       g.ev.push({ t: 'parry', x: v.x, y: v.y - v.h / 2 });
       return false;
@@ -547,13 +692,27 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
     }
     return false;
   }
+  // stale moves: spamming one move makes it weaker. The last nine moves that landed are remembered; a move already
+  // among them loses 1-9% per copy (newer copies count more), and a fresh move gets a small bonus
+  if (a && o.mv && !o.fs) {
+    if (a.useHit !== o.use) { a.useSm = staleMul(a, o.mv); a.stq.unshift(o.mv); if (a.stq.length > 9) a.stq.length = 9; a.useHit = o.use; }
+    d *= a.useSm; k *= 0.7 + 0.3 * a.useSm;
+  }
+  // a fighter caught in a grab is dropped when either of the two gets hit by someone else
+  if (v.st === 'hold' || v.st === 'throw') releaseHeld(g, v, 0);
+  if (v.gby >= 0) v.gby = -1;
   // Super Mushroom: tougher; Mini Mushroom: fragile
   d *= v.big ? 0.65 : v.small ? 1.4 : 1;
   v.dm = Math.min(999, v.dm + d);
   if (a) { a.dealt += d; v.lastHit = a.i; v.lastHitT = g.frame; }
   if (o.psn) v.psn = 210;
   const wt = CH[v.ch].weight * (v.big ? 1.5 : 1) * (v.small ? 0.55 : 1) * (v.st === 'crouch' ? 1.18 : 1);
-  const K = (k + v.dm * gr * (0.55 + d / 14)) / wt;
+  // knockback starts really weak and grows faster and faster with damage: the base part ramps from 20% (at 0%) up to
+  // full strength (at 100%), and the damage part curves upward (about half strength at 15%, the same as before at
+  // 100%, stronger beyond). Finales always hit at full strength.
+  const ramp = o.fs ? 1 : 0.2 + 0.8 * Math.min(1, v.dm / 100);
+  const eff = o.fs ? v.dm : v.dm * Math.pow(Math.max(v.dm, 1) / 100, 0.35);
+  const K = (k * ramp + eff * gr * (0.55 + d / 14)) / wt;
   const lag = Math.floor(3 + d * 0.33);
   if (a && !o.proj) a.hl = Math.max(a.hl, lag);
   g.ev.push({ t: 'hit', x: v.x, y: v.y - v.h * 0.55, p: Math.round(K), c: a ? a.i : -1, el: a && !o.proj ? CH[a.ch].elem : undefined });
@@ -576,6 +735,13 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   v.upUsed = false; v.sUsed = false; v.adUsed = false; v.uaUsed = false; v.wj = 0;
   v.jl = airJumps(v);
   return true;
+}
+
+const STALE = [0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01];
+function staleMul(a, mv) {
+  let m = 1, seen = false;
+  a.stq.forEach((x, n) => { if (x === mv) { m -= STALE[n]; seen = true; } });
+  return seen ? m : 1.05;
 }
 
 function reflect(g, f, x, y, rad) {
@@ -673,7 +839,7 @@ function updateProj(g) {
         if (p.hits[v.i] !== undefined && (!p.every || g.frame - p.hits[v.i] < p.every)) continue;
         if (circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) {
           p.hits[v.i] = g.frame;
-          applyHit(g, v, fighterBy(g, p.o), p.d, p.kb, p.gr, p.ang, p.vx >= 0 ? 1 : -1, { proj: true, frz: p.frz, psn: p.psn, daze: p.daze });
+          applyHit(g, v, fighterBy(g, p.o), p.d, p.kb, p.gr, p.ang, p.vx >= 0 ? 1 : -1, { proj: true, frz: p.frz, psn: p.psn, daze: p.daze, mv: 'p:' + p.k, use: 'p' + p.id });
           if (p.k !== 'boom' && !p.pierce) { kill = true; boom = true; break; }
         }
       }
@@ -813,7 +979,7 @@ function updateItems(g) {
       if (it.x > s.x + s.w + 40) it.vx = -Math.abs(it.vx) - 0.3;
       if (it.y < -430) it.vy = Math.abs(it.vy) + 0.2;
       if (it.y > -80) it.vy = -Math.abs(it.vy) - 0.2;
-      if (it.t > it.life) { g.items.splice(n, 1); g.sbT = 1200 + RND() * 900; g.ev.push({ t: 'sbgone', x: it.x, y: it.y }); }
+      if (it.t > it.life) { g.items.splice(n, 1); g.sbT = g.itemsOn === 'smash' ? 300 + RND() * 300 : 1200 + RND() * 900; g.ev.push({ t: 'sbgone', x: it.x, y: it.y }); }
       continue;
     }
     it.vy = Math.min((it.vy || 0) + 0.5, 10);
@@ -843,7 +1009,7 @@ function hitSmash(g, it, a, dir) {
   a.fs = 1;
   const idx = g.items.indexOf(it);
   if (idx >= 0) g.items.splice(idx, 1);
-  g.sbT = 2400 + RND() * 1200;
+  g.sbT = g.itemsOn === 'smash' ? 720 + RND() * 480 : 2400 + RND() * 1200;
   g.ev.push({ t: 'fsready', i: a.i, ch: a.ch, x: it.x, y: it.y });
 }
 
@@ -877,7 +1043,7 @@ function randItem(noTurnip) {
 function spawnItems(g) {
   if (!g.itemsOn) return;
   const s = STG[g.stage].solids[0];
-  if (--g.nextItem <= 0) {
+  if (g.itemsOn === true && --g.nextItem <= 0) {
     g.nextItem = 480 + RND() * 480;
     g.items.push({ k: randItem(false), x: s.x + 40 + RND() * (s.w - 80), y: -700, vy: 0, t: 0, life: 900, id: g.pid++ });
   }
@@ -897,12 +1063,14 @@ function hazards(g) {
   for (const hz of st.haz) {
     if (hz === 'kart') updKart(g, Hz);
     else if (hz === 'chest') {
+      if (g.itemsOn !== true) continue; // chests and sprouts are items, so they follow the Items setting
       if (--Hz.chestT <= 0) {
         Hz.chestT = 1100 + RND() * 700;
         g.items.push({ k: 'chest', x: -300 + RND() * 600, y: -650, vy: 0, t: 0, life: 1500, id: g.pid++ });
         g.ev.push({ t: 'say', x: 0, y: -330, s: 'A Toad House chest!' });
       }
     } else if (hz === 'sprouts') {
+      if (g.itemsOn !== true) continue;
       if (--Hz.sproutT <= 0) {
         Hz.sproutT = 360 + RND() * 360;
         const s = st.solids[0];
@@ -1025,6 +1193,7 @@ const FSDEF = {
   yoshi: { k: 'rain', sub: 'egg', n: 16 }, pirate: { k: 'rain', sub: 'cannon', n: 14, side: 1 }, doctor: { k: 'rain', sub: 'pill', n: 18, cols: 1 },
   ninja: { k: 'clone' }, knight: { k: 'beam' }, astro: { k: 'sweep' }, rocker: { k: 'pulses' },
   cowboy: { k: 'lasso' }, ghost: { k: 'swarm', n: 10 }, robo: { k: 'fist' },
+  cowtoad: { k: 'wave', sub: 'cows', both: 1 },
 };
 // finales that keep their user busy until they finish
 const FS_LOCK = { burst: 1, rush: 1, clone: 1, beam: 1, pulses: 1, lasso: 1 };
@@ -1954,6 +2123,11 @@ const SP = {
   babyroll: spDash({ cd: 28, speed: 10.5, startup: 3, frames: 16, hb: { x: 14, y: 0.3, r: 26, d: 7, k: 6, g: 0.09, ang: 40 }, lag: 8, trail: 'dust' }),
   babyflutter: spFloat({ frames: 52, rise: 5.2, drift: 6, ev: 'sparkle' }),
   tantrum: spPulse({ slot: 'd', cd: 40, at: [{ t: 6, r: 40, d: 3, k: 3, g: 0.02, ang: 60 }, { t: 14, r: 44, d: 3, k: 3, g: 0.02, ang: 60 }, { t: 22, r: 50, d: 6, k: 8, g: 0.11, ang: 55 }], end: 32 }),
+  // --- Moo Toad, riding Buttercup the cow ---
+  milkshot: spShot({ cd: 22, at: 8, end: 20, ev: 'milk', shots: [-1.8, -0.4, 1].map(vy => ({ k: 'milk', vx: 9.5, vy, grav: 0.2, d: 3, kb: 3, gr: 0.03, ang: 35, r: 11, life: 55, oy: 0.6 })) }),
+  cowcharge: spDash({ cd: 40, speed: 12.5, startup: 6, frames: 22, armor: true, hb: { x: 34, y: 0.35, r: 34, d: 13, k: 9, g: 0.14, ang: 38 }, lag: 14, trail: 'dust', ev: 'moo' }),
+  moonjump: spRise({ vy: 20, hold: 7, end: 28, drift: 5.5, trail: 'sparkle', ev: 'moo', hb: { a: 0, b: 12, y: 0.2, r: 40, d: 9, k: 6, g: 0.1, ang: 85 } }),
+  cowbell: spPulse({ slot: 'd', cd: 50, ev: 'cowbell', at: [{ t: 10, r: 74, d: 4, k: 2, g: 0, ang: 60, daze: 40, ev: 'cowbellhit' }], end: 26 }),
   // --- the Smash Mushroom finale (every fighter; see FSDEF) ---
   fs: {
     fall: 2,
@@ -1971,7 +2145,8 @@ const SP = {
 
 // ---------- Snapshots (host -> clients) ----------
 const FKEYS = ['i', 'ch', 'nm', 'tag', 'fc', 'st', 't', 'at', 'sp', 'sk', 'h', 'w', 'inv', 'star', 'pe', 'frz', 'psn', 'pick', 'hold',
-  'shd', 'glide', 'rp', 'hs', 'gi', 'out', 'big', 'small', 'ctrT', 'ctr', 'lx', 'kos', 'falls', 'fs', 'fsLock', 'tn', 'chg', 'prT', 'ig', 'hide', 'boostT', 'jl'];
+  'shd', 'glide', 'rp', 'hs', 'gi', 'out', 'big', 'small', 'ctrT', 'ctr', 'lx', 'kos', 'falls', 'fs', 'fsLock', 'tn', 'chg', 'prT', 'ig', 'hide', 'boostT', 'jl',
+  'gv', 'gby', 'thr'];
 const r1 = v => Math.round(v * 10) / 10;
 function snapshot(g, ev) {
   const Hz = g.haz;

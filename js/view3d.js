@@ -36,7 +36,7 @@ const V3D = (() => {
   // ---------- world ----------
   const PSCALE = { turnip: 2.4, bomb: 1.9, ice: 1.9, fire: 1.9, boom: 2.3, psn: 1.5, egg: 2.1, coin: 2.2,
     cannon: 2.6, shuriken: 1.8, pancake: 2.2, star: 1.4, laser: 1.5, pill: 2.2, cork: 2.0, tumble: 2.1, boo: 2.2, fist: 2.4, pie: 2.3,
-    gust: 2.4, rock: 2.2, heart: 2.4, bubble: 2.4, shade: 2.6, lightbolt: 2.0, seed: 2.6, melon: 2.4 };
+    gust: 2.4, rock: 2.2, heart: 2.4, bubble: 2.4, shade: 2.6, lightbolt: 2.0, seed: 2.6, melon: 2.4, milk: 2.4 };
   const FSDROP = { egg: 3.8, cannon: 3.6, pill: 3.4, fire: 4.4, melon: 3.4 };
   const fighterOf = (view, i) => (view.fighters || []).find(f => f.i === i);
   const clamp01 = x => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -92,6 +92,7 @@ const V3D = (() => {
         G3.draw(P.ball, M4.chain(M4.T(X, Y, 0.3), M4.S(0.85, 0.85, 0.85)), { alpha: 0.22 + 0.08 * Math.sin(t * 0.3), tint: [0.35, 0.2, 0.55, 0.9], self: 0.3 });
         break;
       case 'lightbolt': R = M4.RY(dir > 0 ? 0 : Math.PI); o = { self: 1 }; break;
+      case 'milk': R = M4.RZ(t * 0.3 * dir); s *= 1 + 0.12 * Math.sin(t * 0.6); o = { self: 0.35 }; break;
       case 'shuriken': R = M4.RZ(t * 0.9 * dir); break;
       case 'pancake': case 'pill': R = M4.RZ(-t * 0.3 * dir); break;
       case 'star': R = M4.RZ(t * 0.15); dy = -0.42 * s; o = { self: 0.75 }; break;
@@ -615,8 +616,8 @@ const V3D = (() => {
     const g = c.createRadialGradient(size / 2, size * 0.45, size * 0.1, size / 2, size / 2, size * 0.75); g.addColorStop(0, '#fff8ec'); g.addColorStop(1, base);
     c.fillStyle = g; c.fillRect(0, 0, size, size);
     if (ok) {
-      const rig = M3D.RIGS[ch], ty = rig && rig.kind === 'yoshi' ? 1.42 : 1.5;
-      G3.begin({ cam: [0, ty, 2.75], fov: (40 * Math.PI) / 180, vw: size, vh: size, near: 0.5, far: 50, fog: [1, 1, 1], fogR: [1e4, 2e4, 0], L: LIGHT, amb: 0.62, dif: 0.5, cool: 0.45, ink: INK, inkW: 0.035, crease: 0.3 });
+      const rig = M3D.RIGS[ch], mount = rig && rig.mount, ty = mount ? 1.0 : rig && rig.kind === 'yoshi' ? 1.42 : 1.5;
+      G3.begin({ cam: [0.35 * (mount ? 1 : 0), ty, mount ? 5.3 : 2.75], fov: (40 * Math.PI) / 180, vw: size, vh: size, near: 0.5, far: 50, fog: [1, 1, 1], fogR: [1e4, 2e4, 0], L: LIGHT, amb: 0.62, dif: 0.5, cool: 0.45, ink: INK, inkW: 0.035, crease: 0.3 });
       M3D.drawPreview(ch, M4.chain(M4.RY(0.42)), 0, 'idle');
       G3.end();
       c.drawImage(glc, 0, 0, size, size, 0, 0, size, size);

@@ -2,10 +2,10 @@
 // ===== CPU Toads =====
 // side specials that travel, handy for getting back to the stage
 const AI_DASH = { toaddash: 1, iceslide: 1, firedash: 1, cutlass: 1, shadowdash: 1, lance: 1, jetdash: 1, turbo: 1, phase: 1, stagedive: 1,
-  flamerush: 1, swoop: 1, stampede: 1, cartwheel: 1, iceskate: 1, nightdash: 1, angeldash: 1, fruitroll: 1, babyroll: 1 };
+  flamerush: 1, swoop: 1, stampede: 1, cartwheel: 1, iceskate: 1, nightdash: 1, angeldash: 1, fruitroll: 1, babyroll: 1, cowcharge: 1 };
 // fighters whose neutral special is a projectile worth throwing from range
 const AI_SHOOT = { turnip: 1, iceball: 1, fireball: 1, boomerang: 1, poison: 1, turnips: 1, egg: 1, cannon: 1, shuriken: 1, pancake: 1, starbolt: 1, raygun: 1, vitamin: 1, powerchord: 1, cork: 1, boo: 1, rocketfist: 1,
-  firespit: 1, gust: 1, rockspit: 1, heartkiss: 1, sporespit: 1, shadowball: 1, lightbolt: 1, seedspit: 1 };
+  firespit: 1, gust: 1, rockspit: 1, heartkiss: 1, sporespit: 1, shadowball: 1, lightbolt: 1, seedspit: 1, milkshot: 1 };
 // side specials that can hook the ledge from this far away (px)
 const AI_TETHER = { lasso: 160, canehook: 105, venomlash: 140 };
 // finales that reach most of the stage, fine to fire right away
@@ -19,7 +19,7 @@ function aiBits(g, f) {
   const L = main.x, R = main.x + main.w, T = main.y;
   const out = x => {
     let r = x;
-    for (const m of [B_A, B_B, B_U, B_T1, B_T2, B_T3, B_T4]) if (a.prev & m && x & m) r &= ~m; // buttons must be re-pressed
+    for (const m of [B_A, B_B, B_U, B_G, B_T1, B_T2, B_T3, B_T4]) if (a.prev & m && x & m) r &= ~m; // buttons must be re-pressed
     a.prev = r;
     return r;
   };
@@ -29,7 +29,18 @@ function aiBits(g, f) {
   if (f.st === 'dead') return out(0);
   if (f.rp > 0) return out(f.rp < 120 ? B_D : 0);
   if (f.st === 'ledge') return out(RND() < 0.05 ? (RND() < 0.3 ? B_A : B_U) : 0);
-  if (f.st === 'taunt' || f.st === 'charge' || (f.st === 'spc' && f.sp === 'fs')) return out(0);
+  if (f.st === 'taunt' || f.st === 'charge' || f.st === 'grab' || f.st === 'throw' || (f.st === 'spc' && f.sp === 'fs')) return out(0);
+  // grabbed: mash to break free (better CPUs mash faster)
+  if (f.st === 'held') return out(RND() < 0.25 + lvl * 0.2 ? (RND() < 0.5 ? B_A : B_B) : 0);
+  // holding someone: a pummel or two, then a throw that suits their damage and the nearer edge
+  if (f.st === 'hold') {
+    const v = g.fighters.find(o => o.i === f.gv);
+    if (!v) return out(0);
+    if (lvl >= 2 && f.t < 8 * lvl && RND() < 0.5) return out(B_A);
+    if (f.t < 6) return out(0);
+    const fwd = f.fc > 0 ? B_R : B_L, back = f.fc > 0 ? B_L : B_R, toEdge = f.x > (L + R) / 2 ? 1 : -1, edgeThrow = toEdge === f.fc ? fwd : back;
+    return out(v.dm > 85 ? edgeThrow : v.dm < 45 ? (RND() < 0.5 ? B_D : B_U) : RND() < 0.6 ? edgeThrow : B_U);
+  }
 
   let b = 0;
   const over = f.x > L - 5 && f.x < R + 5;
@@ -136,9 +147,15 @@ function aiBits(g, f) {
   }
 
   const toward = dx > 0 ? B_R : B_L, away = dx > 0 ? B_L : B_R;
+  // someone turtling in their shield up close gets grabbed
+  if (f.gi >= 0 && tg.gi >= 0 && tg.st === 'shield' && adx < reach * 0.85 && Math.abs(dy) < 30 && RND() < 0.05 * lvl) {
+    if ((dx > 0) !== (f.fc > 0)) return out(toward); // turn to face them first
+    return out(B_G);
+  }
   if (adx < reach && Math.abs(dy) < 70 * f.sc + 20 && RND() < aggr) {
     b &= ~(B_L | B_R);
     const r = RND();
+    if (f.gi >= 0 && tg.gi >= 0 && !f.hold && adx < reach * 0.7 && r < 0.09 && (dx > 0) === (f.fc > 0)) return out(B_G);
     if (f.hold) b |= B_A | toward;
     else if (f.gi >= 0 && tg.dm > 60 && r < 0.3 && lvl >= 2) {
       // a charged smash attack: release, then tap direction + attack together and hold attack

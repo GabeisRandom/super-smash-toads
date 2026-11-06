@@ -144,6 +144,12 @@ const Snd = (() => {
     angry() { tone(300, 150, 0.5, 'sawtooth', 0.15); voice(200, 280, 160, 0.5, 6, 0.25); },
     wind() { noise(1.2, 0.25, 600, 0, 0.3); },
     boo() { voice(520, 300, 200, 0.6, 3, 0.3); },
+    // Moo Toad and grabs
+    moo() { voice(170, 215, 120, 0.8, 3.5, 0.34); },
+    cowbell() { [545, 815].forEach(f => tone(f, f * 0.98, 0.3, 'square', 0.06)); },
+    clang() { [545, 815, 1090].forEach(f => tone(f, f * 0.97, 0.6, 'square', 0.07)); noise(0.15, 0.25, 5000); },
+    throwfx() { noise(0.12, 0.22, 1400, 0, 1); tone(300, 110, 0.16, 'triangle', 0.28); },
+    breakfree() { tone(420, 880, 0.14, 'square', 0.08); noise(0.08, 0.15, 3000); },
   };
 
   // ---------- Music: original tunes, sequenced live with Web Audio ----------

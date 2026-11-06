@@ -1,6 +1,6 @@
 # Super Smash Toads
 
-A free, fan-made **platform fighter** you play right in your web browser. Thirty fighters, nineteen Toads and eleven Yoshis, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
+A free, fan-made **platform fighter** you play right in your web browser. Thirty-one fighters, twenty Toads (one of them riding a cow) and eleven Yoshis, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
 
 ### ▶ [Play now in your browser](https://gabeisrandom.github.io/super-smash-toads/)
 
@@ -15,21 +15,29 @@ Every hit raises a fighter's damage **%**, and the higher it gets, the farther t
 | | Player 1 (and online) | Player 2 (same keyboard) | Gamepad |
 |---|---|---|---|
 | Move | `A` `D` | `J` `L` (or arrow keys) | Stick / D-pad |
-| Jump (again in the air) | `W` or `Space` | `I` | Up / Y |
+| Up (also jumps) | `W` | `I` (or ↑) | Stick up |
+| Jump only (never aims moves up) | `Space` | | Y |
 | Crouch · double-tap to drop through a platform | `S` | `K` | Down |
 | Attack | `Q` | `U` | A |
 | Special | `E` | `O` | B / X |
-| Guard · parry · dodge | `F` | `H` | Bumpers / triggers |
+| Guard · parry · dodge | `F` | `H` | Left bumper / triggers |
+| Grab | `G` (or Guard + Attack) | `Y` | Right bumper |
 | Taunts | `1` `2` `3` `4` | `7` `8` `9` `0` | Right stick |
 | Pause · mute | `Esc` · `M` | | |
 
-- **Combos:** tap Attack again and again for a 3-hit combo. Hold a direction while attacking for different moves, and attack in the air for aerials.
+These are the default keys. Change them in **Settings** on the main menu (saved in your browser).
+
+- **Combos:** tap Attack again and again for a 3-hit combo. Hold a direction while attacking for different moves.
+- **Air attacks:** jump, then press Attack: alone for a neutral air, or with a direction for forward, back, up and down airs. Jump with `Space` and holding it won't turn your air attack into an up air.
+- **Grabs:** grab a foe right in front of you, even one hiding behind their shield (you can also grab straight out of your own shield). Press Attack to pummel, or a direction to throw them forward, back, up or down. If you get grabbed, mash any button to break free sooner.
 - **Smash attacks:** tap a direction *and* Attack at the same moment. Keep holding Attack to charge it up for a bigger hit.
 - **Specials:** press Special alone, or with Left/Right, Up or Down. That's four unique moves for every fighter. Your up special is also your way back to the stage.
-- **Parry:** press Guard just before a hit lands to cancel it and stun the attacker.
-- **Dodge:** hold Guard and tap a direction to roll, or press Guard in the air to air-dodge.
+- **Parry:** press Guard just before a hit lands to cancel it and stun the attacker. After each try the parry needs a moment to recharge (a successful parry is ready again at once), so mashing Guard doesn't work.
+- **Dodge:** hold Guard and tap a direction to roll, or press Guard in the air to air-dodge. Dodging again and again tires you out: each roll in a row is slower with less invincibility.
+- **No spamming:** the same move used over and over gets weaker (the game remembers your last nine moves that landed). Mix it up and every move stays strong.
+- **Knockback** starts really light at low damage and gets much stronger as the % climbs, so early hits set up combos and big hits at high % send people flying.
 - **Taunts:** Booty Shake, Laugh, Yawn and Backflip.
-- **Getting back to the stage:** jump again in the air, then press Up + Attack for a lift (once per trip). Press Jump while touching the side of the stage to wall-jump, then use your up special. Ledges grab themselves, even while you're rising. Getting hit gives all your jumps back. Cowboy Toad's lasso, Toadsworth's cane and Purple Yoshi's Venom Lash can hook a ledge from a distance.
+- **Getting back to the stage:** jump again in the air, then press Up + Attack for a lift (once per trip, only when you're off the stage). Press Jump while touching the side of the stage to wall-jump, then use your up special. Ledges grab themselves, even while you're rising. Getting hit gives all your jumps back. Cowboy Toad's lasso, Toadsworth's cane and Purple Yoshi's Venom Lash can hook a ledge from a distance.
 
 ## Every fighter fights differently
 
@@ -40,6 +48,12 @@ Every hit raises a fighter's damage **%**, and the higher it gets, the farther t
 ## The Smash Mushroom
 
 Every so often a glowing rainbow **Smash Mushroom** drifts onto the stage. Hit it three times to claim its power (you'll start to glow), then press **Special** to unleash your fighter's own finale.
+
+Set **Items** in the lobby to **Smash only** for a mode where the Smash Mushroom is the only item, and it shows up much more often.
+
+## Win streaks
+
+Win match after match in a row and the results screen and lobby show your streak (🔥). Your best streak is saved in your browser.
 
 ## Items
 
@@ -91,6 +105,7 @@ The title screen, lobby and results screen each have their own music too.
 | **Cowboy Toad** | Dust | Cork Shot | Lasso | Lasso Swing | Tumbleweed | High Noon Showdown |
 | **Ghost Toad** | Spirit | Boo Buddy | Phase Rush | Spirit Float | Haunt | Boo Swarm |
 | **Robo Toad** | Spark | Rocket Fist | Turbo Dash | Jet Boots | Steam Vent | Gigaton Rocket Fist |
+| **Moo Toad** (rides a cow) | Milk | Milk Splash | Cattle Charge | Over the Moon | Cowbell Clang | Cattle Stampede |
 | **Yoshi** | Egg | Egg Toss | Egg Roll | Flutter Jump | Yoshi Bomb | Egg Storm |
 | **Red Yoshi** | Fire | Fire Spit | Flame Rush | Blaze Jump | Magma Pound | Volcano Rain |
 | **Blue Yoshi** (wings) | Wind | Wing Gust | Sky Swoop | Wing Flight | Dive Bomb | Feather Cyclone |
@@ -114,6 +129,7 @@ The title screen, lobby and results screen each have their own music too.
 Tips:
 
 - Up to 4 players can be in a room. The host's computer runs the match, so whoever has the steadiest internet should host.
+- The host can remove someone from the room with the **Kick** button on their slot in the lobby.
 - Online play connects your browsers directly to each other. If a friend can't join, have them try again. Some school or work networks block these connections, so a home network or a phone hotspot can help.
 - Once you're in a room you can play match after match. After each game, press **Rematch!** or go back to the lobby to pick new fighters.
 - If the game won't open for you but works for your friends, press **Ctrl+F5** on the game page to load a fresh copy, or play the downloaded **Super-Smash-Toads.html** file instead. On networks that block the online library, the game still opens and Local Play still works.

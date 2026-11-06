@@ -37,16 +37,31 @@ function titleMsg(m) { $('titleMsg').textContent = m || ''; }
 // ---------- Input ----------
 // keys: held right now; tapped: pressed since the last tick, so a tap shorter than a frame still counts
 const keys = new Set(), tapped = new Set();
-// P1: WASD move (S crouches), Q attack, E special, F guard, 1-4 taunts.
-// P2: IJKL move (K crouches; arrows work too), U attack, O special, H guard, 7-0 taunts.
-const KEYSETS = [
-  { L: ['KeyA'], R: ['KeyD'], U: ['KeyW', 'Space'], D: ['KeyS'], A: ['KeyQ'], B: ['KeyE'], S: ['KeyF'], T: ['Digit1', 'Digit2', 'Digit3', 'Digit4'] },
-  { L: ['KeyJ', 'ArrowLeft'], R: ['KeyL', 'ArrowRight'], U: ['KeyI', 'ArrowUp'], D: ['KeyK', 'ArrowDown'], A: ['KeyU'], B: ['KeyO'], S: ['KeyH'], T: ['Digit7', 'Digit8', 'Digit9', 'Digit0'] },
+// Default controls. P1: WASD move (S crouches), Q attack, E special, F guard, G grab, 1-4 taunts.
+// P2: IJKL move (K crouches; arrows work too), U attack, O special, H guard, Y grab, 7-0 taunts.
+// Players can change them in Settings; their choice is saved in this browser.
+// U is the up direction (it jumps too); J only jumps, so holding it never turns an attack into an up attack
+const DEFAULT_KEYS = [
+  { L: ['KeyA'], R: ['KeyD'], U: ['KeyW'], J: ['Space'], D: ['KeyS'], A: ['KeyQ'], B: ['KeyE'], S: ['KeyF'], G: ['KeyG'], T: ['Digit1', 'Digit2', 'Digit3', 'Digit4'] },
+  { L: ['KeyJ', 'ArrowLeft'], R: ['KeyL', 'ArrowRight'], U: ['KeyI', 'ArrowUp'], J: [], D: ['KeyK', 'ArrowDown'], A: ['KeyU'], B: ['KeyO'], S: ['KeyH'], G: ['KeyY'], T: ['Digit7', 'Digit8', 'Digit9', 'Digit0'] },
 ];
+const KEY_ACTS = ['L', 'R', 'U', 'J', 'D', 'A', 'B', 'S', 'G'];
+let KEYSETS = loadKeys();
+function loadKeys() {
+  try {
+    const k = JSON.parse(store('sst-keys') || 'null');
+    if (Array.isArray(k) && k.length === 2) for (const s of k) if (s && !Array.isArray(s.J)) s.J = []; // saves from before the Jump key existed
+    const ok = Array.isArray(k) && k.length === 2 && k.every(s => s && KEY_ACTS.every(a => Array.isArray(s[a])) && Array.isArray(s.T) && s.T.length === 4);
+    if (ok) return k;
+  } catch (e) { /* bad save: use the defaults */ }
+  return JSON.parse(JSON.stringify(DEFAULT_KEYS));
+}
 // keys that never count as "press start"
 const NOT_START = ['KeyM', 'Escape', 'Tab', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'CapsLock'];
+let rebinding = null; // Settings: { p, act, n } while waiting for the new key
 addEventListener('keydown', e => {
   Snd.init();
+  if (rebinding) { e.preventDefault(); if (!e.repeat) setKey(e.code); return; }
   if (mode === 'start' && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey && !NOT_START.includes(e.code)) { e.preventDefault(); pressStart(); return; }
   if (e.target.tagName === 'INPUT') return;
   keys.add(e.code); tapped.add(e.code);
@@ -62,8 +77,8 @@ function keyBits(set) {
   const s = KEYSETS[set], any = a => a.some(k => keys.has(k) || tapped.has(k));
   let b = 0;
   if (any(s.L)) b |= B_L; if (any(s.R)) b |= B_R; if (any(s.U)) b |= B_U; if (any(s.D)) b |= B_D;
-  if (any(s.A)) b |= B_A; if (any(s.B)) b |= B_B; if (any(s.S)) b |= B_S;
-  s.T.forEach((k, n) => { if (keys.has(k) || tapped.has(k)) b |= B_TAUNTS[n]; });
+  if (any(s.A)) b |= B_A; if (any(s.B)) b |= B_B; if (any(s.S)) b |= B_S; if (any(s.G)) b |= B_G; if (any(s.J)) b |= B_J;
+  s.T.forEach((k, n) => { if (k && (keys.has(k) || tapped.has(k))) b |= B_TAUNTS[n]; });
   return b;
 }
 function padList() {
@@ -77,8 +92,10 @@ function padBits(idx) {
   const ax = p.axes[0] || 0, ay = p.axes[1] || 0, bt = i => p.buttons[i] && p.buttons[i].pressed;
   let b = 0;
   if (ax < -0.45 || bt(14)) b |= B_L; if (ax > 0.45 || bt(15)) b |= B_R;
-  if (ay < -0.6 || bt(12) || bt(3)) b |= B_U; if (ay > 0.6 || bt(13)) b |= B_D;
-  if (bt(0)) b |= B_A; if (bt(1) || bt(2)) b |= B_B; if (bt(4) || bt(5) || bt(6) || bt(7)) b |= B_S;
+  // stick / d-pad up is the up direction; the Y button only jumps
+  if (ay < -0.6 || bt(12)) b |= B_U; if (bt(3)) b |= B_J; if (ay > 0.6 || bt(13)) b |= B_D;
+  // right bumper grabs; the left bumper and both triggers guard
+  if (bt(0)) b |= B_A; if (bt(1) || bt(2)) b |= B_B; if (bt(4) || bt(6) || bt(7)) b |= B_S; if (bt(5)) b |= B_G;
   // right stick flicks taunt: up, right, down, left
   const rx = p.axes[2] || 0, ry = p.axes[3] || 0;
   if (ry < -0.7) b |= B_T1; else if (rx > 0.7) b |= B_T2; else if (ry > 0.7) b |= B_T3; else if (rx < -0.7) b |= B_T4;
@@ -249,13 +266,17 @@ function renderLobby() {
     else cc.drawImage(portrait(s.ch, 96), 0, 0);
     d.appendChild(c2);
     const info = el('div', 'info');
-    const who = el('div', 'who', slotLabel(s, k)); who.style.color = SLOT_COLORS[k];
+    const streak = role === 'client' ? s.streak | 0 : s.type !== 'off' ? streakOf(k) : 0;
+    const who = el('div', 'who', slotLabel(s, k) + (streak >= 2 ? '  🔥' + streak : '')); who.style.color = SLOT_COLORS[k];
+    if (streak >= 2) who.title = streak + ' wins in a row';
     info.appendChild(who);
     info.appendChild(el('div', 'cn', s.type === 'off' ? (role === 'local' ? 'Not playing' : 'Friends can join here') : CH[s.ch].name));
     const row = el('div', 'row');
     if (canChangeType(k)) row.appendChild(btn(s.type === 'off' ? 'Add' : 'Change', 'gray', () => cycleType(k)));
     if (s.type === 'cpu' && canChangeType(k)) row.appendChild(btn('Lv ' + s.lvl, 'blue', () => { s.lvl = (s.lvl % 3) + 1; lobbyChanged(); }));
     else if (s.type === 'cpu') row.appendChild(el('div', 'cn', 'Level ' + s.lvl));
+    // the host can remove an online guest from the room
+    if (role === 'host' && s.type === 'net') row.appendChild(btn('Kick', '', () => kickPlayer(k)));
     info.appendChild(row);
     d.appendChild(info);
     d.onclick = () => { if (role !== 'client' && canEditChar(k)) { Lobby.active = k; Snd.play('select'); renderLobby(); } };
@@ -263,8 +284,9 @@ function renderLobby() {
   });
   for (const d of $('stages').children) d.classList.toggle('sel', d.dataset.st === Lobby.stage);
   $('optStocks').textContent = Lobby.stocks;
-  $('optItems').textContent = Lobby.items ? 'ON' : 'OFF';
-  $('optItems').className = 'btn sm ' + (Lobby.items ? 'green' : 'gray');
+  $('optItems').textContent = Lobby.items === 'smash' ? 'SMASH ONLY' : Lobby.items ? 'ON' : 'OFF';
+  $('optItems').className = 'btn sm ' + (Lobby.items === 'smash' ? 'yellow' : Lobby.items ? 'green' : 'gray');
+  $('optItems').title = Lobby.items === 'smash' ? 'Only Smash Mushrooms show up, and much more often' : Lobby.items ? 'All items' : 'No items';
   $('optHaz').textContent = Lobby.hazards ? 'ON' : 'OFF';
   $('optHaz').className = 'btn sm ' + (Lobby.hazards ? 'green' : 'gray');
   $('optMusic').textContent = musicName(Lobby.music);
@@ -280,7 +302,8 @@ for (const b of document.querySelectorAll('[data-opt]')) {
     const o = b.dataset.opt;
     if (o === 'stocks-') Lobby.stocks = Math.max(1, Lobby.stocks - 1);
     if (o === 'stocks+') Lobby.stocks = Math.min(9, Lobby.stocks + 1);
-    if (o === 'items') Lobby.items = !Lobby.items;
+    // items: on -> Smash Mushrooms only -> off
+    if (o === 'items') Lobby.items = Lobby.items === true ? 'smash' : Lobby.items === 'smash' ? false : true;
     if (o === 'hazards') Lobby.hazards = !Lobby.hazards;
     if (o === 'music') {
       const i = MUSIC_OPTS.findIndex(m => m[0] === Lobby.music);
@@ -351,6 +374,26 @@ function backToLobby() {
   showLobby();
   if (role === 'host') broadcastLobby();
 }
+// ---------- Win streaks (for this play session) ----------
+// keyed by who sits in each slot: P1/P2, an online guest's connection, the host, or a CPU slot
+const Streaks = {};
+function streakKey(s, k) {
+  if (!s) return 'slot' + k;
+  if (s.type === 'net') return 'net:' + s.pid;
+  if (s.type === 'cpu' || s.type === 'off') return 'cpu' + k;
+  return s.type; // p1, p2, host
+}
+function streakOf(k) { return Streaks[streakKey(Lobby.slots[k], k)] || 0; }
+// a match just ended (host or local): the winner's streak grows, everyone else's resets; results carry the numbers
+function updateStreaks(g) {
+  for (const f of g.fighters) {
+    const key = streakKey(Lobby.slots[f.i], f.i);
+    Streaks[key] = f.i === g.winner ? (Streaks[key] || 0) + 1 : 0;
+  }
+  for (const r of g.results || []) r.streak = Streaks[streakKey(Lobby.slots[r.i], r.i)] || 0;
+  const me = Lobby.slots.findIndex(s => s.type === 'p1' || s.type === 'host');
+  if (me >= 0 && g.winner === me) { const n = streakOf(me); if (n > (+store('sst-best') || 0)) store('sst-best', String(n)); }
+}
 
 function showResults(res, winner) {
   resultsShown = true;
@@ -370,16 +413,20 @@ function showResults(res, winner) {
     const t = el('div');
     t.appendChild(el('div', '', C.name)).style.cssText = 'font-family:Lilita One;font-size:30px';
     t.appendChild(el('div', 'q', '“' + C.quote + '”'));
+    // a win streak gets a banner
+    if (w.streak >= 2) t.appendChild(el('div', 'streak', `🔥 ${w.streak} wins in a row!`));
     row.appendChild(t);
     box.appendChild(row);
   }
+  const best = +store('sst-best') || 0;
+  if (best >= 2) box.appendChild(el('div', 'bestStreak', `Your best win streak: ${best}`));
   const tb = el('table', 'res');
   const hr = el('tr');
-  for (const h of ['#', 'Player', 'Fighter', 'KOs', 'Falls', 'Damage dealt']) hr.appendChild(el('th', '', h));
+  for (const h of ['#', 'Player', 'Fighter', 'KOs', 'Falls', 'Damage dealt', 'Win streak']) hr.appendChild(el('th', '', h));
   tb.appendChild(hr);
   res.forEach((r, n) => {
     const tr = el('tr');
-    const cells = [String(n + 1), r.tag || '', (CH[r.ch] || CH.toad).name, String(r.kos), String(r.falls), r.dealt + '%'];
+    const cells = [String(n + 1), r.tag || '', (CH[r.ch] || CH.toad).name, String(r.kos), String(r.falls), r.dealt + '%', r.streak ? (r.streak >= 2 ? '🔥 ' : '') + r.streak : '0'];
     cells.forEach((v, j) => { const td = el('td', '', v); if (j === 1) td.style.color = SLOT_COLORS[r.i]; tr.appendChild(td); });
     tb.appendChild(tr);
   });
@@ -399,6 +446,7 @@ function showResults(res, winner) {
 
 function onEsc() {
   if (!$('help').classList.contains('hidden')) { $('help').classList.add('hidden'); return; }
+  if (!$('settings').classList.contains('hidden')) { $('settings').classList.add('hidden'); return; }
   if (mode !== 'game' || resultsShown) return;
   const p = $('pause');
   if (!p.classList.contains('hidden')) { p.classList.add('hidden'); paused = false; Snd.duck(false); return; }
@@ -422,13 +470,29 @@ $('muteBtn').textContent = Snd.isMuted() ? '✕♪' : '♪';
 // ---------- Online (PeerJS, host-authoritative) ----------
 // taps: buttons pressed since the host last read them, so a quick tap whose press and release arrive
 // in the same frame still registers
-const Net = { peer: null, conns: new Map(), conn: null, inputs: {}, taps: {}, lastSent: -1, code: '' };
+const Net = { peer: null, conns: new Map(), conn: null, inputs: {}, taps: {}, lastSent: -1, code: '', banned: new Set(), bannedNames: new Set() };
+// the host removes an online guest from the room (they can't come back to this room under the same name)
+function kickPlayer(k) {
+  const s = Lobby.slots[k];
+  if (role !== 'host' || !s || s.type !== 'net') return;
+  for (const [pid, e] of Net.conns) {
+    if (e.slot !== k) continue;
+    Net.banned.add(pid);
+    try { e.conn.send({ t: 'kicked' }); } catch (err) { /* already gone */ }
+    setTimeout(() => { try { e.conn.close(); } catch (err) { /* already closed */ } }, 300);
+    Net.conns.delete(pid); delete Net.inputs[pid]; delete Net.taps[pid];
+  }
+  if (s.name) Net.bannedNames.add(s.name.toLowerCase());
+  toast((s.name || 'The player') + ' was removed from the room.');
+  Lobby.slots[k] = { type: 'off', ch: s.ch, lvl: 2 };
+  lobbyChanged();
+}
 const SN = { prev: null, cur: null, at: 0 };
 function netSend(m) { if (Net.conn && Net.conn.open) try { Net.conn.send(m); } catch (e) { /* dropped */ } }
 function netBroadcast(m) { for (const e of Net.conns.values()) if (e.conn.open) try { e.conn.send(m); } catch (err) { /* dropped */ } }
 function lobbyPublic() {
   return {
-    slots: Lobby.slots.map(s => ({ type: s.type, ch: s.ch, name: s.type === 'host' ? myName() : s.name || '', lvl: s.lvl })),
+    slots: Lobby.slots.map((s, k) => ({ type: s.type, ch: s.ch, name: s.type === 'host' ? myName() : s.name || '', lvl: s.lvl, streak: s.type !== 'off' ? streakOf(k) : 0 })),
     stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, music: Lobby.music, code: Net.code,
   };
 }
@@ -443,7 +507,7 @@ function leaveOnline() {
   for (const e of Net.conns.values()) try { e.conn.close(); } catch (err) { /* already closed */ }
   Net.conns.clear();
   try { if (Net.peer) Net.peer.destroy(); } catch (e) { /* already gone */ }
-  Net.peer = null; Net.conn = null; Net.inputs = {}; Net.taps = {}; SN.prev = SN.cur = null;
+  Net.peer = null; Net.conn = null; Net.inputs = {}; Net.taps = {}; SN.prev = SN.cur = null; Net.banned.clear(); Net.bannedNames.clear();
   return old;
 }
 function randCode() { const a = 'ABCDEFGHJKMNPQRSTUVWXYZ'; let s = ''; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
@@ -501,6 +565,7 @@ function onClientJoin(conn) {
     if (mode === 'lobby') lobbyChanged();
     return;
   }
+  if (Net.banned.has(conn.peer)) { conn.send({ t: 'kicked' }); setTimeout(() => conn.close(), 400); return; }
   if (mode === 'game') { conn.send({ t: 'busy' }); setTimeout(() => conn.close(), 400); return; }
   let k = Lobby.slots.findIndex((s, i) => i > 0 && s.type === 'off');
   if (k < 0) k = Lobby.slots.findIndex((s, i) => i > 0 && s.type === 'cpu');
@@ -521,7 +586,11 @@ function onHostData(conn, d) {
     return;
   }
   if (mode !== 'lobby' || !s || s.type !== 'net') return;
-  if (d.t === 'hello') { s.name = cleanName(d.name) || 'Player'; if (CH[d.ch]) s.ch = d.ch; toast(s.name + ' joined!'); lobbyChanged(); }
+  if (d.t === 'hello') {
+    s.name = cleanName(d.name) || 'Player'; if (CH[d.ch]) s.ch = d.ch;
+    if (Net.bannedNames.has(s.name.toLowerCase())) { kickPlayer(e.slot); return; } // kicked earlier: still not welcome
+    toast(s.name + ' joined!'); lobbyChanged();
+  }
   else if (d.t === 'pick' && CH[d.ch]) { s.ch = d.ch; lobbyChanged(); }
 }
 function onClientLeave(conn) {
@@ -571,9 +640,9 @@ function onClientData(d) {
   switch (d.t) {
     case 'lobby': {
       const L = d.L || {};
-      Lobby.slots = (L.slots || []).slice(0, 4).map(s => ({ type: s.type, ch: CH[s.ch] ? s.ch : 'toad', name: cleanName(s.name), lvl: s.lvl | 0 }));
+      Lobby.slots = (L.slots || []).slice(0, 4).map(s => ({ type: s.type, ch: CH[s.ch] ? s.ch : 'toad', name: cleanName(s.name), lvl: s.lvl | 0, streak: Math.max(0, s.streak | 0) }));
       Lobby.stage = STG[L.stage] ? L.stage : 'town';
-      Lobby.stocks = L.stocks | 0; Lobby.items = !!L.items; Lobby.hazards = !!L.hazards;
+      Lobby.stocks = L.stocks | 0; Lobby.items = L.items === 'smash' ? 'smash' : !!L.items; Lobby.hazards = !!L.hazards;
       Lobby.music = MUSIC_OPTS.some(m => m[0] === L.music) ? L.music : 'shuffle';
       Lobby.mySlot = d.you | 0; Lobby.active = Lobby.mySlot;
       if (mode !== 'lobby') { titleMsg(''); showLobby(); } else renderLobby();
@@ -587,6 +656,7 @@ function onClientData(d) {
     }
     case 's': onSnap(d.d); break;
     case 'busy': leaveOnline(); toTitle('That room is mid-match. Try again in a moment.'); break;
+    case 'kicked': leaveOnline(); toTitle('The host removed you from the room.'); break;
     case 'full': leaveOnline(); toTitle('That room is full.'); break;
   }
 }
@@ -666,7 +736,14 @@ function handleEvents(evs) {
       case 'swing': Snd.play('swing'); break;
       case 'pluck': Snd.play('pluck'); burst(e.x, e.y - 4, 7, '#8a5a2b', 3, 'dot', 4, 20); if (e.s) say(e.s, e.x, e.y - 90, 20, '#ffe866'); break;
       case 'pop': Snd.play('pop'); burst(e.x, e.y, 8, { ice: '#9fe4ff', fire: '#ff8a1f', coin: '#ffd23a', psn: '#9b4fd6', gust: '#ffffff', rock: '#a08a6a', heart: '#ff5aa8', bubble: '#c890ff', shade: '#8a7ad8', lightbolt: '#fff6c8', seed: '#5a4a30', melon: '#5fd04a' }[e.k] || '#f6f2ff', 4, 'dot', 4, 20); break;
-      case 'throw': case 'shoot': Snd.play('shoot'); break;
+      case 'throw': if (e.k) { Snd.play('throwfx'); addP({ type: 'ring', x: e.x, y: e.y, size: 34, color: '#ffe0a8', life: 12 }); } else Snd.play('shoot'); break;
+      case 'shoot': Snd.play('shoot'); break;
+      case 'grabbreak': Snd.play('breakfree'); for (let k = 0; k < 5; k++) addP({ type: 'puff', x: e.x + (k - 2) * 10, y: e.y, vy: -1, size: 7, life: 18 }); say('Broke free!', e.x, e.y - 40, 18, '#bff4ff'); break;
+      // Moo Toad
+      case 'moo': Snd.play('moo'); say('Moo!', e.x, e.y - 70, 22, '#ffffff'); break;
+      case 'milk': Snd.play('pop'); for (let k = 0; k < 5; k++) addP({ type: 'dot', x: e.x, y: e.y, vx: (e.dir || 1) * (2 + Math.random() * 3), vy: -1 - Math.random() * 2, g: 0.2, size: 5, color: '#ffffff', life: 22 }); break;
+      case 'cowbell': Snd.play('cowbell'); break;
+      case 'cowbellhit': Snd.play('clang'); cam.shake = Math.max(cam.shake, 6); addP({ type: 'ring', x: e.x, y: e.y, size: (e.r || 74) * 1.2, color: '#ffd23a', life: 18 }); addP({ type: 'ring', x: e.x, y: e.y, size: (e.r || 74) * 0.8, color: '#ffffff', life: 14 }); break;
       case 'scream': Snd.play('scream'); say('WAAAH!', e.x, e.y, 36, '#ffffff'); break;
       case 'spin': case 'prop': Snd.play('spin'); break;
       case 'flutter': Snd.play('flutter'); break;
@@ -812,6 +889,7 @@ function tick() {
       }
       if (G) {
         updateCam(cam, G); ambientFx(G);
+        if (G.phase === 'over' && !G.streaked) { G.streaked = true; updateStreaks(G); }
         if (G.phase === 'over' && G.pt >= 150 && !resultsShown) showResults(G.results, G.winner);
       }
     } else {
@@ -899,6 +977,55 @@ try {
   wk.onmessage = pump;
 } catch (e) { setInterval(pump, 8); }
 (function loop() { pump(); draw(); requestAnimationFrame(loop); })();
+
+// ---------- Settings: change the keyboard controls ----------
+const ACT_NAMES = [['L', 'Move left'], ['R', 'Move right'], ['U', 'Up (also jumps)'], ['J', 'Jump only'], ['D', 'Crouch / down'], ['A', 'Attack'], ['B', 'Special'], ['S', 'Guard'], ['G', 'Grab'],
+  ['T0', 'Taunt 1'], ['T1', 'Taunt 2'], ['T2', 'Taunt 3'], ['T3', 'Taunt 4']];
+const keysOf = (p, act) => (act[0] === 'T' ? [KEYSETS[p].T[+act[1]]].filter(Boolean) : KEYSETS[p][act]);
+function keyName(c) {
+  const M = { Space: 'Space', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', ShiftLeft: 'L Shift', ShiftRight: 'R Shift', ControlLeft: 'L Ctrl',
+    ControlRight: 'R Ctrl', AltLeft: 'L Alt', AltRight: 'R Alt', Enter: 'Enter', Backspace: 'Bksp', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
+    Backslash: '\\', BracketLeft: '[', BracketRight: ']', Minus: '-', Equal: '=', Backquote: '`', CapsLock: 'Caps' };
+  if (M[c]) return M[c];
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+  if (/^Digit\d$/.test(c)) return c.slice(5);
+  if (/^Numpad/.test(c)) return 'Num ' + c.slice(6);
+  return c;
+}
+function renderSettings() {
+  const t = $('keyTable');
+  t.innerHTML = '';
+  const head = el('tr');
+  for (const h of ['', 'Player 1', 'Player 2']) head.appendChild(el('th', '', h));
+  t.appendChild(head);
+  for (const [act, name] of ACT_NAMES) {
+    const tr = el('tr');
+    tr.appendChild(el('td', '', name));
+    for (const p of [0, 1]) {
+      const td = el('td'), wait = rebinding && rebinding.p === p && rebinding.act === act;
+      const b = el('button', 'kb' + (wait ? ' wait' : ''), wait ? 'Press a key…' : keysOf(p, act).map(keyName).join(' / ') || '—');
+      b.onclick = () => { rebinding = { p, act }; renderSettings(); };
+      td.appendChild(b); tr.appendChild(td);
+    }
+    t.appendChild(tr);
+  }
+}
+// the key just pressed becomes the binding being changed; a key only ever does one thing, so it leaves any other action
+function setKey(code) {
+  const R = rebinding;
+  rebinding = null;
+  if (!R || code === 'Escape') { renderSettings(); return; }
+  if (code === 'KeyM' || code === 'Tab') { toast(code === 'KeyM' ? 'M is the mute key. Pick another one.' : 'Pick another key.'); renderSettings(); return; }
+  for (const s of KEYSETS) { for (const a of KEY_ACTS) s[a] = s[a].filter(k => k !== code); s.T = s.T.map(k => (k === code ? '' : k)); }
+  const s = KEYSETS[R.p];
+  if (R.act[0] === 'T') s.T[+R.act[1]] = code; else s[R.act] = [code];
+  store('sst-keys', JSON.stringify(KEYSETS));
+  Snd.play('select');
+  renderSettings();
+}
+$('btnSettings').onclick = () => { $('settings').classList.remove('hidden'); renderSettings(); };
+$('setClose').onclick = () => { rebinding = null; $('settings').classList.add('hidden'); };
+$('setReset').onclick = () => { rebinding = null; KEYSETS = JSON.parse(JSON.stringify(DEFAULT_KEYS)); store('sst-keys', JSON.stringify(KEYSETS)); toast('Controls reset'); renderSettings(); };
 
 // ---------- Title wiring ----------
 if ($('start')) $('start').onclick = pressStart;

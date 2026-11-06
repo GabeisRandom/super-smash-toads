@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611052051';
+const GAME_BUILD = '202611061324';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -13,8 +13,9 @@ const W = 1280, H = 720;
 const BLAST = { l: -1150, r: 1150, t: -800, b: 760 };
 const GRAV = 0.62, MAXFALL = 11, FASTFALL = 16;
 // buttons: move, jump, down/crouch, attack (Q), special (E), guard (F) and the four taunts
-const B_L = 1, B_R = 2, B_U = 4, B_D = 8, B_A = 16, B_B = 32, B_S = 64, B_T1 = 128, B_T2 = 256, B_T3 = 512, B_T4 = 1024;
-const B_TAUNTS = [B_T1, B_T2, B_T3, B_T4], B_ALL = 2047;
+// B_U is the up direction (it also jumps, "tap jump"); B_J is a jump-only button (Space, gamepad Y) that never aims moves up
+const B_L = 1, B_R = 2, B_U = 4, B_D = 8, B_A = 16, B_B = 32, B_S = 64, B_T1 = 128, B_T2 = 256, B_T3 = 512, B_T4 = 1024, B_G = 2048, B_J = 4096;
+const B_TAUNTS = [B_T1, B_T2, B_T3, B_T4], B_ALL = 8191;
 const SLOT_COLORS = ['#ff4b4b', '#3f8cff', '#ffc21f', '#3bd16b'];
 const PEER_PREFIX = 'supersmashtoads-';
 const TAUNTS = [{ n: 'Booty Shake', dur: 72 }, { n: 'Laugh', dur: 64 }, { n: 'Yawn', dur: 84 }, { n: 'Backflip', dur: 46 }];
@@ -101,6 +102,12 @@ const CHARS = [
     weight: 1.35, run: 5.6, air: 4.6, jump: 13.5, djump: 12, pow: 1.15, swoosh: '#9ff0ff', sp: { n: 'rocketfist', s: 'turbo', u: 'jetboots', d: 'steam' },
     blurb: 'Built by Professor E. Gadd. Rocket fists, an armored turbo dash and a scalding steam vent.',
     quote: 'BEEP BOOP. OPPONENT: DEFEATED.' }),
+  // rides Buttercup the cow: h is the whole pair's height, drawH sizes the Toad on top
+  defChar({ id: 'cowtoad', name: 'Moo Toad', look: { cap: '#ffffff', spot: '#2b2b2b', vest: '#8a5a2b', trim: '#ffd23a', mount: 'cow' },
+    weight: 1.4, run: 7.4, air: 4.6, jump: 13.5, djump: 12, h: 90, drawH: 46, wide: 1.55, pow: 1.12, swoosh: '#fff6e0',
+    sp: { n: 'milkshot', s: 'cowcharge', u: 'moonjump', d: 'cowbell' },
+    blurb: 'Rides Buttercup the cow into battle. Milk splashes, an armored cattle charge, and a jump over the moon.',
+    quote: 'Moooove over, the champ is here!' }),
   // ---- the Yoshi clan ----
   defChar({ id: 'yoshi', name: 'Yoshi', yoshi: true, look: { body: '#3dbb3d', saddle: '#e8262b', shoe: '#ff8a1f' },
     weight: 1.05, run: 7.0, air: 5.4, jump: 15.5, djump: 16.5, h: 66, sp: { n: 'egg', s: 'eggroll', u: 'flutter', d: 'yoshipound' },
@@ -181,6 +188,7 @@ const SPNAME = {
   lightbolt: 'Light Bolt', angeldash: 'Angel Dash', halorise: 'Halo Rise', holyshine: 'Holy Shine',
   seedspit: 'Melon Seeds', fruitroll: 'Fruit Roll', melonhop: 'Melon Bounce', fruitbomb: 'Fruit Bomb',
   gobble: 'Gobble Up', babyroll: 'Tumble Roll', babyflutter: 'Baby Flutter', tantrum: 'Tantrum',
+  milkshot: 'Milk Splash', cowcharge: 'Cattle Charge', moonjump: 'Over the Moon', cowbell: 'Cowbell Clang',
 };
 // each fighter's Smash Mushroom finale
 const FSNAME = {
@@ -191,7 +199,7 @@ const FSNAME = {
   cowboy: 'High Noon Showdown', ghost: 'Boo Swarm', robo: 'Gigaton Rocket Fist',
   redyoshi: 'Volcano Rain', blueyoshi: 'Feather Cyclone', yellowyoshi: 'Mega Quake', pinkyoshi: 'Heartbreaker',
   iceyoshi: 'Blizzard', purpleyoshi: 'Bubble Flood', blackyoshi: 'Shadow Pack', whiteyoshi: 'Sacred Light',
-  orangeyoshi: 'Fruit Frenzy', babyyoshi: 'Yoshi Stampede',
+  orangeyoshi: 'Fruit Frenzy', babyyoshi: 'Yoshi Stampede', cowtoad: 'Cattle Stampede',
 };
 
 // ---------- Normal attacks ----------
@@ -323,6 +331,7 @@ const FIGHT = {
   whiteyoshi:  { style: 'yoshi', elem: 'light', moves: { usmash: 'geyser', nair: 'aura' } },
   orangeyoshi: { style: 'yoshi', elem: 'fruit', moves: { fair: 'drill' } },
   babyyoshi:   { style: 'yoshi', elem: 'none', moves: { jab3: 'flurry', dair: 'stomp' } },
+  cowtoad:     { style: 'toad', elem: 'milk', moves: { jab3: 'kick3', side: 'shove', dsmash: 'splitkick', dair: 'stomp' } },
 };
 for (const c of CHARS) Object.assign(c, { style: c.yoshi ? 'yoshi' : 'toad', elem: 'none', idle: c.yoshi ? 'dino' : 'calm', gait: c.yoshi ? 'dino' : 'normal' }, FIGHT[c.id] || {});
 // what an element does to normal attacks (the rest only change the look of the hits)
@@ -337,7 +346,7 @@ const ELEM_COL = {
   water: ['#8fd0ff', '#ffffff'], shadow: ['#8a7ad8', '#2b2440'], steel: ['#e6eef8', '#ffd23a'], heat: ['#ffb347', '#ffffff'],
   magic: ['#e2c8ff', '#ffe066'], music: ['#ff7088', '#ffe066'], dust: ['#e6d2a8', '#c8a060'], spirit: ['#cfe0ff', '#ffffff'],
   spark: ['#ffb02e', '#fff6a0'], wind: ['#eaf6ff', '#bfe6ff'], rock: ['#c0a882', '#8a7a60'], light: ['#fff6c8', '#ffffff'],
-  fruit: ['#ff5a5a', '#5fd04a'], gold: ['#ffd23a', '#fff6a0'], egg: ['#ffffff', '#5fd04a'],
+  fruit: ['#ff5a5a', '#5fd04a'], gold: ['#ffd23a', '#fff6a0'], egg: ['#ffffff', '#5fd04a'], milk: ['#ffffff', '#f2e6c8'],
 };
 const ATK = {};
 for (const c of CHARS) {
