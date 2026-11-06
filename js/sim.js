@@ -126,6 +126,21 @@ function updateFighter(g, f, bits) {
   if (f.boostT > 0) f.boostT--;
   if (f.wallT > 0) f.wallT--;
   if (f.parryCd > 0) f.parryCd--;
+  // Beatrice's follow-up spark (Subaru Toad), a moment after his hit lands; it fizzles if he gets hit first.
+  // It only adds damage (it never knocks anyone, so it can't cut short the launch his hit just gave them)
+  if (f.echo && --f.echo.t <= 0) {
+    const E = f.echo; f.echo = null;
+    if (f.st !== 'hit' && f.st !== 'stun' && f.st !== 'held') {
+      const cx = f.x + E.x * f.fc, cy = f.y + E.y;
+      for (const v of g.fighters) {
+        if (v === f || !hittable(v) || v.inv > 0 || v.star > 0 || v.ig > 0) continue;
+        if (!circRect(cx, cy, E.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
+        const d = E.d * f.pm;
+        if (v.st === 'shield') v.shd -= d; else { v.dm = Math.min(999, v.dm + d); f.dealt += d; }
+        g.ev.push({ t: 'beakospark', x: v.x, y: v.y - v.h * 0.55 });
+      }
+    }
+  }
   for (const k in f.cd) if (f.cd[k] > 0) f.cd[k]--;
   if (f.psn > 0) { f.psn--; if (f.psn % 30 === 0) f.dm += 1; }
   const tsc = f.big ? 1.45 : f.small ? 0.6 : 1;
@@ -263,7 +278,7 @@ function control(g, f, c) {
     const which = bits & B_U ? 'u' : bits & B_D ? 'd' : dirX ? 's' : 'n';
     if (which === 's' || (which === 'n' && dirX)) f.fc = dirX || f.fc;
     const id = C.sp[which];
-    if (SP[id] && SP[id].start(g, f, c) !== false) { f.st = 'spc'; f.sp = id; f.jbuf = 0; f.use++; }
+    if (SP[id] && SP[id].start(g, f, c) !== false) { f.st = 'spc'; f.sp = id; f.jbuf = 0; f.use++; g.ev.push({ t: 'spc', i: f.i, ch: f.ch, sp: id }); }
     return;
   }
   if (bits & B_S) {
@@ -303,7 +318,7 @@ function doJump(g, f) {
     g.ev.push({ t: 'walljump', x: f.x + f.wall * f.w * 0.5, y: f.y - f.h * 0.5, dir: -f.wall });
   } else if (f.jl > 0) {
     f.jl--; f.vy = -C.djump * jm; f.ff = false; f.glide = 0;
-    g.ev.push({ t: 'djump', x: f.x, y: f.y, c: f.ch });
+    g.ev.push({ t: 'djump', x: f.x, y: f.y, c: f.ch, i: f.i });
   }
 }
 
@@ -311,7 +326,7 @@ function startAttack(g, f, kind) {
   f.st = 'atk'; f.at = kind; f.t = 0; f.hits = {}; f.hitsB = null; f.jbuf = 0; f.use++;
   // off the stage, the first up-air of each trip carries you upward: an extra way back. Over the stage it's just an attack
   if (kind === 'uair' && !f.uaUsed && offStage(g, f)) { f.uaUsed = true; f.vy = Math.min(f.vy, -9.5); f.ff = false; g.ev.push({ t: 'uplift', x: f.x, y: f.y }); }
-  if (kind !== 'throw') g.ev.push({ t: 'swing', x: f.x, y: f.y, k: kind, s: SMASHES[kind] ? 1 : 0 });
+  if (kind !== 'throw') g.ev.push({ t: 'swing', x: f.x, y: f.y, k: kind, s: SMASHES[kind] ? 1 : 0, i: f.i, ch: f.ch });
 }
 
 // outside the main stage's edges, or below its top
@@ -333,8 +348,10 @@ function updAttack(g, f, c) {
     if (f.t < hb.a || f.t > hb.b) return;
     // a finisher after a flurry keeps its own hit list, so it still lands on foes the flurry already hit
     const map = hb.sep ? ((f.hitsB || (f.hitsB = {}))[n] || (f.hitsB[n] = {})) : f.hits;
-    hitArea(g, f, hb.x * f.sc, hb.y * f.sc, hb.r * f.sc, hb.d * mul, hb.k * (A.smash ? 0.8 + 0.2 * mul : 1), hb.g, hb.ang,
+    const hit = hitArea(g, f, hb.x * f.sc, hb.y * f.sc, hb.r * f.sc, hb.d * mul, hb.k * (A.smash ? 0.8 + 0.2 * mul : 1), hb.g, hb.ang,
       { map, every: hb.every, frz: hb.frz, psn: hb.psn, stun: hb.stun });
+    // Ice Climbers style: Beatrice follows each landed attack with a little spark of her own (a quarter of the damage)
+    if (hit && C.duo && !f.echo && !hb.every) f.echo = { t: 7, x: hb.x * f.sc, y: hb.y * f.sc, r: hb.r * f.sc * 0.85, d: hb.d * mul * 0.25, ang: hb.ang, at: f.at, use: f.use };
   });
   if (f.t >= A.dur) { f.at = null; f.chgMul = 1; f.st = c.onG ? 'idle' : 'air'; }
 }
@@ -611,7 +628,7 @@ function respawn(g, f) {
 }
 
 function ko(g, f) {
-  g.ev.push({ t: 'ko', x: clamp(f.x, BLAST.l + 60, BLAST.r - 60), y: clamp(f.y - f.h / 2, BLAST.t + 60, BLAST.b - 60), i: f.i });
+  g.ev.push({ t: 'ko', x: clamp(f.x, BLAST.l + 60, BLAST.r - 60), y: clamp(f.y - f.h / 2, BLAST.t + 60, BLAST.b - 60), i: f.i, ch: f.ch });
   if (f.lastHit >= 0 && g.frame - f.lastHitT < 600) { const a = fighterBy(g, f.lastHit); if (a && a !== f) a.kos++; }
   f.falls++; f.sk--; f.st = 'dead'; f.dead = 100; f.vx = 0; f.vy = 0;
   f.big = f.small = f.star = f.pe = f.frz = f.psn = f.pick = 0; f.hold = null; f.glide = 0; f.lastHit = -1;
@@ -715,7 +732,7 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   const K = (k * ramp + eff * gr * (0.55 + d / 14)) / wt;
   const lag = Math.floor(3 + d * 0.33);
   if (a && !o.proj) a.hl = Math.max(a.hl, lag);
-  g.ev.push({ t: 'hit', x: v.x, y: v.y - v.h * 0.55, p: Math.round(K), c: a ? a.i : -1, el: a && !o.proj ? CH[a.ch].elem : undefined });
+  g.ev.push({ t: 'hit', x: v.x, y: v.y - v.h * 0.55, p: Math.round(K), c: a ? a.i : -1, el: a && !o.proj ? CH[a.ch].elem : undefined, v: v.i, vch: v.ch });
   if (v.tn) v.tn = 0;
   // super armor: Pickaxe Frenzy and armored charges shrug off lighter hits
   if ((v.pick > 0 && K < 26) || (S && S.armor && K < 40)) { v.hl = lag; return true; }
@@ -796,7 +813,8 @@ function updateProj(g) {
     const p = g.proj[n];
     if (!p) continue;
     p.t++;
-    let kill = p.t > p.life, boom = false;
+    // a fused projectile (Lantern Light) bursts when its time runs out too
+    let kill = p.t > p.life, boom = kill && !!p.fuse;
     if (p.k === 'minion') {
       if (updMinion(g, p)) kill = true;
     } else if (p.k === 'trap') {
@@ -898,10 +916,22 @@ function updTrap(g, p) {
       g.ev.push({ t: 'rune', x: p.x, y: p.y });
       return true;
     }
-    if (p.sub === 'soup' && (p.hits[v.i] === undefined || g.frame - p.hits[v.i] > 50)) {
+    if ((p.sub === 'soup' || p.sub === 'casserole') && (p.hits[v.i] === undefined || g.frame - p.hits[v.i] > 50)) {
       p.hits[v.i] = g.frame;
       applyHit(g, v, own, 3 * p.pm, 2, 0.01, 70, v.x >= p.x ? 1 : -1, { proj: true, daze: 30 });
       g.ev.push({ t: 'soup', x: v.x, y: v.y });
+    }
+    // Gladiator Toad's net tangles the first foe to step in
+    if (p.sub === 'net') {
+      applyHit(g, v, own, 4 * p.pm, 1, 0, 60, v.x >= p.x ? 1 : -1, { proj: true, daze: 70 });
+      g.ev.push({ t: 'netcatch', x: v.x, y: v.y - 24 });
+      return true;
+    }
+    // Dash Yoshi's burning skid marks
+    if (p.sub === 'flames' && (p.hits[v.i] === undefined || g.frame - p.hits[v.i] > 30)) {
+      p.hits[v.i] = g.frame;
+      applyHit(g, v, own, 3 * p.pm, 4, 0.03, 80, v.x >= p.x ? 1 : -1, { proj: true });
+      g.ev.push({ t: 'flame', x: v.x, y: v.y - 20 });
     }
     // Light Blue Yoshi's frost patch freezes whoever steps on it, then melts
     if (p.sub === 'frost') {
@@ -1194,6 +1224,10 @@ const FSDEF = {
   ninja: { k: 'clone' }, knight: { k: 'beam' }, astro: { k: 'sweep' }, rocker: { k: 'pulses' },
   cowboy: { k: 'lasso' }, ghost: { k: 'swarm', n: 10 }, robo: { k: 'fist' },
   cowtoad: { k: 'wave', sub: 'cows', both: 1 },
+  samurai: { k: 'sweep', sub: 'petals' }, viking: { k: 'rush', sub: 'ship' }, pharaoh: { k: 'meteor', sub: 'pyramid', r: 240, d: 32 },
+  gladiator: { k: 'wave', sub: 'legion' }, buddhist: { k: 'burst', sub: 'lotus' }, muslim: { k: 'rain', sub: 'lantern', n: 16, cols: 1 },
+  mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 18 },
+  dashyoshi: { k: 'rush', sub: 'dash', spd: 24 }, mechyoshi: { k: 'beam', sub: 'mech' },
 };
 // finales that keep their user busy until they finish
 const FS_LOCK = { burst: 1, rush: 1, clone: 1, beam: 1, pulses: 1, lasso: 1 };
@@ -1208,7 +1242,7 @@ function fsLaunch(g, f) {
     case 'vortex': e.life = D.life; e.r = D.r; e.move = D.move; e.y = s.y - 130; if (!D.move) e.x = s.x + s.w / 2; break;
     case 'flood': e.life = 250; e.lv = s.y + 260; break;
     case 'burst': e.life = 84; e.crown = D.crown || 0; break;
-    case 'rush': e.life = 130; break;
+    case 'rush': e.life = 130; e.spd = D.spd || 17; break;
     case 'rain': e.life = 240; e.n = D.n; e.cnt = 0; e.side = D.side || 0; e.cols = D.cols || 0; break;
     case 'clone': e.life = 400; break;
     case 'beam': e.life = 80; break;
@@ -1337,7 +1371,8 @@ const FXU = {
   rush(g, e, own) {
     if (!own || !alive(own)) return true;
     const s = STG[g.stage].solids[0];
-    own.vx = e.dir * 17; own.vy = Math.min(own.vy, 2); own.fc = e.dir; own.inv = Math.max(own.inv, 2);
+    own.vx = e.dir * (e.spd || 17); own.vy = Math.min(own.vy, 2); own.fc = e.dir; own.inv = Math.max(own.inv, 2);
+    if (e.sub === 'dash' && e.t % 2 === 0) g.ev.push({ t: 'flame', x: own.x - e.dir * 24, y: own.y - 24 - (e.t % 4) * 6 });
     for (const v of fsFoes(g, e)) {
       if (!e.vic.includes(v.i) && (Math.abs(v.x - own.x) > 60 || Math.abs(v.y - own.y) > 90)) continue;
       if (!e.vic.includes(v.i)) e.vic.push(v.i);
@@ -1364,6 +1399,8 @@ const FXU = {
       } else {
         const tx = e.cols ? s.x + 30 + ((e.cnt * 97) % (s.w - 60)) : s.x - 80 + RND() * (s.w + 160);
         Object.assign(P, { x: tx, y: -760, vx: 0, vy: 6 });
+        // Lantern Night: glowing lanterns drift down slowly
+        if (e.sub === 'lantern') Object.assign(P, { vy: 2.5, grav: 0.06 });
       }
       spawnProj(g, shooter, P);
     }
@@ -1715,6 +1752,13 @@ function spCounter(o) {
       return f.t >= (o.win || 30) + 14 ? 1 : 0;
     },
   };
+}
+// announce a special as it starts (Beatrice calling out her spell, Subaru's Unseen Hand)
+function spCast(sp, ev, say) {
+  const s0 = sp.start;
+  return Object.assign({}, sp, {
+    start(g, f, c) { const r = s0(g, f, c); if (r !== false) g.ev.push({ t: ev, x: f.x, y: f.y - f.h - 34, s: say, i: f.i }); return r; },
+  });
 }
 // heal over time while holding still (Check-up)
 function spHeal(o) {
@@ -2128,6 +2172,72 @@ const SP = {
   cowcharge: spDash({ cd: 40, speed: 12.5, startup: 6, frames: 22, armor: true, hb: { x: 34, y: 0.35, r: 34, d: 13, k: 9, g: 0.14, ang: 38 }, lag: 14, trail: 'dust', ev: 'moo' }),
   moonjump: spRise({ vy: 20, hold: 7, end: 28, drift: 5.5, trail: 'sparkle', ev: 'moo', hb: { a: 0, b: 12, y: 0.2, r: 40, d: 9, k: 6, g: 0.1, ang: 85 } }),
   cowbell: spPulse({ slot: 'd', cd: 50, ev: 'cowbell', at: [{ t: 10, r: 74, d: 4, k: 2, g: 0, ang: 60, daze: 40, ev: 'cowbellhit' }], end: 26 }),
+  // --- Samurai Toad ---
+  windslash: spShot({ cd: 40, at: 9, end: 24, ev: 'slashfx', p: { k: 'crescent', vx: 12, d: 7, kb: 6, gr: 0.08, ang: 35, r: 20, life: 38, pierce: 1, ghost: 1 } }),
+  quickdraw: spDash({ cd: 50, speed: 18, startup: 8, frames: 8, intang: true, hb: { x: 0, y: 0.5, r: 32, d: 11, k: 8, g: 0.12, ang: 40 }, lag: 16, ev: 'slashfx' }),
+  cranerise: spRise({ vy: 16.5, hold: 5, end: 30, drift: 5, trail: 'petal', hb: { a: 1, b: 14, y: 0.9, r: 34, d: 2.5, k: 3, g: 0.01, ang: 85, every: 4 }, fin: { at: 16, r: 44, d: 6, k: 8, g: 0.12, ang: 80 } }),
+  iaicounter: spCounter({ win: 26, d: 14, k: 9, ang: 40 }),
+  // --- Viking Toad ---
+  axethrow: spShot({ cd: 45, at: 11, end: 26, p: { k: 'axe', vx: 8.5, vy: -7.5, grav: 0.38, d: 10, kb: 7, gr: 0.1, ang: 45, r: 16, life: 120 } }),
+  shieldrush: spDash({ cd: 40, speed: 10, startup: 6, frames: 18, guard: [1, 24], hb: { x: 28, y: 0.5, r: 30, d: 10, k: 8, g: 0.12, ang: 35 }, lag: 14, trail: 'dust' }),
+  berserk: spRise({ vy: 16.5, hold: 6, end: 30, drift: 4.5, hb: { a: 0, b: 18, y: 0.6, r: 40, d: 2.5, k: 2.5, g: 0.01, ang: 80, every: 5 }, fin: { at: 20, r: 48, d: 7, k: 8, g: 0.12, ang: 75 } }),
+  warhorn: spPulse({ slot: 'd', cd: 90, ev: 'warhorn', at: [{ t: 14, r: 120, d: 3, k: 11, g: 0.04, ang: 30, ev: 'hornblast' }], end: 34 }),
+  // --- Pharaoh Toad ---
+  scarab: spShot({ cd: 40, at: 10, end: 22, ev: 'scarabfx', p: { k: 'scarab', vx: 5.5, home: 0.22, vmax: 6.5, d: 7, kb: 5, gr: 0.08, ang: 45, r: 14, life: 140, ghost: 1 } }),
+  sandsurge: spShot({ slot: 's', cd: 50, at: 10, end: 24, ev: 'sandfx', p: { k: 'sandwave', vx: 7, d: 7, kb: 6, gr: 0.09, ang: 60, r: 26, life: 55, pierce: 1, every: 30, oy: 0.25, ghost: 1 } }),
+  sunrise: spRise({ vy: 17.5, hold: 6, end: 28, drift: 5, trail: 'sandfx', hb: { a: 0, b: 12, y: 0.8, r: 34, d: 8, k: 7, g: 0.1, ang: 85 } }),
+  sarcophagus: spCounter({ win: 30, d: 12, k: 9, ang: 50 }),
+  // --- Gladiator Toad ---
+  tridenttoss: spShot({ cd: 50, at: 12, end: 26, p: { k: 'trident', vx: 14, vy: -1, grav: 0.08, d: 9, kb: 7, gr: 0.1, ang: 30, r: 12, life: 55 } }),
+  tridentlunge: spDash({ cd: 36, speed: 11, startup: 7, frames: 12, hb: { x: 48, y: 0.5, r: 24, d: 12, k: 8, g: 0.13, ang: 32 }, lag: 14, trail: 'dust' }),
+  polevault: spRise({ vy: 18, hold: 4, end: 28, drift: 5, hb: { a: 0, b: 10, y: 0.2, r: 34, d: 8, k: 7, g: 0.1, ang: 80 } }),
+  nettrap: spTrap({ sub: 'net', life: 420, r: 42, cd: 220, at: 12, ox: 46, one: true }),
+  // --- Buddhist Toad: a kung fu monk ---
+  chipalm: spShot({ cd: 36, at: 10, end: 24, ev: 'chifx', p: { k: 'chi', vx: 8, d: 7, kb: 7, gr: 0.08, ang: 40, r: 18, grow: 0.35, life: 40, pierce: 1, ghost: 1 } }),
+  staffwhirl: spDash({ cd: 36, speed: 6.5, startup: 4, frames: 22, hb: { x: 10, y: 0.5, r: 38, d: 2, k: 2, g: 0.01, ang: 60, every: 5 }, fin: { x: 26, d: 6, k: 8, g: 0.12, ang: 45 }, lag: 10 }),
+  lotusfloat: spFloat({ frames: 66, rise: 4.6, drift: 5, ev: 'petal' }),
+  stillmind: spCounter({ win: 34, d: 12, k: 9, ang: 50 }),
+  // --- Muslim Toad: Eid treats and lanterns ---
+  datetoss: spShot({ cd: 24, at: 8, end: 20, shots: [-6.5, -4.5, -2.5].map((vy, n) => ({ k: 'date', vx: 7 + n, vy, grav: 0.35, d: 3.5, kb: 3, gr: 0.04, ang: 45, r: 9, life: 70 })) }),
+  lantern: spShot({ slot: 's', cd: 70, at: 10, end: 24, ev: 'chime', p: { k: 'lantern', vx: 3.2, vy: -0.6, d: 6, kb: 6, gr: 0.08, ang: 55, r: 18, life: 110, ghost: 1, fuse: 1, explode: { r: 54, d: 6, k: 7, g: 0.09 } } }),
+  lanternlift: spRise({ vy: 16, hold: 10, end: 30, drift: 5, trail: 'sparkle', hb: { a: 0, b: 12, y: 0.9, r: 32, d: 7, k: 7, g: 0.1, ang: 85 } }),
+  eidsweets: spHeal({ frames: 44, heal: 10, cd: 1100 }),
+  // --- Mormon Toad: a missionary on a bike ---
+  jelly: spShot({ cd: 30, at: 9, end: 22, ev: 'jellyfx', p: { k: 'jelly', vx: 6.5, vy: -6, grav: 0.45, bounce: 7, bounces: 3, d: 6, kb: 5, gr: 0.07, ang: 50, r: 14, life: 160 } }),
+  bikeride: spDash({ cd: 40, speed: 11.5, startup: 5, frames: 26, hb: { x: 26, y: 0.35, r: 30, d: 10, k: 8, g: 0.12, ang: 38 }, lag: 12, ev: 'bikebell', trail: 'dust' }),
+  highnote: spRise({ vy: 17, hold: 6, end: 28, drift: 5, trail: 'notefx', ev: 'highnote', hb: { a: 0, b: 12, y: 0.8, r: 34, d: 7, k: 7, g: 0.1, ang: 85 } }),
+  potluck: spTrap({ sub: 'casserole', life: 360, r: 44, cd: 200, at: 12, ox: 46 }),
+  // --- Hasidic Toad: wedding joy ---
+  latke: spShot({ cd: 26, at: 7, end: 18, p: { k: 'latke', vx: 10, vy: -0.5, grav: 0.04, d: 6, kb: 5, gr: 0.07, ang: 40, r: 13, life: 60 } }),
+  dreidel: spDash({ cd: 40, speed: 8, startup: 4, frames: 26, hb: { x: 0, y: 0.5, r: 34, d: 2.5, k: 2, g: 0.01, ang: 60, every: 5 }, fin: { x: 20, d: 7, k: 8, g: 0.12, ang: 40 }, lag: 10 }),
+  chairlift: spRise({ vy: 18, hold: 8, end: 30, drift: 5, ev: 'chairup', hb: { a: 0, b: 14, y: 0, r: 34, d: 8, k: 7, g: 0.1, ang: 80 } }),
+  klezmer: spPulse({ slot: 'd', cd: 60, ev: 'klezmer', at: [{ t: 10, r: 56, d: 3, k: 3, g: 0.02, ang: 60, ev: 'notesfx' }, { t: 20, r: 64, d: 3, k: 3, g: 0.02, ang: 60, ev: 'notesfx' },
+    { t: 30, r: 76, d: 6, k: 8, g: 0.1, ang: 55, ev: 'notesfx' }], end: 40 }),
+  // --- Subaru Toad: Beatrice casts from the backpack (the Unseen Hand is his own) ---
+  minya: spCast(spShot({ cd: 40, at: 10, end: 24, shots: [-1.2, 0, 1.2].map(vy => ({ k: 'crystal', vx: 11, vy, d: 3.5, kb: 3.5, gr: 0.04, ang: 35, r: 10, life: 40, ghost: 1, oy: 0.75 })) }), 'beako', 'Minya!'),
+  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 2.2, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 40, ghost: 1 } }), 'beako', 'Shamac!'),
+  murak: spCast(spFloat({ frames: 70, rise: 4.4, drift: 5.5, ev: 'yinfx' }), 'beako', 'Murak!'),
+  unseenhand: spCast(spTether({ slot: 'd', cd: 70, range: 150, a: 10, b: 18, fin: { d: 7, k: 8, g: 0.11, ang: 70 } }), 'unseen', ''),
+  // --- Dash Yoshi ---
+  pepper: spShot({ cd: 30, at: 7, end: 18, ev: 'flame', p: { k: 'pepper', vx: 9, vy: -2.5, grav: 0.25, d: 6, kb: 5, gr: 0.07, ang: 45, r: 12, life: 80, explode: { r: 40, d: 4, k: 5, g: 0.05 } } }),
+  pepperdash: spDash({ cd: 44, speed: 16, startup: 5, frames: 16, hb: { x: 18, y: 0.5, r: 30, d: 3, k: 2, g: 0.01, ang: 50, every: 5 }, fin: { x: 28, d: 7, k: 8, g: 0.12, ang: 40 }, lag: 12, trail: 'flame' }),
+  speedspiral: spRise({ vy: 18, hold: 6, end: 26, drift: 6.5, trail: 'flame', hb: { a: 0, b: 14, y: 0.5, r: 36, d: 2.5, k: 2.5, g: 0.01, ang: 85, every: 5 }, fin: { at: 16, r: 40, d: 5, k: 7, g: 0.11, ang: 80 } }),
+  burnout: spTrap({ sub: 'flames', life: 200, r: 44, cd: 160, at: 8, ox: 0 }),
+  // --- Mech Yoshi: a three-shot blaster, an air dash, boosters and bombs ---
+  blaster: {
+    start(g, f, c) { if (!useCd(f, 'n', 40)) return false; if (c.onG) f.vx *= 0.4; },
+    upd(g, f, c) {
+      if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2);
+      if (f.t === 6 || f.t === 11 || f.t === 16) {
+        spawnProj(g, f, { k: 'plasma', x: f.x + f.fc * 26 * f.sc, y: f.y - f.h * 0.5, vx: f.fc * 15, vy: 0, fc: f.fc, grav: 0, d: 3, kb: 2.5, gr: 0.03, ang: 25, r: 9, life: 40, ghost: 1 });
+        g.ev.push({ t: 'blasterfx', x: f.x + f.fc * 26, y: f.y - f.h * 0.5, dir: f.fc });
+      }
+      return f.t >= 24 ? 1 : 0;
+    },
+  },
+  airdash: spDash({ cd: 30, speed: 15, startup: 3, frames: 12, hb: { x: 18, y: 0.5, r: 28, d: 7, k: 6, g: 0.09, ang: 40 }, lag: 8, trail: 'jet' }),
+  booster: spRise({ vy: 13.5, hold: 24, end: 30, drift: 5.5, trail: 'jet', hb: { a: 0, b: 22, y: -0.1, r: 26, d: 3, k: 3, g: 0.04, ang: -70, every: 8 } }),
+  bomblob: spShot({ slot: 'd', cd: 70, at: 10, end: 24, p: { k: 'mbomb', vx: 6, vy: -8, grav: 0.45, d: 8, kb: 7, gr: 0.1, ang: 50, r: 14, life: 150, explode: { r: 60, d: 7, k: 8, g: 0.1 } } }),
   // --- the Smash Mushroom finale (every fighter; see FSDEF) ---
   fs: {
     fall: 2,

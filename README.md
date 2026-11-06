@@ -1,6 +1,6 @@
 # Super Smash Toads
 
-A free, fan-made **platform fighter** you play right in your web browser. Thirty-one fighters, twenty Toads (one of them riding a cow) and eleven Yoshis, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
+A free, fan-made **platform fighter** you play right in your web browser. Forty-two fighters, twenty-nine Toads (one riding a cow, one carrying a tiny spirit in his backpack) and thirteen Yoshis, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
 
 ### ▶ [Play now in your browser](https://gabeisrandom.github.io/super-smash-toads/)
 
@@ -28,7 +28,7 @@ Every hit raises a fighter's damage **%**, and the higher it gets, the farther t
 These are the default keys. Change them in **Settings** on the main menu (saved in your browser).
 
 - **Combos:** tap Attack again and again for a 3-hit combo. Hold a direction while attacking for different moves.
-- **Air attacks:** jump, then press Attack: alone for a neutral air, or with a direction for forward, back, up and down airs. Jump with `Space` and holding it won't turn your air attack into an up air.
+- **Air attacks:** jump, then press Attack: alone for a neutral air, or with a direction for forward, back, up and down airs. They're different moves from the ones on the ground (spins, flips, tucked kicks, plunges). Jump with `Space` and holding it won't turn your air attack into an up air.
 - **Grabs:** grab a foe right in front of you, even one hiding behind their shield (you can also grab straight out of your own shield). Press Attack to pummel, or a direction to throw them forward, back, up or down. If you get grabbed, mash any button to break free sooner.
 - **Smash attacks:** tap a direction *and* Attack at the same moment. Keep holding Attack to charge it up for a bigger hit.
 - **Specials:** press Special alone, or with Left/Right, Up or Down. That's four unique moves for every fighter. Your up special is also your way back to the stage.
@@ -43,6 +43,7 @@ These are the default keys. Change them in **Settings** on the main menu (saved 
 
 - **Their own moves:** each fighter has their own set of normal attacks, built from about 60 different moves: punches, flurries, drop kicks, sword slashes and thrusts, tail whips, tongue lashes, head bonks, energy palms, drills, geysers and more. Every move has its own animation and its own swoosh.
 - **Elements:** every fighter's hits carry an element you can see (and sometimes feel). Fire hits hit harder, Ice smash attacks freeze, Poison smashes and combo finishers poison, Electric hits shock, Wind sends foes flying flatter and farther, Rock smash attacks are heavier, Music gives longer reach, Shadow and Light hit a little harder, and Steel hits are tough and solid. The lobby shows each fighter's element.
+- **Voices:** every Toad yelps "hup!", "hyah!" and "WAAAH!", and every Yoshi chirps and cheers "Yo-shi!", each in their own pitch (Toadsworth is old and wobbly, Baby Yoshi squeaks, Robo Toad and Mech Yoshi beep). They shout on big attacks, grunt when hit, cheer on taunts and wins, and say hi when you pick them.
 - **Animated:** fighters breathe, blink and look around, and each has their own way of standing (Toad bounces like a boxer, Toadsworth leans on his cane, Ninja Toad crouches low, Rocker Toad nods to the beat) and running (Captain Toad and Robo Toad stomp, Ninja Toad sprints with his arms back, Yoshis scamper). They squash when they land, stretch when they jump, flip on double jumps, and flail when they fall.
 
 ## The Smash Mushroom
@@ -106,6 +107,15 @@ The title screen, lobby and results screen each have their own music too.
 | **Ghost Toad** | Spirit | Boo Buddy | Phase Rush | Spirit Float | Haunt | Boo Swarm |
 | **Robo Toad** | Spark | Rocket Fist | Turbo Dash | Jet Boots | Steam Vent | Gigaton Rocket Fist |
 | **Moo Toad** (rides a cow) | Milk | Milk Splash | Cattle Charge | Over the Moon | Cowbell Clang | Cattle Stampede |
+| **Samurai Toad** | Cherry blossom | Wind Slash | Quick Draw | Rising Crane | Iai Counter | Cherry Blossom Storm |
+| **Viking Toad** | Northern storm | Axe Throw | Shield Rush | Berserker Leap | War Horn | Longship Raid |
+| **Pharaoh Toad** | Desert sand | Scarab Swarm | Sand Surge | Rising Sun | Sarcophagus | Great Pyramid |
+| **Gladiator Toad** | Arena bronze | Trident Toss | Trident Lunge | Pole Vault | Net Trap | Legion March |
+| **Buddhist Toad** (kung fu monk) | Inner calm | Chi Palm | Staff Whirl | Lotus Float | Still Mind | Lotus Bloom |
+| **Muslim Toad** (dressed for Eid) | Lantern glow | Date Toss | Lantern Light | Lantern Lift | Eid Sweets | Lantern Night |
+| **Mormon Toad** (missionary) | Choir power | Green Jelly | Bike Ride | High Note | Potluck Potatoes | Grand Choir |
+| **Hasidic Toad** | Pure joy | Latke Toss | Dreidel Spin | Chair Lift | Klezmer Tune | Mazel Tov! |
+| **Subaru Toad** (with Beatrice) | Beatrice's magic | Minya | Shamac | Murak | Unseen Hand | El Minya |
 | **Yoshi** | Egg | Egg Toss | Egg Roll | Flutter Jump | Yoshi Bomb | Egg Storm |
 | **Red Yoshi** | Fire | Fire Spit | Flame Rush | Blaze Jump | Magma Pound | Volcano Rain |
 | **Blue Yoshi** (wings) | Wind | Wing Gust | Sky Swoop | Wing Flight | Dive Bomb | Feather Cyclone |
@@ -117,6 +127,10 @@ The title screen, lobby and results screen each have their own music too.
 | **White Yoshi** | Light | Light Bolt | Angel Dash | Halo Rise | Holy Shine | Sacred Light |
 | **Orange Yoshi** | Fruit | Melon Seeds | Fruit Roll | Melon Bounce | Fruit Bomb | Fruit Frenzy |
 | **Baby Yoshi** (triple jump) | None | Gobble Up | Tumble Roll | Baby Flutter | Tantrum | Yoshi Stampede |
+| **Dash Yoshi** (fastest runner) | Pepper speed | Hot Pepper | Pepper Dash | Speed Spiral | Burnout | Supersonic Lap |
+| **Mech Yoshi** (styled after Ray MK III) | Robo energy | Ray Blaster | Air Dash | Booster Jump | Bomb Lob | Full Burst |
+
+**Subaru Toad** works a little like the Ice Climbers: Beatrice rides in a carrier on his back, casts his Minya and Murak spells, and follows every one of his attacks that lands with a small spark of her own. He hits softly himself, so he isn't a powerhouse. The Toads of different faiths were made with the players who asked for them: their moves come from celebrations, food and music (lanterns and sweets for Eid, a wedding dance, a choir, a kung fu monk's calm), never from prayers or sacred objects.
 
 ## Playing online with friends
 

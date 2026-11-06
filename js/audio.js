@@ -150,7 +150,91 @@ const Snd = (() => {
     clang() { [545, 815, 1090].forEach(f => tone(f, f * 0.97, 0.6, 'square', 0.07)); noise(0.15, 0.25, 5000); },
     throwfx() { noise(0.12, 0.22, 1400, 0, 1); tone(300, 110, 0.16, 'triangle', 0.28); },
     breakfree() { tone(420, 880, 0.14, 'square', 0.08); noise(0.08, 0.15, 3000); },
+    // the v1.7 fighters
+    slash() { noise(0.16, 0.3, 5200, 0, 1.4); tone(2400, 900, 0.14, 'sine', 0.08); },
+    hornblast() { [98, 147].forEach(f => tone(f, f * 0.97, 0.9, 'sawtooth', 0.12)); voice(140, 160, 120, 0.9, 4, 0.18); },
+    netcatch() { noise(0.2, 0.25, 900, 0, 0.8); tone(260, 180, 0.15, 'triangle', 0.2); },
+    chime() { [1319, 1760, 2093].forEach((f, i) => tone(f, f, 0.5, 'sine', 0.07, i * 0.07)); },
+    scarab() { [0, 0.05, 0.1].forEach(d => tone(2200, 1800, 0.03, 'square', 0.05, d)); },
+    sand() { noise(0.45, 0.25, 2600, 0, 0.6); },
+    chi() { tone(330, 660, 0.25, 'sine', 0.16); tone(495, 990, 0.25, 'sine', 0.08, 0.03); },
+    jelly() { tone(220, 520, 0.12, 'sine', 0.22); tone(520, 300, 0.1, 'sine', 0.12, 0.1); },
+    bikebell() { [0, 0.16].forEach(d => { tone(2350, 2300, 0.22, 'sine', 0.09, d); tone(3100, 3050, 0.18, 'sine', 0.05, d); }); },
+    // a rising "aaah" from a little choir (High Note, Grand Choir)
+    choir() { [262, 330, 392, 523].forEach((f, i) => voice(f, f * 1.01, f, 0.9, 5 + i, 0.07)); },
+    // a klezmer run in freygish (D Eb F# G A Bb C D) on a reedy square wave
+    klezmer() { [587, 622, 740, 784, 880, 932, 1047, 1175, 1047, 932, 880].forEach((f, i) => tone(f, f, 0.12, 'square', 0.055, i * 0.085)); },
+    chairup() { [523, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.12, 'triangle', 0.12, i * 0.06)); noise(0.5, 0.12, 2000, 0.1, 0.5); },
+    blaster() { tone(1400, 500, 0.1, 'square', 0.08); tone(2800, 1000, 0.08, 'sawtooth', 0.04); },
+    unseen() { tone(140, 70, 0.6, 'sawtooth', 0.1); noise(0.5, 0.18, 300, 0, 0.6); tone(900, 450, 0.5, 'sine', 0.05, 0.05); },
+    sparkle() { tone(1800, 2600, 0.08, 'sine', 0.05); },
+    roar() { noise(1.0, 0.3, 700, 0, 0.4); noise(0.8, 0.2, 1500, 0.1, 0.5); },
+    mazeltov() { [523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.13, 'square', 0.07, i * 0.1)); },
   };
+
+  // ---------- character voices: a little formant synth for Toad yelps and Yoshi chirps ----------
+  // vowels as two resonance peaks (scaled up for small cartoon voices)
+  const VOW = { a: [800, 1250], ah: [700, 1100], e: [520, 1900], i: [330, 2350], o: [520, 900], u: [360, 820] };
+  // one syllable: a buzz with a pitch shape (f: start, peak, end), filtered through vowel resonances that glide v0 -> v1
+  function syl(X, o) {
+    const cx = X.cx, t = X.t + (o.at || 0), d = o.dur, f0 = o.f[0], fm = o.f[1] || f0, f1 = o.f[2] || fm;
+    const src = cx.createOscillator(); src.type = o.wave || 'sawtooth';
+    src.frequency.setValueAtTime(f0, t);
+    if (o.robot) { src.frequency.setValueAtTime(fm, t + d * 0.35); src.frequency.setValueAtTime(f1, t + d * 0.7); }
+    else { src.frequency.linearRampToValueAtTime(fm, t + d * (o.pk || 0.3)); src.frequency.linearRampToValueAtTime(f1, t + d); }
+    if (o.vib) { const l = cx.createOscillator(), lg = cx.createGain(); l.frequency.value = o.vib; lg.gain.value = fm * 0.035; l.connect(lg); lg.connect(src.frequency); l.start(t); l.stop(t + d + 0.05); }
+    const env = cx.createGain(), v = o.vol || 0.5, a = Math.min(0.02, d * 0.25);
+    env.gain.setValueAtTime(0.0001, t); env.gain.linearRampToValueAtTime(v, t + a); env.gain.setValueAtTime(v, t + d * 0.72); env.gain.exponentialRampToValueAtTime(0.0008, t + d);
+    const V0 = VOW[o.v0 || 'a'], V1 = VOW[o.v1 || o.v0 || 'a'], fs = o.fs || 1.25;
+    for (const [k, q, gn] of [[0, 3, 1], [1, 5, 0.7]]) {
+      const bp = cx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
+      bp.frequency.setValueAtTime(V0[k] * fs, t); bp.frequency.linearRampToValueAtTime(V1[k] * fs, t + d * (o.glide || 0.6));
+      const gg = cx.createGain(); gg.gain.value = gn * 2.2;
+      src.connect(bp); bp.connect(gg); gg.connect(env);
+    }
+    const dry = cx.createGain(); dry.gain.value = 0.12; src.connect(dry); dry.connect(env);
+    env.connect(X.out);
+    src.start(t); src.stop(t + d + 0.05);
+  }
+  function hiss(X, at, dur, freq, vol, q) {
+    const cx = X.cx, t = X.t + at, s = cx.createBufferSource(); s.buffer = X.nb;
+    const f = cx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q || 1;
+    const g = cx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    s.connect(f); f.connect(g); g.connect(X.out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.03);
+  }
+  // V: { k: toad | yoshi | girl | old | ghost | robot, p: pitch, yo: is a Yoshi }. Lines: atk, atk2, smash, spc, jump, hurt, ko, taunt, win, pick
+  function sayLine(X, V, line) {
+    const yo = V.yo, girl = V.k === 'girl', old = V.k === 'old', ghost = V.k === 'ghost', robot = V.k === 'robot';
+    // voices come often, so they sit a little under the big sound effects (the old "WAAAH!" scream is the yardstick)
+    const vg = X.cx.createGain(); vg.gain.value = robot ? 0.3 : 0.4; vg.connect(X.out); X = Object.assign({}, X, { out: vg });
+    const base = (yo ? 700 : 560) * (V.p || 1) * (girl ? 1.12 : 1);
+    const o = (f, v0, v1, dur, x) => Object.assign({ f: f.map(m => m * base), v0, v1, dur: dur * (old ? 1.25 : 1), vib: old ? 6 : ghost ? 4 : 0, wave: robot ? 'square' : 'sawtooth', robot,
+      fs: (yo ? 1.35 : 1.25) * (girl ? 1.12 : 1), vol: ghost ? 0.3 : robot ? 0.34 : 0.5 }, x || {}, old && x && x.vib ? { vib: 6 } : {});
+    const h = (at, dur, vol) => hiss(X, at, dur || 0.035, ghost ? 900 : 1800, (vol || 0.06) * (ghost ? 2 : 1), 0.8);
+    if (ghost) hiss(X, 0, 0.3, 700, 0.05, 0.6);
+    switch (line) {
+      case 'atk': if (yo) syl(X, o([1, 1.16, 1.1], 'u', 'o', 0.08)); else { h(0); syl(X, o([1, 1.2, 1.12], 'ah', 'a', 0.1, { at: 0.025 })); } break;
+      case 'atk2': if (yo) syl(X, o([1.05, 1.25, 1.15], 'o', 'a', 0.09)); else syl(X, o([1.08, 1.3, 1.2], 'e', 'a', 0.11)); break;
+      case 'smash': h(0, 0.05, 0.08); syl(X, o(yo ? [1.05, 1.45, 1.15] : [1.1, 1.6, 1.25], yo ? 'u' : 'i', 'a', yo ? 0.2 : 0.3, { at: 0.03, vib: 7, glide: 0.25, vol: robot ? 0.38 : 0.55 })); break;
+      case 'spc': syl(X, o(yo ? [1, 1.28, 1.2] : [1.1, 1.35, 1.25], yo ? 'o' : 'e', 'a', 0.12)); break;
+      case 'jump': syl(X, o([1.05, 1.22, 1.2], 'u', 'ah', 0.07, { vol: robot ? 0.22 : 0.3 })); break;
+      case 'hurt': syl(X, o(yo ? [1.3, 1.25, 0.9] : [1.0, 0.95, 0.7], yo ? 'a' : 'u', yo ? 'u' : 'ah', 0.15, { pk: 0.2 })); break;
+      case 'ko': syl(X, o(yo ? [1.45, 1.55, 0.6] : [1.6, 1.95, 0.8], yo ? 'a' : 'u', yo ? 'u' : 'a', yo ? 0.65 : 0.75, { vib: 8, glide: 0.3, pk: 0.25, vol: robot ? 0.38 : 0.55 })); break;
+      default: // taunt, win, pick: "Yo-SHI!" / "Woo-hoo!"
+        if (yo) { syl(X, o([0.98, 1.08, 1.05], 'i', 'o', 0.15, { glide: 0.35 })); hiss(X, 0.15, 0.07, 4300, 0.16, 1.2); syl(X, o([1.3, 1.6, 1.55], 'i', 'i', 0.28, { at: 0.2, vib: 7, pk: 0.4 })); }
+        else { syl(X, o([1.0, 1.12, 1.1], 'u', 'u', 0.13)); h(0.17, 0.03); syl(X, o([1.3, 1.75, 1.6], 'u', 'o', 0.3, { at: 0.19, vib: 6, pk: 0.4 })); }
+    }
+  }
+  function talk(V, line) { if (!ac || muted || !V) return; sayLine({ cx: ac, out: sfx, t: ac.currentTime, nb: noiseBuf }, V, line); }
+  // renders a voice line offline and measures it (for balancing during development)
+  async function renderTalk(V, line) {
+    const cx = new OfflineAudioContext(1, 44100 * 1.5, 44100), g = cx.createGain(); g.gain.value = 0.9 * 0.5; g.connect(cx.destination);
+    sayLine({ cx, out: g, t: 0.01, nb: kit(cx).nb }, V, line);
+    const d = (await cx.startRendering()).getChannelData(0);
+    let pk = 0, sq = 0, n = 0;
+    for (let i = 0; i < d.length; i++) { pk = Math.max(pk, Math.abs(d[i])); if (Math.abs(d[i]) > 1e-4) { sq += d[i] * d[i]; n++; } }
+    return { peak: pk, rms: Math.sqrt(sq / Math.max(1, n)) };
+  }
 
   // ---------- Music: original tunes, sequenced live with Web Audio ----------
   // Songs are written in C and transposed by `tr`. A bar holds 8 or 16 steps: a note (E5), '-' holds, '.' rests.
@@ -892,6 +976,7 @@ const Snd = (() => {
     init, music, playlist, duck, tick, toggleMute,
     isMuted: () => muted,
     play(name, a) { if (!ac || muted) return; if (S[name]) S[name](a); },
-    dev: { SONGS, build, render, state: () => ({ ctx: ac && ac.state, song: cur && cur.id, pos: cur && cur.pos }) },
+    talk,
+    dev: { SONGS, build, render, renderTalk, state: () => ({ ctx: ac && ac.state, song: cur && cur.id, pos: cur && cur.pos }) },
   };
 })();

@@ -2,10 +2,12 @@
 // ===== CPU Toads =====
 // side specials that travel, handy for getting back to the stage
 const AI_DASH = { toaddash: 1, iceslide: 1, firedash: 1, cutlass: 1, shadowdash: 1, lance: 1, jetdash: 1, turbo: 1, phase: 1, stagedive: 1,
-  flamerush: 1, swoop: 1, stampede: 1, cartwheel: 1, iceskate: 1, nightdash: 1, angeldash: 1, fruitroll: 1, babyroll: 1, cowcharge: 1 };
+  flamerush: 1, swoop: 1, stampede: 1, cartwheel: 1, iceskate: 1, nightdash: 1, angeldash: 1, fruitroll: 1, babyroll: 1, cowcharge: 1,
+  quickdraw: 1, shieldrush: 1, tridentlunge: 1, staffwhirl: 1, bikeride: 1, dreidel: 1, pepperdash: 1, airdash: 1 };
 // fighters whose neutral special is a projectile worth throwing from range
 const AI_SHOOT = { turnip: 1, iceball: 1, fireball: 1, boomerang: 1, poison: 1, turnips: 1, egg: 1, cannon: 1, shuriken: 1, pancake: 1, starbolt: 1, raygun: 1, vitamin: 1, powerchord: 1, cork: 1, boo: 1, rocketfist: 1,
-  firespit: 1, gust: 1, rockspit: 1, heartkiss: 1, sporespit: 1, shadowball: 1, lightbolt: 1, seedspit: 1, milkshot: 1 };
+  firespit: 1, gust: 1, rockspit: 1, heartkiss: 1, sporespit: 1, shadowball: 1, lightbolt: 1, seedspit: 1, milkshot: 1,
+  windslash: 1, axethrow: 1, scarab: 1, tridenttoss: 1, chipalm: 1, datetoss: 1, jelly: 1, latke: 1, minya: 1, pepper: 1, blaster: 1 };
 // side specials that can hook the ledge from this far away (px)
 const AI_TETHER = { lasso: 160, canehook: 105, venomlash: 140 };
 // finales that reach most of the stage, fine to fire right away

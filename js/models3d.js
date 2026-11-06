@@ -97,26 +97,120 @@ const M3D = (() => {
         B.capsule([0, 2.48, -0.1], [0, 2.84, -0.1], 0.022, 5, { col: '#8a8f99' });
         B.ellipsoid([0, 2.88, -0.1], [0.065, 0.065, 0.065], 2, 6, { col: '#ff4a4a' });
         break;
+      // Samurai Toad's kabuto: a lacquered brow band, a flared neck guard round the back and a golden crest
+      case 'kabuto': {
+        band('#2b2b3a', 1.42, 1.62, CAP_R[0]);
+        const ang = [];
+        for (let q = 0; q <= 12; q++) ang.push(Math.PI / 2 + 0.75 + ((Math.PI * 2 - 1.5) * q) / 12);
+        [[1.42, 0.9], [1.3, 0.98], [1.18, 1.05]].forEach(([y, r], k) => B.lathe([[r - 0.13, y + 0.11], [r, y - 0.02], [r - 0.02, y - 0.07], [r - 0.15, y + 0.05]], 0, { angles: ang, col: k % 2 ? '#c8202a' : '#2b2b3a' }));
+        for (const sx of [-1, 1]) B.capsule([0.06 * sx, 1.6, 0.86], [0.36 * sx, 2.2, 0.76], 0.042, 4, { col: '#ffd23a', r2: 0.016 });
+        B.ellipsoid([0, 1.58, 0.88], [0.09, 0.09, 0.045], 2, 7, { col: '#ffd23a' });
+        break;
+      }
+      // Viking Toad: a riveted steel band and two big curved horns
+      case 'horned':
+        band('#a9b2c0', 1.44, 1.64, CAP_R[0]);
+        for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; B.ellipsoid([Math.cos(a) * 0.872, 1.54, Math.sin(a) * 0.872], [0.035, 0.035, 0.035], 2, 5, { col: '#6a7280' }); }
+        for (const sx of [-1, 1]) {
+          const P = [[0.8 * sx, 1.62, 0.08], [1.08 * sx, 1.72, 0.1], [1.24 * sx, 1.98, 0.06], [1.2 * sx, 2.28, -0.02]];
+          for (let q = 0; q < 3; q++) B.capsule(P[q], P[q + 1], 0.13 - q * 0.035, 6, { col: '#f3ead2', r2: 0.095 - q * 0.035 });
+        }
+        break;
+      // Pharaoh Toad's nemes: the striped cloth is the cap itself; a gold brow band, the rearing cobra and a tail at the back
+      case 'nemes':
+        band('#ffd23a', 1.4, 1.5, CAP_R[0] - 0.01);
+        B.capsule([0, 1.5, 0.86], [0, 1.68, 0.9], 0.04, 5, { col: '#ffd23a' });
+        B.ellipsoid([0, 1.7, 0.905], [0.065, 0.05, 0.035], 2, 6, { col: '#ffd23a' });
+        B.capsule([0, 1.42, -0.8], [0, 1.0, -0.9], 0.11, 6, { col: '#ffd23a', r2: 0.06 });
+        break;
+      // Gladiator Toad's bronze helmet: a band, a little brim and a red brush crest from front to back
+      case 'galea':
+        band('#c8903a', 1.44, 1.62, CAP_R[0]);
+        B.lathe([[0.84, 1.47], [0.99, 1.43], [0.98, 1.4], [0.84, 1.42]], 18, { col: '#c8903a' });
+        for (let q = 0; q <= 9; q++) {
+          const a = -1.15 + (q / 9) * 2.3, y = CAP_C[1] + (CAP_R[1] + 0.05) * Math.cos(a), z = (CAP_R[2] + 0.05) * Math.sin(a);
+          B.ellipsoid([0, y + 0.06, z], [0.075, 0.14, 0.12], 2, 6, { col: q % 2 ? '#e8343f' : '#c8202a', seed: 120 + q });
+        }
+        break;
+      // Muslim Toad's kufi: a round white cap with an embroidered band
+      case 'kufi':
+        B.lathe([[0, T + 0.08], [0.3, T + 0.06], [0.5, T - 0.08], [0.66, T - 0.26], [0.71, T - 0.34], [0, T - 0.34]], 16, { col: '#fbfbf6', seed: 77 });
+        band(trim, T - 0.33, T - 0.25, 0.69);
+        for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; B.decalAt([Math.cos(a) * 0.62, T - 0.17, Math.sin(a) * 0.62], [Math.cos(a), 0.6, Math.sin(a)], [0.04, 0.04, 0.015], L.vest); }
+        break;
+      // Hasidic Toad's wide-brimmed black hat
+      case 'blackhat':
+        B.lathe([[0, T - 0.04], [0.92, T - 0.1], [1.02, T - 0.04], [1.0, T - 0.14], [0, T - 0.16]], 18, { col: '#141418' });
+        B.lathe([[0, T + 0.52], [0.3, T + 0.55], [0.46, T + 0.48], [0.5, T + 0.1], [0.52, T - 0.1], [0, T - 0.1]], 14, { col: '#1c1c22' });
+        band('#3a3a44', T - 0.08, T + 0.08, 0.52);
+        break;
     }
+  }
+  // Beatrice's little gold crown sits on top of her cap
+  function tiaraGeo() {
+    const T = CAP_T;
+    B.lathe([[0.2, T + 0.08], [0.23, T - 0.03], [0.2, T - 0.05], [0.18, T + 0.06]], 12, { col: '#ffd23a' });
+    for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 + 0.3; B.cone([Math.cos(a) * 0.2, T + 0.06, Math.sin(a) * 0.2], 0.06, 0.14, 4, { col: '#ffd23a' }); }
+    B.ellipsoid([0, T + 0.02, 0.23], [0.04, 0.04, 0.02], 2, 6, { col: '#ff4fa0' });
+  }
+  // a finer cap outline for a striped cap (Pharaoh Toad's nemes), so the stripes come out thin
+  const CAP_FINE = [90, 78, 66, 54, 42, 30, 18, 6, -2, -16, -30].map(a => [CAP_R[0] * Math.cos((a * Math.PI) / 180), CAP_C[1] + CAP_R[1] * Math.sin((a * Math.PI) / 180)]).concat([[0.55, 1.2], [0.3, 1.29], [0, 1.33]]);
+  // the radius of the shirt and the vest at height y (for things that lie on them: a tie, a sash, a name tag)
+  const profR = (pr, y) => { for (let k = 0; k < pr.length - 1; k++) { const [r0, y0] = pr[k], [r1, y1] = pr[k + 1]; if ((y <= y0 && y >= y1) || (y >= y0 && y <= y1)) return r0 + ((r1 - r0) * (y - y0)) / (y1 - y0 || 1); } return pr[pr.length - 1][0]; };
+  const SHIRT_P = [[0, 0.97], [0.19, 0.95], [0.31, 0.87], [0.385, 0.73], [0.395, 0.58], [0.35, 0.46], [0, 0.43]], VEST_P = [[0.21, 0.965], [0.35, 0.885], [0.435, 0.735], [0.445, 0.585], [0.4, 0.495], [0.39, 0.462]];
+  // a ringed spiral curl hanging down from `top` (Beatrice's drills, the Hasidic Toad's payot)
+  function curl(top, len, r, col, tip) {
+    const prof = [[0, 0]], n = 6;
+    for (let k = 1; k <= n; k++) { const q = k / n; prof.push([r * (1 - q * 0.55) * (k % 2 ? 1 : 0.7), -len * q * 0.92]); }
+    prof.push([0, -len]);
+    B.lathe(prof, 7, { c: top, mat: m => (tip && m[1] < top[1] - len * 0.72 ? tip : col) });
   }
   function toadRig(id, override) {
     const C = CH[id], L = Object.assign({}, C.look, override || {});
     const rig = { kind: 'toad', id, parts: {}, LU: 0.24, handY: -0.27, h: 2.3, wide: C.wide || 1, toadette: !!L.pigtails, captain: !!L.lamp, old: !!L.old,
-      ghost: !!L.ghost, robo: !!L.robo, prop: L.prop || null, shield: !!L.shield, look: L,
+      ghost: !!L.ghost, robo: !!L.robo, prop: L.prop || null, shield: L.shield || false, look: L,
       blade: ['cutlass', 'sword', 'pan', 'wand'].includes(L.prop), parrot: L.hat === 'tricorn', eyeY: 0.123, mount: L.mount || null };
     const wd = rig.wide, vest = L.vest, trim = paper(L.trim || '#f4c430'), capCol = paper(L.cap), spot = paper(L.spot);
     const skin = rig.robo ? '#a4adba' : rig.ghost ? '#e2ebfb' : PAPER.skin, metal = '#7a8494';
     part(rig, 'body', BODY_PIV, () => {
       if (rig.toadette) B.lathe([[0, 0.6], [0.36, 0.58], [0.46, 0.42], [0.54, 0.24], [0.52, 0.18], [0, 0.18]], 12, { sx: wd, sz: wd, jit: 0.02, seed: 3, mat: m => (m[1] < 0.25 ? PAPER.white : '#ff7ab4') });
-      else if (L.robe || L.coat) B.lathe([[0, 0.6], [0.36, 0.58], [0.47, 0.42], [0.54, 0.2], [0.52, 0.15], [0, 0.15]], 12, { sx: wd, sz: wd, jit: 0.02, seed: 3, mat: m => (m[1] < 0.22 ? trim : L.coat ? '#fbfbf8' : vest) });
+      else if (L.robe || L.coat) B.lathe([[0, 0.6], [0.36, 0.58], [0.47, 0.42], [0.54, 0.2], [0.52, 0.15], [0, 0.15]], 12, { sx: wd, sz: wd, jit: 0.02, seed: 3, mat: m => (m[1] < 0.22 ? trim : L.coat ? '#fbfbf8' : L.robeCol || vest) });
       else B.lathe([[0, 0.56], [0.33, 0.54], [0.42, 0.44], [0.43, 0.32], [0.35, 0.21], [0, 0.18]], 12, { sx: wd, sz: wd, jit: 0.02, seed: 3, col: rig.robo ? metal : L.pants || PAPER.pants });
-      B.lathe([[0, 0.97], [0.19, 0.95], [0.31, 0.87], [0.385, 0.73], [0.395, 0.58], [0.35, 0.46], [0, 0.43]], 12, { sx: wd, sz: wd, jit: 0.01, seed: 4, col: rig.robo ? '#8e98a8' : PAPER.shirt });
+      B.lathe(SHIRT_P, 12, { sx: wd, sz: wd, jit: 0.01, seed: 4, col: rig.robo ? '#8e98a8' : L.shirt || PAPER.shirt });
       const a0 = Math.PI / 2 + 0.3, a1 = Math.PI / 2 + Math.PI * 2 - 0.3, n = 10, tw = 0.14, angles = [a0];
       for (let k = 0; k <= n; k++) angles.push(a0 + tw + ((a1 - a0 - 2 * tw) * k) / n);
       angles.push(a1);
       const last = angles.length - 2;
       B.lathe([[0.21, 0.965], [0.35, 0.885], [0.435, 0.735], [0.445, 0.585], [0.4, 0.495], [0.39, 0.462]], 0, { angles, sx: wd, sz: wd, jit: 0.01, seed: 14, center: [0, 0.7, 0],
-        mat: (m, i, j) => (L.stripes ? (i % 2 || j === 0 || j === last ? trim : vest) : i === 4 || j === 0 || j === last ? trim : vest) });
+        mat: (m, i, j) => (L.sleeves && i === 0 ? L.sleeves : L.stripes ? (i % 2 || j === 0 || j === last ? trim : vest) : i === 4 || j === 0 || j === last ? trim : vest) });
+      // ---- the newer Toads' outfits ----
+      const onShirt = (x, y, sz, col, lift) => { const r = profR(SHIRT_P, y) * wd + (lift || 0.012), z = Math.sqrt(Math.max(0.001, r * r - x * x)); B.decalAt([x, y, z], [x, 0, z], sz, col); };
+      const onVest = (x, y, sz, col) => { const r = profR(VEST_P, y) * wd + 0.014, z = Math.sqrt(Math.max(0.001, r * r - x * x)); B.decalAt([x, y, z], [x, 0, z], sz, col); };
+      // Samurai Toad's shoulder plates: stacked lacquered lames
+      if (L.sode) for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) B.box([0.45 * sx * wd, 0.9 - k * 0.075, 0.02], [0.1, 0.036, 0.17], { col: k % 2 ? trim : vest });
+      // Pharaoh Toad's broad collar of gold and lapis
+      if (L.collar) B.lathe([[0.2, 1.0], [0.33, 0.95], [0.43, 0.87], [0.475, 0.8], [0.42, 0.82], [0.2, 0.93]], 16, { sx: wd, sz: wd, mat: (m, i) => (i % 2 ? '#2f6bd8' : '#ffd23a') });
+      // Gladiator Toad: a wide bronze belt, and a tall guard on the near shoulder
+      if (L.belt) { B.lathe([[0.41, 0.54], [0.45, 0.51], [0.45, 0.42], [0.41, 0.39]], 14, { sx: wd, sz: wd, col: trim }); B.decalAt([0, 0.465, 0.452 * wd], [0, 0, 1], [0.07, 0.05, 0.02], '#fff0c8'); }
+      if (L.galerus) B.box([-0.47 * wd, 0.99, 0], [0.04, 0.14, 0.17], { col: trim });
+      // Buddhist Toad's robe drapes over one shoulder in a maroon sash
+      if (L.sash) for (let q = 0; q <= 7; q++) { const k = q / 7, th = Math.PI / 2 + 0.95 - 1.9 * k, y = 0.92 - 0.42 * k, r = profR(VEST_P, y) * wd + 0.018; B.decalAt([Math.cos(th) * r, y, Math.sin(th) * r], [Math.cos(th), 0, Math.sin(th)], [0.085, 0.075, 0.025], L.sash); }
+      // Muslim Toad: gold embroidery down the front of the vest
+      if (L.robeCol && L.hat === 'kufi') for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) onVest(0.2 * sx, 0.86 - k * 0.1, [0.03, 0.03, 0.012], trim);
+      // Mormon Toad: a tie and a name tag on a white shirt
+      if (L.tie) {
+        onShirt(0, 0.9, [0.07, 0.05, 0.024], L.tie, 0.03);
+        [[0.83, 0.06, 0.07], [0.72, 0.075, 0.07], [0.61, 0.085, 0.06], [0.53, 0.05, 0.04]].forEach(([y, w, h]) => onShirt(0, y, [w, h, 0.022], L.tie, 0.03));
+        onVest(-0.22, 0.8, [0.11, 0.046, 0.018], '#1d1d24'); onVest(-0.22, 0.8, [0.075, 0.01, 0.012], '#f6f1e6');
+      }
+      // Subaru Toad: a zipped tracksuit with a stand-up collar
+      if (L.zip) { B.lathe([[0.19, 1.02], [0.23, 1.0], [0.25, 0.93], [0.21, 0.92]], 12, { col: vest }); B.lathe([[0.19, 1.035], [0.235, 1.02], [0.23, 1.0], [0.19, 1.015]], 12, { col: trim }); for (let k = 0; k < 5; k++) onShirt(0, 0.88 - k * 0.09, [0.012, 0.05, 0.01], '#5a5a64'); }
+      // ...and Beatrice's backpack carrier with its straps
+      if (L.beako) {
+        B.box([0, 0.37, -0.72], [0.25, 0.1, 0.32], { col: '#ff8cc6' });
+        B.box([0, 0.48, -0.72], [0.265, 0.025, 0.335], { col: '#ffffff' });
+        for (const sx of [-1, 1]) { B.capsule([0.17 * sx, 0.48, -0.42], [0.24 * sx, 0.95, -0.14], 0.03, 4, { col: '#3a3a44' }); B.capsule([0.24 * sx, 0.95, -0.14], [0.27 * sx, 0.78, 0.35], 0.03, 4, { col: '#3a3a44' }); }
+      }
       if (rig.captain) {
         B.box([0, 0.74, -0.46], [0.3, 0.3, 0.14], { col: '#c0472f' });
         B.box([0, 0.99, -0.46], [0.31, 0.07, 0.155], { col: '#8a5a2b' });
@@ -155,21 +249,43 @@ const M3D = (() => {
       // Ninja's face mask covers everything below the eyes
       if (L.mask) B.ellipsoid([0, 0.92, 0.06], [0.425, 0.13, 0.395], 3, 12, { col: vest, seed: 19 });
       if (L.eyepatch) headDecal([0.02, 0.22, 0.97], [0.36, 0.016, 0.012], '#1d1622', { spin: 0.55 });
+      // beards (Viking Toad's is long and braided; the Hasidic Toad's is round), with a mustache and sideburns
+      if (L.beard) {
+        const bc = L.beard, long = !L.payot;
+        B.ellipsoid([0, 0.75, 0.27], [0.29, 0.15, 0.15], 3, 9, { col: bc, seed: 81, jit: 0.02 });
+        if (long) B.ellipsoid([0, 0.63, 0.31], [0.19, 0.12, 0.11], 3, 8, { col: bc, seed: 82, jit: 0.02 });
+        for (const sx of [-1, 1]) {
+          headDecal([0.15 * sx, -0.3, 0.94], [0.14, 0.055, 0.045], bc);
+          B.ellipsoid([0.36 * sx, 0.9, 0.12], [0.07, 0.15, 0.1], 2, 6, { col: bc });
+          if (long) { B.capsule([0.1 * sx, 0.6, 0.36], [0.11 * sx, 0.42, 0.37], 0.042, 5, { col: bc }); B.lathe([[0.05, 0.5], [0.055, 0.47], [0.05, 0.44]], 7, { c: [0.105 * sx, 0, 0.365], col: '#a9b2c0' }); }
+        }
+      }
+      // the Hasidic Toad's side curls
+      if (L.payot) for (const sx of [-1, 1]) curl([0.41 * sx, 1.02, 0.12], 0.32, 0.055, L.payot);
+      // Pharaoh Toad: the nemes's striped flaps hang down beside the face
+      if (L.hat === 'nemes') for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) B.box([0.445 * sx, 1.13 - k * 0.1, 0.12], [0.03, 0.05, 0.12], { col: k % 2 ? '#2f6bd8' : '#ffd23a' });
       const headTris = B.take();
-      B.lathe(CAP_PROFILE, 16, { jit: 0.012, seed: 10, center: [0, 1.55, 0], mat: (m, i) => (i >= 6 ? PAPER.gill : capCol) });
-      for (const [d, a] of SPOTS) B.spotPatch(CAP_C, CAP_R, d, a, spot, 10, 0.022, 0.25);
+      // a striped cap (nemes) uses a finer outline so each band is thin; Pharaoh Toad has no spots
+      const fine = !!L.capBands, gillAt = fine ? 10 : 6;
+      B.lathe(fine ? CAP_FINE : CAP_PROFILE, 16, { jit: fine ? 0.004 : 0.012, seed: 10, center: [0, 1.55, 0], mat: (m, i) => (i >= gillAt ? PAPER.gill : fine ? L.capBands[i % 2] : capCol) });
+      if (L.spot !== null) for (const [d, a] of SPOTS) B.spotPatch(CAP_C, CAP_R, d, a, spot, 10, 0.022, 0.25);
       if (rig.captain) { const d = v.norm([0, 0.28, 1]); B.decalAt([CAP_C[0] + d[0] * CAP_R[0], CAP_C[1] + d[1] * CAP_R[1], CAP_C[2] + d[2] * CAP_R[2]], [d[0] / CAP_R[0], d[1] / CAP_R[1], d[2] / CAP_R[2]], [0.15, 0.15, 0.06], '#8a8f99'); }
       hatGeo(L, trim);
+      if (L.tiara) tiaraGeo();
       const capTris = B.xformTris(B.take(), tiltP, tiltN);
       B.push(headTris); B.push(capTris);
       // Toadette's round braids hang from the sides of her cap, framing her face, with white bands at the ends
-      if (rig.toadette) for (const sx of [-1, 1]) {
+      if (rig.toadette && L.drills) for (const sx of [-1, 1]) {
+        // Beatrice: long spiral drills with pink tips, tied with pink ribbons
+        curl([0.6 * sx, 1.14, -0.05], 0.95, 0.2, capCol, '#ff8cc6');
+        for (const k of [-1, 1]) B.ellipsoid([0.6 * sx + k * 0.1, 1.17, -0.04], [0.1, 0.07, 0.04], 2, 6, { col: '#ff5aa8' });
+      } else if (rig.toadette) for (const sx of [-1, 1]) {
         B.capsule([0.44 * sx, 1.17, -0.05], [0.58 * sx, 1.04, -0.06], 0.08, 6, { col: capCol });
         B.ellipsoid([0.62 * sx, 0.94, -0.06], [0.2, 0.23, 0.2], 4, 9, { col: capCol, seed: 40 + sx, jit: 0.01 });
         B.ellipsoid([0.63 * sx, 0.75, -0.06], [0.13, 0.055, 0.13], 2, 8, { col: PAPER.white, seed: 44 + sx });
       }
     });
-    const er = rig.old ? [0.046, 0.075, 0.025] : [0.058, 0.105, 0.03];
+    const er = rig.old ? [0.046, 0.075, 0.025] : [0.058 * (L.bigEyes || 1), 0.105 * (L.bigEyes || 1), 0.03];
     part(rig, 'eyes', HEAD_PIV, () => {
       for (const sx of [-1, 1]) {
         if (L.hat === 'shades') {
@@ -180,6 +296,19 @@ const M3D = (() => {
           headDecal([0.32 * sx, -0.02, 0.95], [0.1, 0.11, 0.035], '#1d1622');
         } else if (rig.robo) {
           headDecal([0.3 * sx, -0.02, 0.95], [0.09, 0.05, 0.03], '#5ff0ff');
+        } else if (L.eyes === 'sharp') {
+          // Subaru's sharp eyes: small dark pupils in white eyes
+          headDecal([0.32 * sx, -0.02, 0.95], [0.074, 0.1, 0.028], PAPER.eye);
+          headDecal([0.32 * sx, -0.02, 0.95], [0.062, 0.088, 0.03], '#ffffff', { off: [0, 0, 0.004] });
+          headDecal([0.32 * sx, -0.02, 0.95], [0.026, 0.038, 0.014], PAPER.eye, { off: [-0.008 * sx, -0.004, 0.026] });
+        } else if (L.eyes === 'butterfly') {
+          // Beatrice's blue eyes with pink butterflies in them
+          const c = [0.32 * sx, -0.02, 0.95];
+          headDecal(c, [er[0] * 1.1, er[1] * 1.04, 0.03], '#2a4a9a');
+          headDecal(c, [er[0] * 0.92, er[1] * 0.88, 0.032], '#8fd0ff', { off: [0, 0, 0.004] });
+          for (const [ox, oy, rx, ry] of [[-0.028, 0.022, 0.03, 0.036], [0.028, 0.022, 0.03, 0.036], [-0.02, -0.03, 0.02, 0.026], [0.02, -0.03, 0.02, 0.026]]) headDecal(c, [rx, ry, 0.012], '#ff4fa0', { off: [ox, oy, 0.03] });
+          headDecal(c, [0.008, 0.045, 0.01], '#5a1a4a', { off: [0, 0, 0.036] });
+          headDecal(c, [er[0] * 0.26, er[1] * 0.2, 0.01], '#ffffff', { off: [-0.03, er[1] * 0.5, 0.04] });
         } else {
           headDecal([0.32 * sx, -0.02, 0.95], er, PAPER.eye);
           headDecal([0.32 * sx, -0.02, 0.95], [er[0] * 0.36, er[1] * 0.32, 0.012], '#ffffff', { off: [-0.016, er[1] * 0.4, 0.03] });
@@ -214,9 +343,12 @@ const M3D = (() => {
     }
     for (const [k, sx] of [['N', -1], ['F', 1]]) {
       const s = [0.36 * sx * wd, 0.84, 0.02], e = [s[0], s[1] - rig.LU, s[2]], h = [e[0], e[1] - 0.27, e[2]];
-      part(rig, 'uarm' + k, s, () => B.capsule(s, e, 0.075, 6, { col: skin }));
+      // tracksuit sleeves (Subaru Toad): dark, with an orange line down the outside and orange cuffs
+      const slv = L.sleeves, side = (a, b) => B.capsule([a[0] + sx * 0.068, a[1], a[2]], [b[0] + sx * 0.068, b[1], b[2]], 0.016, 4, { col: trim });
+      part(rig, 'uarm' + k, s, () => { B.capsule(s, e, slv ? 0.085 : 0.075, 6, { col: slv || skin }); if (slv) side(s, e); });
       part(rig, 'farm' + k, e, () => {
-        B.capsule(e, [e[0], e[1] - 0.22, e[2]], 0.072, 6, { col: skin });
+        B.capsule(e, [e[0], e[1] - 0.22, e[2]], slv ? 0.082 : 0.072, 6, { col: slv || skin });
+        if (slv) { side(e, [e[0], e[1] - 0.16, e[2]]); B.lathe([[0.075, e[1] - 0.16], [0.092, e[1] - 0.17], [0.092, e[1] - 0.22], [0.075, e[1] - 0.23]], 8, { c: [e[0], 0, e[2]], col: trim }); }
         if (rig.robo) B.ellipsoid(h, [0.135, 0.125, 0.135], 3, 7, { col: metal, seed: 21 + sx });
         else {
           B.ellipsoid(h, [0.1, 0.095, 0.1], 3, 7, { col: skin, seed: 21 + sx });
@@ -241,6 +373,14 @@ const M3D = (() => {
         for (const [x, y, z] of [[0.3, 0.75, -0.18], [-0.3, 0.72, -0.2], [0.12, 0.85, -0.33], [-0.18, 0.5, -0.3], [0.05, 0.47, -0.62]]) B.decalAt([x, y, z], [x, 0.1, z], [0.07, 0.06, 0.02], L.spots);
         for (const sx of [-1, 1]) { B.decalAt([0.4 * sx, 0.62, 0.02], [sx, 0, 0], [0.065, 0.055, 0.02], L.spots); B.decalAt([0.325 * sx, 0.45, -0.118], [0.8 * sx, -0.4, -0.3], [0.06, 0.05, 0.02], L.spots); }
       }
+      // Mech Yoshi's armour: blue shoulder pads, a red chest core and twin thrusters on the back
+      if (L.mech) {
+        for (const sx of [-1, 1]) B.ellipsoid([0.37 * sx, 0.93, 0.1], [0.15, 0.1, 0.15], 3, 8, { col: L.saddle, seed: 90 + sx });
+        B.decalAt([0, 0.74, 0.43], [0, 0.2, 1], [0.09, 0.09, 0.03], '#e8343f');
+        B.decalAt([0, 0.74, 0.445], [0, 0.2, 1], [0.04, 0.04, 0.02], '#ffd0d0');
+        for (const sx of [-1, 1]) B.lathe([[0.075, 1.02], [0.09, 0.8], [0.11, 0.7], [0.07, 0.68], [0, 0.68]], 8, { c: [0.15 * sx, 0, -0.4], col: '#8a93a3' });
+        B.lathe([[0.36, 0.5], [0.41, 0.48], [0.41, 0.42], [0.36, 0.4]], 12, { col: L.saddle });
+      }
     });
     part(rig, 'head', HEAD_PIV, () => {
       B.ellipsoid([0, 1.38, 0.02], [0.32, 0.33, 0.34], 5, 11, { col: G, jit: 0.01, seed: 53 });
@@ -255,6 +395,13 @@ const M3D = (() => {
         B.decalAt([0.1 * sx, 1.38, 0.672], [0.13 * sx, 0.3, 1], [0.028, 0.036, 0.01], PAPER.eye, { nLat: 3 });
       }
       for (const [y, z] of [[1.78, -0.16], [1.6, -0.28], [1.42, -0.34]]) B.ellipsoid([0, y, z], [0.05, 0.08, 0.08], 2, 6, { col: spine });
+      // Mech Yoshi's helmet: a blue dome over the crown with a gold V-fin and a red gem, and cheek vents
+      if (L.mech) {
+        B.ellipsoid([0, 1.66, -0.04], [0.31, 0.28, 0.3], 4, 10, { col: L.saddle, seed: 92, lat: [-5, 90] });
+        for (const sx of [-1, 1]) B.capsule([0.03 * sx, 1.88, 0.16], [0.25 * sx, 2.14, 0.08], 0.032, 4, { col: '#ffd23a', r2: 0.012 });
+        B.ellipsoid([0, 1.88, 0.18], [0.055, 0.055, 0.04], 2, 6, { col: '#e8343f' });
+        for (const sx of [-1, 1]) for (const k of [0, 1]) B.box([0.315 * sx, 1.37 - k * 0.07, 0.12], [0.015, 0.02, 0.08], { col: '#3a4250' });
+      }
       if (L.spots) {
         for (const [x, y, z] of [[0.24, 1.44, -0.2], [-0.26, 1.3, -0.16], [0.02, 1.55, -0.25]]) B.decalAt([x, y, z], [x, 0.2, z], [0.06, 0.05, 0.02], L.spots);
         // more on the cheeks and crown, where the camera can see them
@@ -678,6 +825,164 @@ const M3D = (() => {
     });
     FXM.propblade = mesh(() => { B.box([0, 0, 0], [0.06, 1.1, 0.14], { col: '#c8d0dc' }); B.box([0, 0, 0], [0.06, 0.14, 1.1], { col: '#c8d0dc' }); });
   }
+  // ---- the v1.7 fighters' gear, shots, traps and finale pieces ----
+  const rotX = a => { const c = Math.cos(a), s = Math.sin(a); return [p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c], n => [n[0], n[1] * c - n[2] * s, n[1] * s + n[2] * c]]; };
+  const rotY = a => { const c = Math.cos(a), s = Math.sin(a); return [p => [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c], n => [n[0] * c + n[2] * s, n[1], -n[0] * s + n[2] * c]]; };
+  const ringProf = (R, r, n) => { const ring = []; for (let k = 0; k <= (n || 8); k++) { const a = (k / (n || 8)) * Math.PI * 2; ring.push([R + Math.cos(a) * r, Math.sin(a) * r]); } return ring; };
+  function buildNew() {
+    // held weapons run along +y out of the fist
+    PROPS.katana = mesh(() => {
+      B.capsule([0, -0.14, 0], [0, 0.06, 0], 0.036, 5, { col: '#1d1d24' });
+      for (const y of [-0.1, -0.04, 0.02]) B.lathe([[0.04, y + 0.012], [0.042, y], [0.04, y - 0.012]], 6, { col: '#ffd23a' });
+      B.lathe([[0, 0.09], [0.09, 0.085], [0.095, 0.068], [0, 0.068]], 10, { col: '#ffd23a' });
+      B.capsule([0, 0.1, 0], [0.025, 0.52, 0], 0.03, 4, { col: '#eef4fb', r2: 0.026 });
+      B.capsule([0.025, 0.52, 0], [0.08, 0.92, 0], 0.026, 4, { col: '#eef4fb', r2: 0.007 });
+    });
+    PROPS.axe = mesh(() => {
+      B.capsule([0, -0.12, 0], [0, 0.62, 0], 0.035, 5, { col: '#8a5a2b' });
+      B.box([0.09, 0.55, 0], [0.09, 0.065, 0.022], { col: '#a9b2c0' });
+      B.ellipsoid([0.19, 0.52, 0], [0.06, 0.15, 0.024], 2, 7, { col: '#e8eef6' });
+    });
+    PROPS.trident = mesh(() => {
+      B.capsule([0, -0.5, 0], [0, 0.85, 0], 0.025, 5, { col: '#8a5a2b' });
+      B.box([0, 0.86, 0], [0.13, 0.022, 0.022], { col: '#d8a040' });
+      for (const x of [-0.12, 0, 0.12]) { const y1 = x ? 1.06 : 1.12; B.capsule([x, 0.86, 0], [x, y1, 0], 0.02, 4, { col: '#d8a040' }); B.cone([x, y1, 0], 0.04, 0.09, 4, { col: '#f0c870' }); }
+    });
+    PROPS.sunstaff = mesh(() => {
+      B.capsule([0, -0.4, 0], [0, 0.76, 0], 0.028, 5, { col: '#ffd23a' });
+      for (const sx of [-1, 1]) B.capsule([0, 0.74, 0], [0.13 * sx, 0.82, 0], 0.022, 4, { col: '#ffd23a' });
+      sub(() => B.lathe([[0, 0.03], [0.14, 0.03], [0.15, 0], [0.14, -0.03], [0, -0.03]], 12, { col: '#ffd23a' }), ...toZ(0, 0.92, 0));
+      B.decalAt([0, 0.92, 0.035], [0, 0, 1], [0.075, 0.075, 0.02], '#e8343f');
+    });
+    PROPS.bostaff = mesh(() => { B.capsule([0, -0.62, 0], [0, 0.8, 0], 0.03, 5, { col: '#a8743c' }); for (const y of [-0.58, 0.76]) B.lathe([[0.038, y + 0.05], [0.042, y], [0.038, y - 0.05]], 7, { col: '#c8d0dc' }); });
+    // Viking Toad's round shield (faces sideways like the Knight's): painted quarters and an iron boss
+    PROPS.roundShield = mesh(() => sub(() => {
+      B.lathe([[0, 0.05], [0.34, 0.04], [0.37, 0], [0.33, -0.02], [0, -0.02]], 16, { mat: (m, i, j) => (i === 0 ? (Math.floor(j / 4) % 2 ? '#d8343c' : '#f3ead2') : '#8a5a2b') });
+      B.lathe([[0.33, 0.056], [0.378, 0.03], [0.378, 0], [0.33, 0.02]], 16, { col: '#8a8f99' });
+      B.ellipsoid([0, 0.055, 0], [0.1, 0.05, 0.1], 2, 7, { col: '#a9b2c0' });
+    }, p => [-p[1], p[0], p[2]], n => [-n[1], n[0], n[2]]));
+    // a curved war horn, mouthpiece at the origin, bell out in front and up
+    PROPS.warhorn = mesh(() => {
+      const P = [[0, 0, 0], [0, 0.04, 0.16], [0, 0.14, 0.3], [0, 0.32, 0.38]], R = [0.03, 0.05, 0.075, 0.11];
+      for (let q = 0; q < 3; q++) B.capsule(P[q], P[q + 1], R[q], 6, { col: '#f3ead2', r2: R[q + 1] });
+      B.lathe([[0.052, 0.07], [0.058, 0.05], [0.052, 0.03]], 8, { c: [0, 0, 0.17], col: '#ffd23a' });
+    });
+    // a clarinet held at the mouth, pointing forward and down
+    PROPS.clarinet = mesh(() => sub(() => {
+      B.lathe([[0, 0], [0.022, 0.01], [0.03, 0.06], [0.035, 0.07], [0.035, 0.42], [0.05, 0.47], [0.085, 0.52], [0, 0.52]], 10, { mat: m => (m[1] > 0.06 && m[1] < 0.42 ? '#8a5a34' : '#e0e6ee') });
+      for (const y of [0.15, 0.24, 0.33]) B.lathe([[0.037, y + 0.01], [0.04, y], [0.037, y - 0.01]], 8, { col: '#c8d0dc' });
+    }, ...rotX(2.3)));
+    // Mormon Toad's bicycle (wheels roll along z), Hasidic Toad's wedding chair
+    PROPS.bike = mesh(() => {
+      for (const z of [-0.52, 0.52]) {
+        sub(() => B.lathe(ringProf(0.31, 0.035), 16, { col: '#26262e' }), p => [p[1], 0.33 + p[0], z + p[2]], n => [n[1], n[0], n[2]]);
+        for (const a of [0, Math.PI / 2]) B.capsule([0, 0.33 + Math.cos(a) * 0.29, z + Math.sin(a) * 0.29], [0, 0.33 - Math.cos(a) * 0.29, z - Math.sin(a) * 0.29], 0.008, 3, { col: '#c8d0dc' });
+      }
+      const fc = '#2557d6';
+      for (const [a, b] of [[[0, 0.33, -0.52], [0, 0.72, -0.12]], [[0, 0.72, -0.12], [0, 0.36, 0.04]], [[0, 0.36, 0.04], [0, 0.86, 0.4]], [[0, 0.72, -0.12], [0, 0.86, 0.4]], [[0, 0.86, 0.4], [0, 0.33, 0.52]], [[0, 0.36, 0.04], [0, 0.33, -0.52]]]) B.capsule(a, b, 0.03, 5, { col: fc });
+      B.ellipsoid([0, 0.77, -0.14], [0.08, 0.035, 0.13], 2, 7, { col: '#26262e' });
+      B.capsule([-0.24, 0.96, 0.4], [0.24, 0.96, 0.4], 0.025, 5, { col: '#c8d0dc' });
+      B.capsule([0, 0.86, 0.4], [0, 0.96, 0.4], 0.025, 4, { col: '#c8d0dc' });
+      B.ellipsoid([0.15, 0.99, 0.42], [0.035, 0.03, 0.035], 2, 6, { col: '#ffd23a' });
+    });
+    PROPS.chair = mesh(() => {
+      B.box([0, 0.42, 0], [0.3, 0.035, 0.28], { col: '#b8844c' });
+      for (const [x, z] of [[-0.25, -0.23], [0.25, -0.23], [-0.25, 0.23], [0.25, 0.23]]) B.box([x, 0.2, z], [0.03, 0.2, 0.03], { col: '#8a5a2b' });
+      for (const x of [-0.25, 0.25]) B.box([x, 0.78, -0.25], [0.03, 0.36, 0.03], { col: '#8a5a2b' });
+      for (const y of [0.72, 0.96]) B.box([0, y, -0.25], [0.26, 0.04, 0.02], { col: '#b8844c' });
+    });
+    // Muslim Toad's plate of Eid sweets
+    PROPS.sweets = mesh(() => {
+      B.lathe([[0, 0.02], [0.2, 0.03], [0.24, 0.05], [0.25, 0.04], [0.21, 0], [0, 0]], 12, { col: '#fbfbf6' });
+      for (const [x, z] of [[-0.08, 0.02], [0.07, -0.05], [0.04, 0.09]]) { B.ellipsoid([x, 0.07, z], [0.065, 0.04, 0.065], 2, 4, { col: '#d89a3a' }); B.ellipsoid([x, 0.11, z], [0.022, 0.012, 0.022], 2, 4, { col: '#7ac04a' }); }
+    });
+    // Pharaoh Toad's golden sarcophagus, open at the front so he shows inside
+    PROPS.sarco = mesh(() => {
+      const ang = []; for (let q = 0; q <= 14; q++) ang.push(Math.PI / 2 + 0.55 + ((Math.PI * 2 - 1.1) * q) / 14);
+      B.lathe([[0.62, 0], [0.74, 0.25], [0.8, 0.9], [0.98, 1.5], [1.0, 1.95], [0.86, 2.38], [0.5, 2.64], [0, 2.72]], 0, { angles: ang, mat: (m, i) => (i % 2 ? '#2f6bd8' : '#ffd23a') });
+    });
+    // Viking Toad's longship, bow toward +z: shields along the sides, a dragon prow and a striped sail
+    PROPS.longship = mesh(() => {
+      const hw = z => 0.51 * 1.1 * Math.sqrt(Math.max(0, 1 - (z / (0.51 * 3.4)) ** 2));
+      B.lathe([[0, 0.55], [0.52, 0.55], [0.5, 0.34], [0.34, 0.08], [0, 0.02]], 14, { sx: 1.1, sz: 3.4, col: '#8a5a2b', seed: 66 });
+      B.lathe([[0.49, 0.59], [0.545, 0.57], [0.545, 0.5], [0.49, 0.52]], 14, { sx: 1.1, sz: 3.4, col: '#6a4a2e' });
+      for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) { const z = -0.8 + k * 0.4; B.decalAt([(hw(z) + 0.02) * sx, 0.4, z], [sx, 0, 0], [0.13, 0.13, 0.03], k % 2 ? '#ffd23a' : '#d8343c'); }
+      for (const [a, b, r] of [[[0, 0.5, 1.7], [0, 0.95, 1.92], 0.09], [[0, 0.95, 1.92], [0, 1.32, 1.9], 0.07]]) B.capsule(a, b, r, 6, { col: '#6a4a2e' });
+      B.ellipsoid([0, 1.38, 2.0], [0.09, 0.09, 0.17], 3, 7, { col: '#6a4a2e' });
+      for (const sx of [-1, 1]) B.decalAt([0.08 * sx, 1.42, 2.06], [sx, 0.3, 0.4], [0.03, 0.03, 0.01], '#ffd23a');
+      B.capsule([0, 0.5, -1.7], [0, 0.98, -1.95], 0.08, 6, { col: '#6a4a2e', r2: 0.05 });
+      B.capsule([0, 0.5, 0.1], [0, 2.75, 0.1], 0.05, 5, { col: '#6a4a2e' });
+      sub(() => { for (let k = 0; k < 5; k++) B.box([0, 1.32 + k * 0.24, 0], [0.88, 0.12, 0.02], { col: k % 2 ? '#f3ead2' : '#d8343c' }); }, p => { const q = rotY(0.65)[0](p); return [q[0], q[1], q[2] + 0.1]; }, rotY(0.65)[1]);
+    });
+    // a Roman legionary's big red shield
+    PROPS.scutum = mesh(() => {
+      B.box([0, 0, 0], [0.3, 0.44, 0.045], { col: '#b8202a' });
+      for (const [x, y, w, h] of [[0, 0.42, 0.3, 0.025], [0, -0.42, 0.3, 0.025], [0.28, 0, 0.025, 0.44], [-0.28, 0, 0.025, 0.44]]) B.box([x, y, 0.05], [w, h, 0.01], { col: '#d8a040' });
+      B.ellipsoid([0, 0, 0.05], [0.09, 0.09, 0.05], 2, 7, { col: '#d8a040' });
+    });
+    // Mech Yoshi's arm cannon (continues the forearm out past the fist)
+    PROPS.mechgun = mesh(() => {
+      B.capsule([0, -0.08, 0], [0, 0.2, 0], 0.075, 7, { col: '#8a93a3' });
+      B.lathe([[0.085, 0.2], [0.09, 0.16], [0.085, 0.12]], 8, { col: '#2f6bd8' });
+      B.lathe([[0.05, 0.27], [0.06, 0.24], [0.05, 0.2]], 8, { col: '#3a4250' });
+      B.ellipsoid([0, 0.27, 0], [0.035, 0.02, 0.035], 2, 6, { col: '#7dff9a' });
+    });
+    // ---- shots (centred on the origin; the view spins or flips them) ----
+    PROJ.crescent = mesh(() => { for (let q = -3; q <= 3; q++) { const a = q * 0.36; B.ellipsoid([Math.cos(a) * 0.3 - 0.2, Math.sin(a) * 0.3, 0], [0.06, 0.11 - Math.abs(q) * 0.024, 0.03], 2, 6, { col: q % 2 ? '#ffe6f0' : '#ffffff', frame: { r: [Math.cos(a), Math.sin(a), 0], u: [-Math.sin(a), Math.cos(a), 0], n: [0, 0, 1] } }); } }, { ink: false, crease: false });
+    PROJ.axe = mesh(() => { B.capsule([0, -0.32, 0], [0, 0.3, 0], 0.03, 5, { col: '#8a5a2b' }); B.box([0.08, 0.24, 0], [0.08, 0.06, 0.02], { col: '#a9b2c0' }); B.ellipsoid([0.17, 0.21, 0], [0.055, 0.13, 0.022], 2, 7, { col: '#e8eef6' }); });
+    PROJ.scarab = mesh(() => {
+      B.ellipsoid([0, 0, 0], [0.17, 0.09, 0.13], 3, 8, { col: '#ffd23a', seed: 131 });
+      B.ellipsoid([0.16, 0.0, 0], [0.06, 0.05, 0.07], 2, 6, { col: '#d8a020' });
+      B.decalAt([-0.02, 0.085, 0], [0, 1, 0], [0.15, 0.012, 0.01], '#2f6bd8');
+      for (const sz of [-1, 1]) for (const x of [-0.08, 0, 0.08]) B.capsule([x, -0.04, 0.1 * sz], [x + 0.03, -0.09, 0.17 * sz], 0.012, 3, { col: '#8a6a10' });
+    });
+    PROJ.sandwave = mesh(() => { for (const [x, y, r] of [[-0.3, -0.08, 0.2], [-0.05, 0.02, 0.28], [0.22, -0.04, 0.24], [0.4, -0.12, 0.15]]) B.ellipsoid([x, y, 0], [r, r * 0.8, r * 0.7], 3, 8, { col: '#e8cf8f', jit: 0.03, seed: 140 + x * 10 }); }, { crease: false });
+    PROJ.trident = mesh(() => sub(() => {
+      B.capsule([0, -0.4, 0], [0, 0.3, 0], 0.022, 5, { col: '#8a5a2b' });
+      B.box([0, 0.3, 0], [0.11, 0.02, 0.02], { col: '#d8a040' });
+      for (const x of [-0.1, 0, 0.1]) { const y1 = x ? 0.46 : 0.5; B.capsule([x, 0.3, 0], [x, y1, 0], 0.018, 4, { col: '#d8a040' }); B.cone([x, y1, 0], 0.035, 0.08, 4, { col: '#f0c870' }); }
+    }, p => [p[1], -p[0], p[2]], n => [n[1], -n[0], n[2]]));
+    PROJ.chi = mesh(() => { sub(() => B.lathe(ringProf(0.22, 0.045), 16, { col: '#ffe28a' }), ...toZ(0, 0, 0)); B.ellipsoid([0, 0, 0], [0.12, 0.12, 0.05], 2, 8, { col: '#fff6c8' }); }, { ink: false, crease: false });
+    PROJ.date = mesh(() => { B.ellipsoid([0, 0, 0], [0.11, 0.07, 0.07], 3, 7, { col: '#6a3a1a', seed: 133 }); B.decalAt([-0.03, 0.05, 0.05], [-0.3, 0.6, 1], [0.03, 0.015, 0.01], '#a8642c'); });
+    // a fanous lantern: a gold frame round glowing glass
+    PROJ.lantern = mesh(() => {
+      B.lathe([[0, 0.34], [0.05, 0.3], [0.09, 0.24], [0.17, 0.12], [0.17, -0.1], [0.12, -0.17], [0.05, -0.21], [0, -0.23]], 6, { mat: (m, i) => (i === 3 ? '#ffd86a' : '#c8902a') });
+      sub(() => B.lathe(ringProf(0.06, 0.014, 6), 8, { col: '#c8902a' }), ...toZ(0, 0.41, 0));
+    });
+    PROJ.jelly = mesh(() => { B.lathe([[0, 0.2], [0.12, 0.19], [0.19, 0.13], [0.22, 0.02], [0.2, 0], [0, 0]], 10, { col: '#5fd04a' }); B.decalAt([-0.07, 0.15, 0.1], [-0.4, 0.6, 0.6], [0.05, 0.03, 0.01], '#d8ffc8'); }, { crease: false });
+    PROJ.latke = mesh(() => { B.lathe([[0, 0.045], [0.19, 0.04], [0.22, 0.01], [0.2, -0.03], [0, -0.035]], 10, { mat: (m, i) => (i === 0 ? '#e0a040' : '#a8641c'), jit: 0.02, seed: 135 }); });
+    PROJ.pepper = mesh(() => { B.capsule([-0.16, -0.03, 0], [0.04, 0.02, 0], 0.07, 6, { col: '#e8262b', r2: 0.075 }); B.capsule([0.04, 0.02, 0], [0.16, 0.08, 0], 0.075, 6, { col: '#e8262b', r2: 0.02 }); B.capsule([-0.2, -0.04, 0], [-0.26, 0.02, 0], 0.02, 4, { col: '#3fae3a' }); });
+    PROJ.plasma = mesh(() => { B.capsule([-0.34, 0, 0], [0.34, 0, 0], 0.08, 6, { col: '#7dff9a' }); B.ellipsoid([0.3, 0, 0], [0.12, 0.12, 0.12], 2, 6, { col: '#e8fff0' }); }, { ink: false, crease: false });
+    PROJ.crystal = mesh(() => { B.cone([0, 0, 0], 0.1, 0.3, 4, { col: '#c8a0ff' }); B.cone([0, 0, 0], 0.1, -0.16, 4, { col: '#9a6ae8' }); B.xformTris(B.take(), p => [p[1], -p[0], p[2]], n => [n[1], -n[0], n[2]]).forEach(t => B.push([t])); });
+    PROJ.mbomb = mesh(() => { B.ellipsoid([0, 0, 0], [0.2, 0.2, 0.2], 4, 9, { col: '#8a93a3', seed: 136 }); B.lathe([[0.2, 0.04], [0.205, 0], [0.2, -0.04]], 12, { col: '#2f6bd8' }); B.ellipsoid([0, 0.2, 0], [0.05, 0.04, 0.05], 2, 6, { col: '#ff4a4a' }); });
+    // ---- traps (on the ground, y = 0 at the surface) ----
+    TRAP.net = mesh(() => {
+      for (let k = -4; k <= 4; k++) { B.capsule([k * 0.28 - 0.12, 0.03, -0.5], [k * 0.28 + 0.12, 0.03, 0.5], 0.022, 3, { col: '#c8a060' }); B.capsule([-1.15, 0.03, k * 0.12], [1.15, 0.03, k * 0.12 + 0.05], 0.02, 3, { col: '#b08850' }); }
+      for (const [x, z] of [[-1.15, -0.5], [1.15, -0.5], [-1.15, 0.5], [1.15, 0.5]]) B.ellipsoid([x, 0.05, z], [0.06, 0.05, 0.06], 2, 6, { col: '#6a7280' });
+    });
+    TRAP.casserole = mesh(() => {
+      B.box([0, 0.09, 0], [0.62, 0.09, 0.34], { col: '#fbfbf6' });
+      B.box([0, 0.185, 0], [0.56, 0.02, 0.29], { col: '#f0c060' });
+      for (const [x, z, c] of [[-0.3, 0.1, '#e0a040'], [0.2, -0.12, '#e0a040'], [0.4, 0.15, '#7ac04a'], [-0.05, 0.2, '#e0a040'], [-0.45, -0.15, '#7ac04a'], [0.05, -0.05, '#c8862a']]) B.ellipsoid([x, 0.21, z], [0.06, 0.025, 0.06], 2, 5, { col: c });
+      for (const sx of [-1, 1]) B.box([0.67 * sx, 0.14, 0], [0.05, 0.025, 0.12], { col: '#fbfbf6' });
+    });
+    TRAP.flames = mesh(() => { for (const [x, z, h] of [[-0.6, 0.1, 0.55], [-0.25, -0.15, 0.75], [0.1, 0.12, 0.65], [0.45, -0.05, 0.8], [0.75, 0.15, 0.5]]) { B.cone([x, 0, z], 0.16, h, 6, { col: '#ff8a1f' }); B.cone([x, 0, z + 0.04], 0.09, h * 0.6, 5, { col: '#ffe066' }); } }, { ink: false });
+    // ---- finale pieces ----
+    FXM.pyramid = mesh(() => {
+      B.lathe([[0, 1.0], [1.0, 0], [0, 0]], 4, { rot0: Math.PI / 4, center: [0, 0.3, 0], mat: m => (Math.floor(m[1] * 6) % 2 ? '#e8cf8f' : '#d9b874') });
+      B.lathe([[0, 1.02], [0.17, 0.85], [0, 0.85]], 4, { rot0: Math.PI / 4, col: '#ffd23a' });
+    });
+    FXM.petal = mesh(() => B.ellipsoid([0, 0, 0], [0.13, 0.025, 0.085], 2, 6, { col: '#ffc0d8' }), { ink: false });
+    FXM.lotus = mesh(() => {
+      for (const [n, R, t, rr, col] of [[8, 0.5, 0.45, 0.42, '#ffb0d0'], [6, 0.3, 0.9, 0.34, '#ffd8e8']]) for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + (n === 6 ? 0.4 : 0), Rd = [Math.cos(a), 0, Math.sin(a)], Tg = [-Math.sin(a), 0, Math.cos(a)];
+        const r = [Rd[0] * Math.cos(t), Math.sin(t), Rd[2] * Math.cos(t)], u = [-Rd[0] * Math.sin(t), Math.cos(t), -Rd[2] * Math.sin(t)];
+        B.ellipsoid([Rd[0] * R, 0.08 + Math.sin(t) * rr * 0.6, Rd[2] * R], [rr, 0.05, rr * 0.45], 2, 7, { col, frame: { r, u, n: Tg } });
+      }
+      B.ellipsoid([0, 0.12, 0], [0.16, 0.08, 0.16], 2, 8, { col: '#ffd23a' });
+      B.ellipsoid([0, 0.01, 0], [0.75, 0.03, 0.75], 2, 10, { col: '#5fbf5a' });
+    });
+  }
   function kartMesh(col) {
     return mesh(() => {
       B.box([0, 0.38, 0], [1.25, 0.22, 0.62], { col });
@@ -694,9 +999,14 @@ const M3D = (() => {
 
   // ---------- rigs registry ----------
   const RIGS = {}, MINIONS = {};
-  const CROWD = [], YCROWD = [];
+  const CROWD = [], YCROWD = [], CHOIR = [];
   function build() {
-    buildProps(); buildItems(); buildFx();
+    buildProps(); buildItems(); buildFx(); buildNew();
+    // Beatrice (in Subaru Toad's backpack): a mini Toadette with cream drills, a crown and butterfly eyes
+    BEAKO = toadRig('toadette', { cap: '#f5e6b8', spot: '#ff9cc8', vest: '#ff6fae', trim: '#ffffff', drills: true, eyes: 'butterfly', bigEyes: 1.45, tiara: true });
+    // Legion March soldiers and the Grand Choir
+    MINIONS.legion = toadRig('toad', { spot: '#c0392b', vest: '#b5442b', trim: '#d8a040', hat: 'galea', belt: true });
+    for (const spot of ['#e8262b', '#2f7cf6', '#ffc81a', '#29b34a', '#9b4fd6', '#ff8a1f', '#2557d6']) CHOIR.push(toadRig('toad', { spot, vest: '#2a3f8f', trim: '#ffd23a', robe: true, robeCol: '#2a3f8f', shirt: '#ffffff' }));
     for (const C of CHARS) RIGS[C.id] = C.yoshi ? yoshiRig(C.id) : toadRig(C.id);
     for (const C of CHARS) if (C.yoshi) YCROWD.push(RIGS[C.id]);
     MINIONS.mail = toadRig('toad', { spot: '#2f9e4a', vest: '#3a6bd6' });
@@ -785,18 +1095,23 @@ const M3D = (() => {
     sexkick(P, F, c) { P.srZ = 0.45 * c.kp; P.srY = 0.24 * c.kp; P.srR = -0.8 * c.kp; P.slY = 0.16; P.lean = -0.18 * c.kp; ARMS_UP(P, 1.2); c.profile(0.4 * c.kp); },
     aura(P, F, c) { ARMS_UP(P, lerp(0.8, 1.7, c.kp)); P.sx = 1 + 0.08 * c.kp; P.sy = 1 + 0.08 * c.kp; P.slY = 0.14; P.srY = 0.14; F.elemGlow = c.on ? 0.55 : 0; },
     flutterkick(P, F, c) { const on = c.t >= 5 && c.t <= 26, w = Math.sin(c.t * 1.5); P.slZ = on ? w * 0.38 : 0.1; P.srZ = on ? -w * 0.38 : -0.1; P.slY = 0.12; P.srY = 0.12; ARMS_UP(P, 1.4 + (on ? w * 0.25 : 0)); },
-    axe(P, F, c) { P.af = [lerp(-2.7, -0.45, c.q), 0.2, 0, 0]; P.an = [0.3, -0.6, -0.3, 0]; P.lean = 0.2; P.slY = 0.08; P.srY = 0.06; P.grip = 0.9; c.profile(0.35 * c.q); },
+    // air attacks get whole-body flips and spins, so they never look like the ground moves
+    axe(P, F, c) { P.af = [lerp(-2.7, -0.45, c.q), 0.2, 0, 0]; P.an = [lerp(-2.7, -0.45, c.q), -0.2, 0, 0]; P.lean = 0.2; P.slY = 0.2; P.srY = 0.18; P.grip = 0.9; P.tumble = (c.fc || 1) * Math.sin(c.q * Math.PI) * 0.9; c.profile(0.35 * c.q); },
     meteoraxe(P, F, c) { P.af = [lerp(-2.9, 0.2, c.q), 0.25, 0, 0]; P.an = [lerp(-2.9, 0.2, c.q), -0.25, 0, 0]; P.lean = lerp(-0.2, 0.4, c.q); P.slY = 0.12; P.srY = 0.1; P.grip = 0.9; c.profile(0.3 * c.q); },
     drill(P, F, c) { const on = c.t >= 6 && c.t <= 26; P.lean = on ? 1.1 : 0.3; P.spin = on ? c.t * 1.1 : 0; ARMS_UP(P, 2.7); P.an[0] = -0.6; P.af[0] = -0.6; P.slY = 0.1; P.srY = 0.1; },
-    airslash(P, F, c) { TPOSE.axe(P, F, c); P.grip = 0.9; },
-    headbonkair(P, F, c) { P.lean = 0.6 * c.kp; P.hx = 0.32 * c.kp; P.slY = 0.12; P.srY = 0.1; P.slZ = -0.1; P.srZ = -0.12; ARMS_UP(P, 1.0); c.profile(0.4 * c.kp); F.mouthO = c.on; },
-    backkick(P, F, c) { P.srZ = -0.45 * c.kp; P.srY = 0.16 * c.kp; P.srR = 0.85 * c.kp; P.slZ = 0.08; P.lean = 0.32 * c.kp; P.an = [-0.8, -0.3, -0.3, 0]; P.af = [-0.8, 0.3, -0.3, 0]; c.profile(-0.45 * c.kp); },
+    // a sword cartwheel: one full forward spin with the blade out
+    airslash(P, F, c) { P.af = [-1.6, 0.1, 0, 0]; P.grip = 0.15; P.an = [-1.2, -0.5, -0.3, 0]; P.tumble = (c.fc || 1) * c.q * Math.PI * 2; P.slY = 0.2; P.srY = 0.2; },
+    // a forward somersault that ends head-first
+    headbonkair(P, F, c) { P.tumble = (c.fc || 1) * Math.sin(c.q * Math.PI) * 1.5; P.lean = 0.5 * c.kp; P.hx = 0.3 * c.kp; P.slY = 0.22; P.srY = 0.2; ARMS_UP(P, 1.4); F.mouthO = c.on; },
+    backkick(P, F, c) { P.srZ = -0.45 * c.kp; P.srY = 0.16 * c.kp; P.srR = 0.85 * c.kp; P.slZ = 0.08; P.slY = 0.2; P.lean = 0.32 * c.kp; P.tumble = -(c.fc || 1) * 0.45 * c.kp; P.an = [-0.8, -0.3, -0.3, 0]; P.af = [-0.8, 0.3, -0.3, 0]; c.profile(-0.45 * c.kp); },
     tailbair(P, F, c) { P.spin = (c.fc || 1) * Math.sin(c.q * Math.PI) * 1.2; P.lean = 0.25 * c.kp; ARMS_UP(P, 1.0); P.slY = 0.1; P.srY = 0.1; },
     backslash(P, F, c) { P.af = [lerp(-1.6, 1.5, c.q), 0.2, 0, 0]; P.grip = 0.9; P.an = [-0.4, -0.5, -0.4, 0]; P.lean = 0.15; c.profile(-0.5 * c.kp); },
     flipkick(P, F, c) { P.tumble = (c.fc || 1) * Math.sin(c.q * Math.PI) * 1.4; P.slY = 0.2 * c.kp; P.srY = 0.24 * c.kp; P.srZ = 0.3 * c.kp; ARMS_UP(P, 1.6); },
     scissor(P, F, c) { const w = Math.sin(c.t * 0.9); P.slZ = w * 0.4; P.srZ = -w * 0.4; P.slY = 0.3; P.srY = 0.3; P.lean = -0.35; ARMS_UP(P, 1.2); },
-    upslashair(P, F, c) { TPOSE.upslash(P, F, c); P.slY = 0.1; P.srY = 0.1; },
-    headbuttup(P, F, c) { P.hx = -0.6 * c.kp; P.sy = 1 + 0.1 * c.kp; ARMS_UP(P, 1.2); P.slZ = -0.18; P.srZ = -0.1; P.slY = 0.1; },
+    // a full backflip with the blade sweeping overhead
+    upslashair(P, F, c) { P.af = [-2.9, 0.1, 0, 0]; P.grip = 0.2; P.an = [-1.5, -0.5, -0.3, 0]; P.tumble = -(c.fc || 1) * c.q * Math.PI * 2; P.slY = 0.25; P.srY = 0.25; },
+    // a corkscrew straight up, head first
+    headbuttup(P, F, c) { P.spin = c.q * Math.PI * 2; P.hx = -0.5 * c.kp; P.sy = 1 + 0.12 * c.kp; ARMS_UP(P, 2.6); P.slY = 0.2; P.srY = 0.2; P.slZ = -0.15; P.srZ = -0.1; },
     stomp(P, F, c) { P.slY = -0.14; P.srY = -0.14; P.slZ = 0.05; ARMS_UP(P, 2.4); P.sy = 1 + 0.06 * c.kp; },
     drilldown(P, F, c) { const on = c.t >= 8 && c.t <= 28; P.spin = on ? c.t * 1.1 : 0; P.slY = -0.16; P.srY = -0.16; ARMS_UP(P, 2.6); P.sy = on ? 1.08 : 1; },
     plunge(P, F, c) { P.af = [-0.2, 0.15, 0, 0]; P.grip = 0; P.an = [-0.25, -0.15, 0, 0]; P.slY = -0.12; P.srY = -0.12; P.sy = 1.04; },
@@ -810,6 +1125,8 @@ const M3D = (() => {
       profile: a => { P.yaw = fc * (0.95 + a); } };
     const fn = A && TPOSE[A.tpl];
     if (fn) fn(P, F, c);
+    // every air attack tucks the legs up a little
+    if (AERIALS[f.at]) { P.slY = Math.max(P.slY, 0.14); P.srY = Math.max(P.srY, 0.12); }
     // Toads shout as they strike
     if (rig && rig.kind === 'toad' && K.on && !F.mouthO) F.mouthO = true;
   }
@@ -861,15 +1178,34 @@ const M3D = (() => {
     F.tint = [0.6 + 0.4 * Math.cos(rad(0)), 0.6 + 0.4 * Math.cos(rad(-120)), 0.6 + 0.4 * Math.cos(rad(120)), 0.22];
     if (t < 36) { ARMS_UP(P, lerp(0.4, 2.7, clamp01(t / 14))); P.sy = 1 + 0.05 * Math.sin(t * 0.5); P.hx = -0.2; F.mouthO = t > 10; return; }
     switch (D.k) {
-      case 'beam': P.af = [-1.6, 0.05, 0, 0]; P.grip = 0.1; P.an = [-1.5, -0.1, -0.2, 0]; P.lean = 0.1; P.yaw = fc * 1.4; F.mouthO = true; break;
-      case 'rush': F.cart = 1; P.sy = 0.9; P.an = [-1.2, -0.3, -0.4, 0]; P.af = [-1.2, 0.3, -0.4, 0]; P.lean = 0.2; P.yaw = fc * 1.45; F.mouthO = true; break;
-      case 'pulses': if (D.sub) { ARMS_UP(P, 2.6); P.sy = 1 + Math.abs(Math.sin(t * 0.2)) * 0.1; break; }
+      case 'beam': P.af = [-1.6, 0.05, 0, 0]; P.grip = 0.1; P.an = [-1.5, -0.1, -0.2, 0]; P.lean = 0.1; P.yaw = fc * 1.4; F.mouthO = true; if (D.sub === 'mech') F.jetBack = 1; break;
+      case 'rush':
+        if (D.sub === 'dash') {
+          // Dash Yoshi's Supersonic Lap: a blur of legs
+          const w = t * 2.2;
+          P.lean = 0.9; P.hx = 0.3; P.yaw = fc * 1.45; P.slZ = Math.sin(w) * 0.4; P.srZ = -Math.sin(w) * 0.4; P.slY = Math.max(0, Math.cos(w)) * 0.2; P.srY = Math.max(0, -Math.cos(w)) * 0.2;
+          P.an = [1.2, -0.3, -0.2, 0]; P.af = [1.2, 0.3, -0.2, 0]; F.tint = [1, 0.45, 0.1, 0.3]; F.mouthO = true; break;
+        }
+        F.cart = D.sub === 'ship' ? 2 : 1; P.sy = 0.9; P.an = [-1.2, -0.3, -0.4, 0]; P.af = [-1.2, 0.3, -0.4, 0]; P.lean = 0.2; P.yaw = fc * 1.45; F.mouthO = true;
+        if (D.sub === 'ship') { P.af = [-2.6, 0.3, 0, 0]; P.grip = 1.0; }
+        break;
+      case 'pulses':
+        if (D.sub === 'choir') { P.an = [-1.6, -0.8, -0.2, 0]; P.af = [-2.2 + Math.sin(t * 0.3) * 0.5, 0.6, -0.3, 0]; F.mouthO = true; P.hx = -0.15; break; } // conducting the choir
+        if (D.sub) { ARMS_UP(P, 2.6); P.sy = 1 + Math.abs(Math.sin(t * 0.2)) * 0.1; break; }
         F.guitarPlay = 1; P.af = [-1.2, 0.5, -0.8, 0]; P.an = [-0.9 + Math.sin(t * 0.9) * 0.4, -0.2, -0.8, 0]; P.hx = Math.sin(t * 0.45) * 0.3; break;
-      case 'lasso': P.af = [-2.95, 0.15, 0, 0]; F.loopUp = 2.2; P.an = [0.2, -0.5, -0.4, 0]; break;
+      case 'lasso':
+        if (D.sub === 'hora') { // the wedding dance: arms up, bouncing round and round
+          ARMS_UP(P, 2.5 + Math.sin(t * 0.4) * 0.3); P.bob = Math.abs(Math.sin(t * 0.3)) * 0.12; P.spin = t * 0.08; F.mouthO = true;
+          P.slY = Math.max(0, Math.sin(t * 0.3)) * 0.15; P.srY = Math.max(0, -Math.sin(t * 0.3)) * 0.15; break;
+        }
+        P.af = [-2.95, 0.15, 0, 0]; F.loopUp = 2.2; P.an = [0.2, -0.5, -0.4, 0]; break;
       case 'clone': P.af = [-1.4, 0.4, 0, 0]; P.lean = 0.3; break;
-      case 'burst': ARMS_UP(P, 2.5); P.spin = t * 0.2; break;
+      case 'burst':
+        if (D.sub === 'lotus') { P.slY = P.srY = 0.3; P.slZ = P.srZ = 0.2; P.an = [-0.9, -0.35, -1.6, 0]; P.af = [-0.9, 0.35, -1.6, 0]; P.bob = 0.4 + Math.sin(t * 0.1) * 0.05; F.noProp = true; break; }
+        ARMS_UP(P, 2.5); P.spin = t * 0.2; break;
       default: ARMS_UP(P, 2.6); P.hx = -0.15; F.mouthO = true;
     }
+    if (f.ch === 'subaru') F.bkCast = 1;
   }
   function specialPose(P, F, f, fr, rig) {
     const t = f.t || 0, fc = f.fc || 1, yo = rig && rig.kind === 'yoshi';
@@ -1004,6 +1340,83 @@ const M3D = (() => {
       case 'holyshine': ARMS_UP(P, 1.7); P.sy = 1.04; if (t >= 2 && t <= 22) F.tint = [1, 1, 0.85, 0.35 + Math.sin(fr * 0.9) * 0.15]; break;
       case 'tantrum': P.spin = t * 0.9; P.an = [Math.sin(t * 1.3) * 1.2, -1.2, 0, 0]; P.af = [-Math.sin(t * 1.3) * 1.2, 1.2, 0, 0]; F.mouthO = true; break;
       case 'fruitbomb': P.hx = lerp(0.2, -0.45, clamp01(t / 10)); F.mouthO = t > 6 && t < 14; P.sy = t < 10 ? 0.9 : 1.04; break;
+      // --- Samurai Toad ---
+      case 'windslash': P.af = [t < 9 ? -2.7 : lerp(-2.7, -0.3, clamp01((t - 9) / 4)), 0.3, 0, 0]; P.grip = t < 9 ? 1.3 : 0.4; P.lean = t >= 9 ? 0.35 : -0.12; P.an = [0.3, -0.4, -0.4, 0]; P.yaw = fc * 1.3; break;
+      case 'quickdraw':
+        if (t < 8) { P.sy = 0.9; P.lean = 0.3; P.af = [0.6, 0.4, -0.6, 0]; P.grip = 2.6; P.an = [-0.4, -0.3, -1.0, 0]; P.yaw = fc * 1.4; }
+        else { dash(0.7); P.af = [-1.6, 0.7, 0, 0]; P.grip = 0.1; F.alpha = t < 16 ? 0.55 : 1; }
+        break;
+      case 'cranerise': ARMS_UP(P, 2.8); P.grip = 0.3; P.spin = t < 16 ? t * 0.6 : 0; P.slY = 0.15; P.srY = 0.1; break;
+      case 'iaicounter':
+        P.sy = 0.9; P.lean = 0.15; P.af = [0.5, 0.35, -0.7, 0]; P.grip = 2.5; P.an = [-0.5, -0.3, -1.2, 0];
+        if (f.ctrT === 0 && t >= 3 && t <= 26) F.tint = [1, 0.75, 0.85, 0.3];
+        if (f.ctrT > 0) { P.af = [-1.6, 0.3, 0, 0]; P.grip = 0.1; P.lean = 0.4; }
+        break;
+      // --- Viking Toad ---
+      case 'axethrow': throwArm(-2.8, -0.9, 11); F.noProp = t >= 11 && t < 26; P.lean = t >= 11 ? 0.25 : -0.15; break;
+      case 'shieldrush': P.an = [-1.45, -0.15, -0.1, 0]; F.shieldFwd = 1; P.lean = t >= 6 ? 0.45 : 0.05; P.af = [0.6, 0.3, -0.4, 0]; P.yaw = fc * 1.35; P.slZ = 0.15; P.srZ = -0.2; break;
+      case 'berserk': P.spin = t * 0.7; P.af = [-1.5, 1.0, 0, 0]; P.grip = 0.6; P.an = [-1.4, -1.0, 0, 0]; F.mouthO = true; break;
+      case 'warhorn': P.af = [-2.3, 0.45, -1.3, 0]; P.an = [0.2, -0.4, -0.4, 0]; P.hx = t >= 10 && t < 30 ? -0.28 : 0; F.horn = 1; F.noProp = true; P.sy = t >= 12 && t < 20 ? 1.05 : 1; break;
+      // --- Pharaoh Toad ---
+      case 'scarab': aim(); P.grip = 0.2; break;
+      case 'sandsurge': P.af = [t < 10 ? -2.6 : -0.2, 0.2, 0, 0]; P.grip = t < 10 ? 1.4 : 0.3; P.lean = t >= 10 ? 0.4 : -0.1; P.an = [0.3, -0.4, -0.4, 0]; P.yaw = fc * 1.3; break;
+      case 'sunrise': ARMS_UP(P, 2.9); P.grip = 0.2; P.sy = 1.06; F.tint = [1, 0.9, 0.5, 0.25]; break;
+      case 'sarcophagus':
+        P.an = [-0.9, -0.15, -1.9, 0]; P.af = [-0.9, 0.15, -1.9, 0]; P.grip = 1.6; F.sarco = f.ctrT === 0;
+        if (f.ctrT > 0) { ARMS_UP(P, 2.4); P.lean = 0.3; }
+        break;
+      // --- Gladiator Toad ---
+      case 'tridenttoss': throwArm(-2.7, -0.8, 12); F.noProp = t >= 12; P.lean = t >= 12 ? 0.3 : -0.2; break;
+      case 'tridentlunge': P.af = [-1.55, 0.05, 0, 0]; P.grip = 0.08; P.an = [-0.4, -0.4, -0.6, 0]; P.lean = t >= 7 ? 0.5 : 0; P.yaw = fc * 1.4; P.slZ = 0.18; P.srZ = -0.22; break;
+      case 'polevault':
+        if (t < 8) { P.af = [-1.2, 0.2, 0, 0]; P.grip = 2.9; P.sy = 0.9; }
+        else { ARMS_UP(P, 2.6); P.grip = 3.0; P.tumble = -fc * clamp01((t - 8) / 18) * Math.PI * 1.2; }
+        break;
+      case 'nettrap': P.lean = 0.3; P.an = [-0.8, -0.3, -0.5, 0]; P.af = [-0.8, 0.3, -0.5, 0]; P.grip = 2.8; break;
+      // --- Buddhist Toad ---
+      case 'chipalm': P.af = [t < 10 ? -0.6 : -1.6, 0.15, t < 10 ? -1.8 : 0, 0]; P.an = [-0.6, -0.3, -1.6, 0]; P.lean = t >= 10 ? 0.2 : -0.1; P.yaw = fc * 1.3; P.sy = 0.94; F.noProp = true; break;
+      case 'staffwhirl': P.spin = t * 0.85; P.af = [-1.5, 0.9, 0, 0]; P.grip = 0.2; P.an = [-0.4, -0.6, -0.3, 0]; break;
+      case 'lotusfloat': P.slY = 0.3; P.srY = 0.3; P.slZ = 0.2; P.srZ = 0.2; P.an = [-0.9, -0.35, -1.6, 0]; P.af = [-0.9, 0.35, -1.6, 0]; F.noProp = true; F.lotusSeat = 1; P.bob = Math.sin(t * 0.15) * 0.04; break;
+      case 'stillmind':
+        P.slY = 0.3; P.srY = 0.3; P.slZ = 0.2; P.srZ = 0.2; P.sy = 0.92; P.an = [-0.9, -0.35, -1.6, 0]; P.af = [-0.9, 0.35, -1.6, 0]; F.noProp = true;
+        if (f.ctrT === 0 && t >= 3 && t <= 34) F.tint = [1, 0.95, 0.7, 0.3];
+        if (f.ctrT > 0) { P.af = [-1.6, 0.3, 0, 0]; P.lean = 0.3; P.slY = P.srY = 0; P.slZ = P.srZ = 0; F.noProp = false; }
+        break;
+      // --- Muslim Toad ---
+      case 'datetoss': throwArm(-2.6, -1.0, 8); F.dateHand = t < 8; break;
+      case 'lantern': P.af = [t < 10 ? lerp(0.2, -1.4, t / 10) : -1.4, 0.15, 0, 0]; P.an = [0.3, -0.4, -0.4, 0]; F.lanternHand = t < 10; P.yaw = fc * 1.2; break;
+      case 'lanternlift': P.af = [-2.95, 0.1, 0, 0]; P.an = [0.3, -0.5, -0.4, 0]; F.lanternUp = 1; P.slY = 0.08; P.srY = 0.04; break;
+      case 'eidsweets': P.an = [-1.1, -0.2, -0.9, 0]; P.af = [t % 20 < 10 ? -2.0 : -1.2, 0.25, -1.4, 0]; P.hx = 0.1; F.sweets = 1; F.mouthO = t % 20 > 8 && t % 20 < 14; break;
+      // --- Mormon Toad ---
+      case 'jelly': throwArm(-2.7, -1.0, 9); F.jellyHand = t < 9; break;
+      case 'bikeride': {
+        const w = t * 0.6;
+        F.bike = 1; P.bob = 0.32; P.lean = 0.2; P.an = [-1.3, -0.25, -0.3, 0]; P.af = [-1.3, 0.25, -0.3, 0]; P.yaw = fc * 1.4;
+        P.slY = 0.12 + Math.max(0, Math.sin(w)) * 0.12; P.srY = 0.12 + Math.max(0, -Math.sin(w)) * 0.12; P.slZ = Math.cos(w) * 0.18 + 0.1; P.srZ = -Math.cos(w) * 0.18 + 0.1;
+        break;
+      }
+      case 'highnote': ARMS_UP(P, 2.4); P.an[0] = -0.4; P.af[0] = -0.4; P.hx = -0.25; F.mouthO = true; P.sy = 1.05; break;
+      case 'potluck': P.lean = 0.3; P.an = [-1.1, -0.3, -0.6, 0]; P.af = [-1.1, 0.3, -0.6, 0]; F.dishHand = t < 12; break;
+      // --- Hasidic Toad ---
+      case 'latke': throwArm(-2.4, -0.8, 7); P.yaw = fc * 1.3; break;
+      case 'dreidel': P.spin = t * 1.0; ARMS_UP(P, 1.2); P.sy = 0.95; F.mouthO = true; break;
+      case 'chairlift': F.chair = 1; P.bob = 0.3; P.slY = 0.28; P.srY = 0.28; P.slZ = 0.3; P.srZ = 0.3; ARMS_UP(P, 2.5 + Math.sin(t * 0.5) * 0.25); F.mouthO = true; break;
+      case 'klezmer': F.clarinet = 1; P.an = [-1.6, -0.15, -1.0, 0]; P.af = [-1.4, 0.15, -1.3, 0]; P.hx = 0.25 + Math.sin(t * 0.5) * 0.08; P.side = Math.sin(t * 0.25) * 0.08; P.bob = Math.abs(Math.sin(t * 0.25)) * 0.04; break;
+      // --- Subaru Toad (Beatrice casts Minya and Murak from the backpack) ---
+      case 'minya': aim(); F.bkCast = 1; break;
+      case 'shamac': P.an = [-1.5, -0.3, -0.3, 0]; P.af = [-1.5, 0.3, -0.3, 0]; P.lean = 0.12; P.yaw = fc * 1.3; F.mouthO = t > 8 && t < 18; break;
+      case 'murak': ARMS_UP(P, 1.3); P.slY = 0.08; P.srY = 0.08; F.bkCast = 1; break;
+      case 'unseenhand': P.af = [t < 10 ? lerp(0.3, -1.55, t / 10) : -1.55, 0.1, 0, 0]; P.an = [-1.2, -0.1, -1.7, 0]; P.hx = 0.15; P.lean = 0.12; P.yaw = fc * 1.3; F.hurt = t > 6 && t < 26; break;
+      // --- Dash Yoshi ---
+      case 'pepper': spit(7); break;
+      case 'pepperdash': dash(0.8); P.hx = 0.25; F.tint = [1, 0.45, 0.1, 0.32]; F.mouthO = true; P.slZ = Math.sin(t * 2) * 0.35; P.srZ = -Math.sin(t * 2) * 0.35; break;
+      case 'speedspiral': P.spin = t * 0.9; ARMS_UP(P, 1.6); F.tint = [1, 0.5, 0.1, 0.25]; break;
+      case 'burnout': P.lean = -0.3; P.sy = 0.9; P.slZ = 0.3; P.srZ = 0.35; P.an = [0.6, -0.5, 0, 0]; P.af = [0.6, 0.5, 0, 0]; P.yaw = fc * 1.4; break;
+      // --- Mech Yoshi ---
+      case 'blaster': P.af = [-1.55, 0.12, 0, 0]; P.an = [0.3, -0.35, -0.4, 0]; P.yaw = fc * 1.3; P.lean = t === 7 || t === 12 || t === 17 ? -0.12 : 0.05; break;
+      case 'airdash': dash(0.75); F.jetBack = 1; break;
+      case 'booster': ARMS_UP(P, 0.8); P.slY = 0.06; P.srY = 0.06; F.jetBack = t < 24; break;
+      case 'bomblob': throwArm(-2.6, -0.6, 10); P.lean = -0.1; break;
       case 'fs': fsPose(P, F, f, fr); break;
     }
     if (yo && (f.sp === 'egg' || f.sp === 'turnips')) F.mouthO = t < 12;
@@ -1135,7 +1548,18 @@ const M3D = (() => {
   }
 
   // ---------- drawing a rig ----------
-  const HELD = { cutlass: 1, sword: 1, pan: 1, wand: 1, raygun: 1 };
+  const HELD = { cutlass: 1, sword: 1, pan: 1, wand: 1, raygun: 1, katana: 1, axe: 1, trident: 1, sunstaff: 1, bostaff: 1 };
+  const HELD_S = { pan: 1.6, trident: 1.15, bostaff: 1.2, sunstaff: 1.3 };
+  // Beatrice, riding in Subaru Toad's backpack: she rests her hands on the rim, and throws them up to cast
+  let BEAKO = null;
+  function beakoPose(F0, fr) {
+    const P = pose0(1), F = { props: {}, mouthO: false, hurt: !!F0.hurt, tint: F0.tint || null, alpha: F0.alpha };
+    P.yaw = 0; P.hz = Math.sin(fr * 0.05 + 1) * 0.12; P.hx = 0.06 + Math.sin(fr * 0.07) * 0.04;
+    if (F0.bkCast) { ARMS_UP(P, 2.3); P.an[0] = -0.7; P.af[0] = -0.7; F.mouthO = fr % 16 < 10; }
+    else { P.an = [-0.5, -0.55, -1.2, 0]; P.af = [-0.5, 0.55, -1.2, 0]; }
+    F.blink = !F.hurt && (fr + 97) % 260 < 6;
+    return { P, F };
+  }
   const jitter = () => 0.8 + Math.random() * 0.5;
   function drawRig(rig, M0, P, F, fr, o) {
     const p = rig.parts, al = F.alpha != null ? F.alpha : 1;
@@ -1173,6 +1597,12 @@ const M3D = (() => {
       if (L.halo) G3.draw(PROPS.haloRing, M4.chain(Mh, M4.T(0, 1.08 + Math.sin(fr * 0.06) * 0.02, -0.04), M4.RX(-0.25)), { self: 0.9, alpha: al < 0.99 ? al : undefined });
       if (L.sprout) G3.draw(PROPS.sprout, M4.chain(Mh, M4.T(0, 0.9, -0.02), M4.RZ(Math.sin(fr * 0.08) * 0.15)), d);
       if (F.props.crown) G3.draw(PROPS.crown, M4.chain(Mh, M4.T(0, 0.92, 0)), d);
+      // Dash Yoshi burns: flames on the crest and the tail tip; Mech Yoshi's back thrusters fire
+      if (L.dash) {
+        G3.draw(PROPS.flame, M4.chain(Mh, M4.T(0, 0.86, -0.3), M4.RX(Math.PI + 0.9), M4.S(0.42, 0.6 * jitter(), 0.42)), { self: 1, alpha: al < 0.99 ? al : undefined });
+        G3.draw(PROPS.flame, M4.chain(Mb, M4.T(0, -0.1, -0.84), M4.RX(Math.PI / 2 + 0.2), M4.S(0.4, 0.55 * jitter(), 0.4)), { self: 1, alpha: al < 0.99 ? al : undefined });
+      }
+      if (L.mech && F.jetBack) for (const sx of [-1, 1]) G3.draw(PROPS.flame, M4.chain(Mb, M4.T(0.15 * sx, 0.2, -0.42), M4.S(0.5, 0.75 * jitter(), 0.5)), { self: 1 });
     }
     if (F.props.turnip) { const tp = rig.kind === 'toad' ? CAP_TOP : [0, 0.98, 0.02]; G3.draw(PROPS.turnip, M4.chain(Mh, M4.T(tp[0], tp[1] - 0.04, tp[2]), M4.S(1.5, 1.5, 1.5)), d); }
     if (P.tongue > 0.02) G3.draw(PROPS.tongue, M4.chain(Mh, M4.T(0, 0.2, 0.55), M4.S(1, 1, P.tongue * 2.6)), d);
@@ -1191,8 +1621,13 @@ const M3D = (() => {
       if (k === 'F') {
         if (F.props.pick) G3.draw(PROPS.pickaxe, Mhand, d);
         if (F.props.cane) G3.draw(PROPS.cane, M4.chain(Mf, M4.T(0, rig.handY, 0), M4.RZ(Math.PI), M4.RX(-0.1)), d);
-        const ws = rig.prop === 'pan' ? 1.6 : 1.45, Mw = M4.chain(Mhand, M4.RX(P.grip), M4.S(ws, ws, ws));
-        if (HELD[rig.prop] && !F.props.pick) {
+        const ws = HELD_S[rig.prop] || 1.45, Mw = M4.chain(Mhand, M4.RX(P.grip), M4.S(ws, ws, ws));
+        if (rig.look && rig.look.mech) G3.draw(PROPS.mechgun, Mhand, d);
+        if (F.dateHand) G3.draw(PROJ.date, M4.chain(Mhand, M4.T(0, 0.04, 0), M4.S(1.4, 1.4, 1.4)), d);
+        if (F.jellyHand) G3.draw(PROJ.jelly, M4.chain(Mhand, M4.T(0, 0.08, 0), M4.S(1.2, 1.2, 1.2)), d);
+        if (F.lanternHand) G3.draw(PROJ.lantern, M4.chain(Mhand, M4.T(0, -0.2, 0), M4.S(1.3, 1.3, 1.3)), { self: 0.6, tint: d.tint, alpha: d.alpha });
+        if (F.dishHand) G3.draw(TRAP.casserole, M4.chain(Mhand, M4.T(0, 0.06, 0.1), M4.S(0.32, 0.32, 0.32)), d);
+        if (HELD[rig.prop] && !F.props.pick && !F.noProp) {
           G3.draw(PROPS[rig.prop], Mw, d);
           if (rig.prop === 'wand') G3.draw(PROPS.wandStar, M4.chain(Mw, M4.T(0, 0.44, 0), M4.RZ(fr * 0.08), M4.S(0.26, 0.26, 0.26), M4.T(0, -0.42, 0)), { self: F.wandGlow ? 1 : 0.45 });
           if (F.panCake) G3.draw(PROJ.pancake, M4.chain(Mw, M4.T(0, 0.52, 0.06), M4.RX(Math.PI / 2), M4.S(0.8, 0.8, 0.8)), d);
@@ -1202,7 +1637,7 @@ const M3D = (() => {
       } else {
         if (F.props.parasol) { const w = 0.2 + 0.8 * (F.props.parasol === true ? 1 : F.props.parasol); G3.draw(PROPS.parasol, M4.chain(Mhand, M4.S(w, 1, w)), d); }
         // Knight Toad's shield rides the near forearm, turning to face forward when raised
-        if (rig.shield) { const s = F.shieldFwd || 0; G3.draw(PROPS.shield, M4.chain(Mf, M4.T(lerp(-0.12, 0, s), rig.handY + lerp(0.08, -0.12, s), 0.02), M4.RZ((s * Math.PI) / 2)), d); }
+        if (rig.shield) { const s = F.shieldFwd || 0; G3.draw(rig.shield === 'round' ? PROPS.roundShield : PROPS.shield, M4.chain(Mf, M4.T(lerp(-0.12, 0, s), rig.handY + lerp(0.08, -0.12, s), 0.02), M4.RZ((s * Math.PI) / 2)), d); }
       }
       if (k === 'F' && F.props.turnipLow) G3.draw(PROPS.turnip, M4.chain(Mhand, M4.T(0, -0.05, 0), M4.S(1.35, 1.35, 1.35)), d);
     }
@@ -1221,7 +1656,22 @@ const M3D = (() => {
     }
     if (F.anchor) G3.draw(PROPS.anchor, M4.chain(M0, M4.T(0, 0.75, 0.48), M4.RZ(Math.PI), M4.S(1.8, 1.8, 1.8)), d);
     if (F.minicannon) G3.draw(PROPS.minicannon, M4.chain(M0, M4.T(0, 0, 0.62), M4.S(1.4, 1.4, 1.4)), d);
-    if (F.cart) G3.draw(PROPS.cart, M4.chain(M0, M4.RY(Math.PI / 2), M4.T(0, -0.1, 0), M4.S(1.5, 1.5, 1.5)));
+    if (F.cart === 2) G3.draw(PROPS.longship, M4.chain(M0, M4.T(0, -P.bob - 0.2, 0), M4.S(1.6, 1.6, 1.6)), { inkW: 0.06 / 1.6 });
+    else if (F.cart) G3.draw(PROPS.cart, M4.chain(M0, M4.RY(Math.PI / 2), M4.T(0, -0.1, 0), M4.S(1.5, 1.5, 1.5)));
+    // the newer Toads' special-move gear
+    if (F.horn) G3.draw(PROPS.warhorn, M4.chain(Mh, M4.T(0.04, -0.02, 0.38)), d);
+    if (F.clarinet) G3.draw(PROPS.clarinet, M4.chain(Mh, M4.T(0.02, -0.04, 0.4)), d);
+    if (F.bike) G3.draw(PROPS.bike, M4.chain(M0, M4.T(0, -P.bob, 0)), d);
+    if (F.chair) G3.draw(PROPS.chair, M4.chain(M0, M4.T(0, -0.02, -0.08)), d);
+    if (F.sweets) G3.draw(PROPS.sweets, M4.chain(Mb, M4.T(-0.08, 0.22, 0.52)), d);
+    if (F.sarco) G3.draw(PROPS.sarco, M0, d);
+    if (F.lotusSeat) G3.draw(FXM.lotus, M4.chain(M0, M4.T(0, -P.bob + 0.04, 0), M4.S(0.75, 0.75, 0.75)), { self: 0.25, tint: d.tint, alpha: d.alpha });
+    if (F.lanternUp) G3.draw(PROJ.lantern, M4.chain(M0, M4.T(0, 2.95 + Math.sin(fr * 0.3) * 0.04, 0.12), M4.S(2.4, 2.4, 2.4)), { self: 0.7 });
+    // Subaru Toad's backpack: Beatrice sits in the carrier and turns to look out at you
+    if (rig.look && rig.look.beako && BEAKO) {
+      const bp = beakoPose(F, fr), s = 0.42;
+      drawRig(BEAKO, M4.chain(Mb, M4.T(0, -0.21 + Math.abs(Math.sin(fr * 0.09)) * 0.012, -0.86), M4.RY(-P.yaw * 0.85), M4.S(s, s, s)), bp.P, bp.F, fr);
+    }
     if (F.orb) G3.draw(PROJ.ball, M4.chain(M0, M4.T(0, 0.95, 0.7), M4.S(0.12 + 0.22 * F.orb, 0.12 + 0.22 * F.orb, 0.12 + 0.22 * F.orb)), { tint: [0.35, 0.12, 0.6, 0.85], self: 0.6 });
     // Pink Yoshi's heart balloon, Purple Yoshi's bubble
     if (F.balloon) { G3.draw(PROJ.heart, M4.chain(M0, M4.T(0, 2.75 + Math.sin(fr * 0.2) * 0.05, 0.1), M4.RZ(Math.sin(fr * 0.1) * 0.15), M4.S(2.6, 2.6, 2.6)), { self: 0.2 }); }
@@ -1336,20 +1786,51 @@ const M3D = (() => {
       }
       return;
     }
+    // Legion March: Gladiator Toad's Roman soldiers march in step behind big red shields
+    const legion = e.sub === 'legion';
     for (const [x0, dir] of fronts) for (let k = 0; k < 7; k++) {
-      const rig = guards ? MINIONS.guard : yo ? YCROWD[(k * 3 + (dir > 0 ? 0 : 5)) % YCROWD.length] : CROWD[(k + (dir > 0 ? 0 : 3)) % CROWD.length];
+      const rig = guards ? MINIONS.guard : legion ? MINIONS.legion : yo ? YCROWD[(k * 3 + (dir > 0 ? 0 : 5)) % YCROWD.length] : CROWD[(k + (dir > 0 ? 0 : 3)) % CROWD.length];
       if (!rig) continue;
-      const ph = fr * 0.55 + k * 1.3, s = Math.sin(ph), c = Math.cos(ph), x = x0 - dir * (k * 30 + (k % 2) * 10);
-      const P = pose0(dir), F = { props: {}, mouthO: k % 3 === 0, hurt: false, tint: null };
-      P.lean = 0.28; P.bob = Math.abs(s) * 0.12; P.slY = Math.max(0, c) * 0.15; P.slZ = s * 0.28; P.slR = -s * 0.5; P.srY = Math.max(0, -c) * 0.15; P.srZ = -s * 0.28; P.srR = s * 0.5;
-      P.an = guards ? [-0.9, -0.2, -0.4, 0] : [s * 1.1, -0.2, -0.55, 0]; P.af = guards ? [-1.2, 0.2, -0.3, 0] : [-s * 1.1, 0.2, -0.55, 0]; P.yaw = dir * 1.25;
+      const ph = legion ? fr * 0.35 : fr * 0.55 + k * 1.3, s = Math.sin(ph), c = Math.cos(ph), x = x0 - dir * (k * (legion ? 38 : 30) + (k % 2) * 10);
+      const P = pose0(dir), F = { props: {}, mouthO: legion ? s > 0.6 : k % 3 === 0, hurt: false, tint: null };
+      P.lean = legion ? 0.12 : 0.28; P.bob = Math.abs(s) * (legion ? 0.06 : 0.12); P.slY = Math.max(0, c) * 0.15; P.slZ = s * 0.28; P.slR = -s * 0.5; P.srY = Math.max(0, -c) * 0.15; P.srZ = -s * 0.28; P.srR = s * 0.5;
+      const armed = guards || legion;
+      P.an = armed ? [-0.9, -0.2, -0.4, 0] : [s * 1.1, -0.2, -0.55, 0]; P.af = armed ? [-1.2, 0.2, -0.3, 0] : [-s * 1.1, 0.2, -0.55, 0]; P.yaw = dir * 1.25;
       const scale = ((yo ? 66 : 62) * 0.86 * PX) / rig.h;
       drawRig(rig, M4.chain(M4.T(0, 0, CROWD_Z[k]), rootMatrix(x * PX, -sy * PX, P, scale)), P, F, fr, guards ? {
         extraProp: (Mb, Mh) => {
           G3.draw(PROPS.helmet, M4.chain(Mh, M4.T(CAP_TOP[0], CAP_TOP[1] - 0.5, CAP_TOP[2]), M4.S(1.7, 1.2, 1.7)));
           G3.draw(PROPS.spear, M4.chain(Mb, M4.T(0.45, 0.15, 0.3), M4.RX(1.1)));
         },
+      } : legion ? {
+        extraProp: Mb => {
+          G3.draw(PROPS.scutum, M4.chain(Mb, M4.T(-0.05, 0.05, 0.55), M4.S(1.5, 1.5, 1.5)));
+          G3.draw(PROPS.spear, M4.chain(Mb, M4.T(0.45, 0.2, 0.2), M4.RX(0.25)));
+        },
       } : null);
+    }
+  }
+  // Grand Choir: a choir of Toads in blue robes on risers behind the stage, singing out with every shockwave
+  function drawChoir(e, sy, fr) {
+    CHOIR.forEach((rig, k) => {
+      const P = pose0(1), F = { props: {}, mouthO: true, hurt: false, tint: null }, row = k % 2, x = (k - 3) * 62;
+      const pump = [22, 52, 82, 112].reduce((a, t0) => a + Math.max(0, 1 - Math.abs(e.t - t0) / 8), 0);
+      P.yaw = 0; P.hx = -0.1 - pump * 0.2; P.sy = 1 + pump * 0.05; P.side = Math.sin(fr * 0.08 + k) * 0.04;
+      P.an = [-1.0, -0.25, -1.2, 0]; P.af = [-1.0, 0.25, -1.2, 0];
+      F.blink = false;
+      drawRig(rig, M4.chain(M4.T(0, 0, -2.6 - row * 1.1), rootMatrix(x * PX, -(sy - 40 - row * 46) * PX, P, (62 * 0.9 * PX) / rig.h)), P, F, fr);
+    });
+  }
+  // Mazel Tov!: wedding guests of every colour dance in a ring around the Hasidic Toad
+  function drawHora(e, own, fr) {
+    if (!own) return;
+    const n = 8, R = 3.1, cx = own.x * PX, cy = -own.y * PX;
+    for (let k = 0; k < n; k++) {
+      const a = fr * 0.045 + (k / n) * Math.PI * 2, rig = CROWD[k % CROWD.length], ph = fr * 0.3 + k;
+      const P = pose0(1), F = { props: {}, mouthO: k % 2 === 0, hurt: false, tint: null };
+      P.yaw = -a; P.bob = Math.abs(Math.sin(ph)) * 0.14; P.slY = Math.max(0, Math.sin(ph)) * 0.18; P.srY = Math.max(0, -Math.sin(ph)) * 0.18;
+      ARMS_UP(P, 2.2 + Math.sin(ph) * 0.25);
+      drawRig(rig, M4.chain(M4.T(cx + Math.cos(a) * R, cy, Math.sin(a) * R * 0.55), rootMatrix(0, 0, P, (62 * 0.85 * PX) / rig.h)), P, F, fr);
     }
   }
   // portrait / attract helpers draw a rig at an arbitrary pose without a sim fighter
@@ -1362,5 +1843,5 @@ const M3D = (() => {
     if (rig.mount) drawCow(M4.chain(M0, M4.T(0, -COW_SADDLE * COW_K, 0.05), M4.RY(0.95), M4.S(COW_K, COW_K, COW_K)), 0, 'idle', fr, {});
     drawRig(rig, M4.chain(M0, M4.RY(P.spin), M4.T(0, P.bob, 0)), Object.assign(P, { yaw: 0 }), F, fr);
   }
-  return { PX, build, RIGS, ITEM, PROJ, PROPS, KARTS, TRAP, FXM, drawFighter, drawMinion, drawCrowd, drawRig, drawPreview, rootMatrix, pose0, targetPose, MEM, hexF, hueTint, CAP_TOP };
+  return { PX, build, RIGS, ITEM, PROJ, PROPS, KARTS, TRAP, FXM, drawFighter, drawMinion, drawCrowd, drawChoir, drawHora, drawRig, drawPreview, rootMatrix, pose0, targetPose, MEM, hexF, hueTint, CAP_TOP };
 })();

@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611061324';
+const GAME_BUILD = '202611061830';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -108,6 +108,45 @@ const CHARS = [
     sp: { n: 'milkshot', s: 'cowcharge', u: 'moonjump', d: 'cowbell' },
     blurb: 'Rides Buttercup the cow into battle. Milk splashes, an armored cattle charge, and a jump over the moon.',
     quote: 'Moooove over, the champ is here!' }),
+  // ---- warriors from around the world and through history ----
+  defChar({ id: 'samurai', name: 'Samurai Toad', look: { cap: '#ffffff', spot: '#c8202a', vest: '#b8202a', trim: '#2b2b3a', shirt: '#2b2b3a', pants: '#2b2b3a', stripes: true, hat: 'kabuto', sode: true, prop: 'katana' },
+    weight: 1.05, run: 6.8, air: 5.0, pow: 1.07, reach: 1.12, swoosh: '#ffe6f0', sp: { n: 'windslash', s: 'quickdraw', u: 'cranerise', d: 'iaicounter' },
+    blurb: 'A calm, disciplined swordsman. Wind slashes, a lightning quick-draw, and a counter that cuts the moment you swing.',
+    quote: 'My blade was drawn before you blinked.' }),
+  defChar({ id: 'viking', name: 'Viking Toad', look: { cap: '#ffffff', spot: '#d8343c', vest: '#7a4a24', trim: '#c8d0dc', hat: 'horned', beard: '#e0782a', prop: 'axe', shield: 'round' },
+    weight: 1.27, run: 5.8, air: 4.6, jump: 13.5, djump: 12, pow: 1.06, reach: 1.05, wide: 1.08, swoosh: '#fff0d0', sp: { n: 'axethrow', s: 'shieldrush', u: 'berserk', d: 'warhorn' },
+    blurb: 'A bearded raider from the frozen north. Throwing axes, a shield rush, and a war horn that blows foes away.',
+    quote: 'To the longships! Glory awaits!' }),
+  defChar({ id: 'pharaoh', name: 'Pharaoh Toad', look: { cap: '#ffffff', spot: null, capBands: ['#ffd23a', '#2f6bd8'], vest: '#f6f1e6', trim: '#ffd23a', shirt: '#f6f1e6', hat: 'nemes', collar: true, prop: 'sunstaff' },
+    weight: 1.08, run: 6.2, air: 5.2, pow: 1.1, reach: 1.12, swoosh: '#fff3c0', sp: { n: 'scarab', s: 'sandsurge', u: 'sunrise', d: 'sarcophagus' },
+    blurb: 'Boy-king of the dunes. Homing golden scarabs, a surging wave of sand, and a sarcophagus that bites back.',
+    quote: 'Bow before the ruler of the dunes!' }),
+  defChar({ id: 'gladiator', name: 'Gladiator Toad', look: { cap: '#ffffff', spot: '#c0392b', vest: '#b5442b', trim: '#d8a040', hat: 'galea', belt: true, galerus: true, prop: 'trident' },
+    weight: 1.15, run: 6.4, air: 5.0, pow: 1.08, reach: 1.2, swoosh: '#ffe8c8', sp: { n: 'tridenttoss', s: 'tridentlunge', u: 'polevault', d: 'nettrap' },
+    blurb: 'Champion of the arena. A thrown trident, a long lunge, a pole vault and a net that tangles anyone who steps in it.',
+    quote: 'The crowd roars, and so do I!' }),
+  // ---- Toads of many faiths (made with the players who asked for them): celebrations, food and music, never sacred objects ----
+  defChar({ id: 'buddhist', name: 'Buddhist Toad', look: { cap: '#ffffff', spot: '#f08a1f', vest: '#f08a1f', trim: '#8a2a2a', robe: true, sash: '#8a2a2a', prop: 'bostaff' },
+    weight: 1.02, run: 6.6, air: 5.4, jump: 15.5, pow: 1.07, reach: 1.12, swoosh: '#fff0c8', sp: { n: 'chipalm', s: 'staffwhirl', u: 'lotusfloat', d: 'stillmind' },
+    blurb: 'A peaceful kung fu monk. Chi palms, a whirling staff, a floating lotus, and a counter born of a still mind.',
+    quote: 'Breathe in... breathe out... and fly far away.' }),
+  defChar({ id: 'muslim', name: 'Muslim Toad', look: { cap: '#ffffff', spot: '#2fa86a', vest: '#2fa86a', trim: '#ffd23a', robe: true, robeCol: '#fbfbf6', shirt: '#fbfbf6', hat: 'kufi' },
+    weight: 1.04, run: 6.4, air: 5.2, pow: 1.06, swoosh: '#fff6d8', sp: { n: 'datetoss', s: 'lantern', u: 'lanternlift', d: 'eidsweets' },
+    blurb: 'All dressed up for Eid. Tosses dates, sends glowing lanterns drifting, and shares sweets to feel better.',
+    quote: 'Eid Mubarak! Sweets for everyone!' }),
+  defChar({ id: 'mormon', name: 'Mormon Toad', look: { cap: '#ffffff', spot: '#2557d6', vest: '#fbfbf8', trim: '#fbfbf8', shirt: '#fbfbf8', pants: '#2b2b34', tie: '#1f2a4a' },
+    weight: 1.04, run: 6.6, air: 5.2, pow: 1.05, swoosh: '#eef4ff', sp: { n: 'jelly', s: 'bikeride', u: 'highnote', d: 'potluck' },
+    blurb: 'A friendly missionary on a bicycle. Bouncy green jelly, a bike ride, a choir-sized high note and a hot potluck dish.',
+    quote: 'Hi there! Got a minute? This will only take one.' }),
+  defChar({ id: 'hasidic', name: 'Hasidic Toad', look: { cap: '#ffffff', spot: '#2b2b34', vest: '#1d1d24', trim: '#34343e', robe: true, robeCol: '#1d1d24', hat: 'blackhat', beard: '#6a4630', payot: '#6a4630' },
+    weight: 1.05, run: 6.2, air: 5.0, pow: 1.0, swoosh: '#fff6d8', sp: { n: 'latke', s: 'dreidel', u: 'chairlift', d: 'klezmer' },
+    blurb: 'Full of joy and always ready to dance. Latke tosses, a spinning dreidel, the wedding-chair lift and a klezmer tune.',
+    quote: 'Mazel tov! Now everybody dance!' }),
+  // Ice Climbers style: Beatrice rides in a backpack and casts his specials; her little spark follows his attacks
+  defChar({ id: 'subaru', name: 'Subaru Toad', look: { cap: '#2a2a33', spot: '#ffffff', vest: '#ececf0', trim: '#ff8a1f', shirt: '#ececf0', pants: '#2b2b34', sleeves: '#3a3a44', zip: true, eyes: 'sharp', beako: true },
+    weight: 0.96, run: 6.6, air: 5.4, jump: 15, djump: 13.5, pow: 1.0, duo: true, swoosh: '#e8d8ff', sp: { n: 'minya', s: 'shamac', u: 'murak', d: 'unseenhand' },
+    blurb: 'A stubborn kid in a tracksuit, with the tiny spirit Beatrice riding on his back. He hits softly; her magic does the rest.',
+    quote: 'Starting from zero... and winning! Right, Beako? ("Obviously, I suppose.")' }),
   // ---- the Yoshi clan ----
   defChar({ id: 'yoshi', name: 'Yoshi', yoshi: true, look: { body: '#3dbb3d', saddle: '#e8262b', shoe: '#ff8a1f' },
     weight: 1.05, run: 7.0, air: 5.4, jump: 15.5, djump: 16.5, h: 66, sp: { n: 'egg', s: 'eggroll', u: 'flutter', d: 'yoshipound' },
@@ -153,6 +192,15 @@ const CHARS = [
     weight: 0.7, run: 7.6, air: 5.8, jump: 14, djump: 15, jumps: 3, h: 50, pow: 0.9, sp: { n: 'gobble', s: 'babyroll', u: 'babyflutter', d: 'tantrum' },
     blurb: 'Tiny, speedy and always hungry. Gobbles foes up, rolls around and throws real tantrums.',
     quote: 'Yoshi! Yoshi! (Snack time!)' }),
+  defChar({ id: 'dashyoshi', name: 'Dash Yoshi', yoshi: true, look: { body: '#ff5a26', saddle: '#ffd23a', shoe: '#ffe066', spines: '#ffe066', belly: '#ffe2b8', dash: true },
+    weight: 1.0, run: 9.2, air: 5.8, jump: 15, djump: 15.5, h: 66, pow: 1.02, sp: { n: 'pepper', s: 'pepperdash', u: 'speedspiral', d: 'burnout' },
+    blurb: 'Ate a hot pepper and can\'t stop running! The fastest fighter, with fiery dashes, flying peppers and burning skid marks.',
+    quote: 'Yoshi! (Too slow! Gotta go!)' }),
+  // a Yoshi in a battle-robot suit, styled after Ray MK III: white armour, blue parts, a gold V-fin, green energy shots
+  defChar({ id: 'mechyoshi', name: 'Mech Yoshi', yoshi: true, look: { body: '#eef2f8', saddle: '#2f6bd8', shoe: '#2f6bd8', spines: '#ffd23a', belly: '#c8d0dc', mech: true },
+    weight: 1.25, run: 6.6, air: 5.6, jump: 14.5, djump: 15, h: 66, pow: 1.06, sp: { n: 'blaster', s: 'airdash', u: 'booster', d: 'bomblob' },
+    blurb: 'Yoshi inside a battle robot. A rapid blaster, air dashes, a booster jump and lobbed bombs, like a real robo battle.',
+    quote: 'Yoshi. (Systems online. Robo battle... GO!)' }),
 ];
 const CH = {};
 for (const c of CHARS) CH[c.id] = c;
@@ -189,6 +237,17 @@ const SPNAME = {
   seedspit: 'Melon Seeds', fruitroll: 'Fruit Roll', melonhop: 'Melon Bounce', fruitbomb: 'Fruit Bomb',
   gobble: 'Gobble Up', babyroll: 'Tumble Roll', babyflutter: 'Baby Flutter', tantrum: 'Tantrum',
   milkshot: 'Milk Splash', cowcharge: 'Cattle Charge', moonjump: 'Over the Moon', cowbell: 'Cowbell Clang',
+  windslash: 'Wind Slash', quickdraw: 'Quick Draw', cranerise: 'Rising Crane', iaicounter: 'Iai Counter',
+  axethrow: 'Axe Throw', shieldrush: 'Shield Rush', berserk: 'Berserker Leap', warhorn: 'War Horn',
+  scarab: 'Scarab Swarm', sandsurge: 'Sand Surge', sunrise: 'Rising Sun', sarcophagus: 'Sarcophagus',
+  tridenttoss: 'Trident Toss', tridentlunge: 'Trident Lunge', polevault: 'Pole Vault', nettrap: 'Net Trap',
+  chipalm: 'Chi Palm', staffwhirl: 'Staff Whirl', lotusfloat: 'Lotus Float', stillmind: 'Still Mind',
+  datetoss: 'Date Toss', lantern: 'Lantern Light', lanternlift: 'Lantern Lift', eidsweets: 'Eid Sweets',
+  jelly: 'Green Jelly', bikeride: 'Bike Ride', highnote: 'High Note', potluck: 'Potluck Potatoes',
+  latke: 'Latke Toss', dreidel: 'Dreidel Spin', chairlift: 'Chair Lift', klezmer: 'Klezmer Tune',
+  minya: 'Minya', shamac: 'Shamac', murak: 'Murak', unseenhand: 'Unseen Hand',
+  pepper: 'Hot Pepper', pepperdash: 'Pepper Dash', speedspiral: 'Speed Spiral', burnout: 'Burnout',
+  blaster: 'Ray Blaster', airdash: 'Air Dash', booster: 'Booster Jump', bomblob: 'Bomb Lob',
 };
 // each fighter's Smash Mushroom finale
 const FSNAME = {
@@ -200,7 +259,21 @@ const FSNAME = {
   redyoshi: 'Volcano Rain', blueyoshi: 'Feather Cyclone', yellowyoshi: 'Mega Quake', pinkyoshi: 'Heartbreaker',
   iceyoshi: 'Blizzard', purpleyoshi: 'Bubble Flood', blackyoshi: 'Shadow Pack', whiteyoshi: 'Sacred Light',
   orangeyoshi: 'Fruit Frenzy', babyyoshi: 'Yoshi Stampede', cowtoad: 'Cattle Stampede',
+  samurai: 'Cherry Blossom Storm', viking: 'Longship Raid', pharaoh: 'Great Pyramid', gladiator: 'Legion March',
+  buddhist: 'Lotus Bloom', muslim: 'Lantern Night', mormon: 'Grand Choir', hasidic: 'Mazel Tov!', subaru: 'El Minya',
+  dashyoshi: 'Supersonic Lap', mechyoshi: 'Full Burst',
 };
+// how each fighter sounds: a voice kind (toad, yoshi, girl, old, ghost, robot) and a pitch (1 = normal)
+const VOICE = {
+  toadette: { k: 'girl', p: 1.12 }, captain: { p: 0.94 }, toadsworth: { k: 'old', p: 0.62 }, yellow: { p: 1.04 }, purple: { p: 1.06 },
+  pirate: { p: 0.9 }, ninja: { p: 0.95 }, knight: { p: 0.84 }, chef: { p: 0.88 }, wizard: { p: 0.96 }, doctor: { p: 0.96 }, rocker: { p: 0.9 },
+  cowboy: { p: 0.88 }, ghost: { k: 'ghost' }, robo: { k: 'robot', p: 0.8 }, cowtoad: { p: 0.92 },
+  samurai: { p: 0.86 }, viking: { p: 0.72 }, pharaoh: { p: 0.95 }, gladiator: { p: 0.8 }, buddhist: { p: 0.9 }, muslim: { p: 0.96 },
+  mormon: { p: 1.02 }, hasidic: { p: 0.84 }, subaru: { p: 0.92 },
+  redyoshi: { p: 0.95 }, blueyoshi: { p: 1.05 }, yellowyoshi: { p: 0.85 }, pinkyoshi: { p: 1.12 }, blackyoshi: { p: 0.8 }, whiteyoshi: { p: 1.08 },
+  orangeyoshi: { p: 1.02 }, babyyoshi: { p: 1.35 }, dashyoshi: { p: 1.06 }, mechyoshi: { k: 'robot', p: 0.95 },
+};
+function voiceOf(id) { const C = CH[id] || {}, V = VOICE[id] || {}; return { k: V.k || (C.yoshi ? 'yoshi' : 'toad'), p: V.p || 1, yo: !!C.yoshi }; }
 
 // ---------- Normal attacks ----------
 // Hitboxes: a..b = active frames, x/y offset from feet (x mirrored by facing), r radius, d damage, k base knockback,
@@ -332,6 +405,17 @@ const FIGHT = {
   orangeyoshi: { style: 'yoshi', elem: 'fruit', moves: { fair: 'drill' } },
   babyyoshi:   { style: 'yoshi', elem: 'none', moves: { jab3: 'flurry', dair: 'stomp' } },
   cowtoad:     { style: 'toad', elem: 'milk', moves: { jab3: 'kick3', side: 'shove', dsmash: 'splitkick', dair: 'stomp' } },
+  samurai:     { style: 'blade', elem: 'sakura', idle: 'blade', moves: { side: 'thrust', fsmash: 'bigslash', dsmash: 'spinsweep' } },
+  viking:      { style: 'blade', elem: 'storm', idle: 'blade', gait: 'heavy', moves: { jab3: 'slash3', fsmash: 'capslam', dsmash: 'groundslam', dair: 'stomp' } },
+  pharaoh:     { style: 'mage', elem: 'sand', idle: 'proud', moves: { side: 'thrust', fsmash: 'lungethrust', up: 'upslash' } },
+  gladiator:   { style: 'blade', elem: 'bronze', idle: 'proud', moves: { side: 'thrust', down: 'lowpoke', fsmash: 'lungethrust', nair: 'spin' } },
+  buddhist:    { style: 'toad', elem: 'chi', idle: 'fight', moves: { jab: 'chop', jab3: 'palm3', side: 'roundhouse', up: 'flipup', fsmash: 'energypalm', usmash: 'rising', dsmash: 'spinsweep', nair: 'sexkick', uair: 'scissor' } },
+  muslim:      { style: 'toad', elem: 'lantern', idle: 'cheer', moves: { side: 'roundhouse', usmash: 'geyser', nair: 'aura' } },
+  mormon:      { style: 'toad', elem: 'hymn', idle: 'cheer', moves: { jab3: 'palm3', side: 'dropkick', usmash: 'geyser' } },
+  hasidic:     { style: 'toad', elem: 'joy', idle: 'groove', moves: { jab3: 'kick3', side: 'roundhouse', up: 'flipup', dsmash: 'spinsweep', nair: 'sexkick' } },
+  subaru:      { style: 'toad', elem: 'yin', moves: { jab3: 'kick3', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura' } },
+  dashyoshi:   { style: 'yoshi', elem: 'speed', moves: { side: 'dropkick', nair: 'sexkick', dair: 'stomp' } },
+  mechyoshi:   { style: 'yoshi', elem: 'plasma', idle: 'robot', gait: 'heavy', moves: { jab: 'punch', jab2: 'punch2', jab3: 'flurry', side: 'zapside', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura', fair: 'drill' } },
 };
 for (const c of CHARS) Object.assign(c, { style: c.yoshi ? 'yoshi' : 'toad', elem: 'none', idle: c.yoshi ? 'dino' : 'calm', gait: c.yoshi ? 'dino' : 'normal' }, FIGHT[c.id] || {});
 // what an element does to normal attacks (the rest only change the look of the hits)
@@ -347,6 +431,9 @@ const ELEM_COL = {
   magic: ['#e2c8ff', '#ffe066'], music: ['#ff7088', '#ffe066'], dust: ['#e6d2a8', '#c8a060'], spirit: ['#cfe0ff', '#ffffff'],
   spark: ['#ffb02e', '#fff6a0'], wind: ['#eaf6ff', '#bfe6ff'], rock: ['#c0a882', '#8a7a60'], light: ['#fff6c8', '#ffffff'],
   fruit: ['#ff5a5a', '#5fd04a'], gold: ['#ffd23a', '#fff6a0'], egg: ['#ffffff', '#5fd04a'], milk: ['#ffffff', '#f2e6c8'],
+  sakura: ['#ffc0d8', '#ffffff'], storm: ['#bfe0ff', '#fff36a'], sand: ['#f0d290', '#ffd23a'], bronze: ['#e0a050', '#fff0c8'],
+  chi: ['#ffe28a', '#ffffff'], lantern: ['#ffcf5a', '#fff6c8'], hymn: ['#9fc8ff', '#ffffff'], joy: ['#ffe066', '#7dbbff'],
+  yin: ['#b07dff', '#ff9cd0'], speed: ['#ff8a1f', '#ffe066'], plasma: ['#7dff9a', '#d8fff0'],
 };
 const ATK = {};
 for (const c of CHARS) {

@@ -36,8 +36,9 @@ const V3D = (() => {
   // ---------- world ----------
   const PSCALE = { turnip: 2.4, bomb: 1.9, ice: 1.9, fire: 1.9, boom: 2.3, psn: 1.5, egg: 2.1, coin: 2.2,
     cannon: 2.6, shuriken: 1.8, pancake: 2.2, star: 1.4, laser: 1.5, pill: 2.2, cork: 2.0, tumble: 2.1, boo: 2.2, fist: 2.4, pie: 2.3,
-    gust: 2.4, rock: 2.2, heart: 2.4, bubble: 2.4, shade: 2.6, lightbolt: 2.0, seed: 2.6, melon: 2.4, milk: 2.4 };
-  const FSDROP = { egg: 3.8, cannon: 3.6, pill: 3.4, fire: 4.4, melon: 3.4 };
+    gust: 2.4, rock: 2.2, heart: 2.4, bubble: 2.4, shade: 2.6, lightbolt: 2.0, seed: 2.6, melon: 2.4, milk: 2.4,
+    crescent: 2.4, axe: 2.0, scarab: 2.9, sandwave: 2.3, trident: 1.8, chi: 2.6, date: 2.9, lantern: 2.3, jelly: 2.3, latke: 2.1, pepper: 2.1, plasma: 1.5, crystal: 1.8, mbomb: 2.5 };
+  const FSDROP = { egg: 3.8, cannon: 3.6, pill: 3.4, fire: 4.4, melon: 3.4, lantern: 4.2, crystal: 3.8 };
   const fighterOf = (view, i) => (view.fighters || []).find(f => f.i === i);
   const clamp01 = x => (x < 0 ? 0 : x > 1 ? 1 : x);
   // a mesh drawn s times larger keeps the same ink-line width as everything else
@@ -51,6 +52,10 @@ const V3D = (() => {
       // Light Blue Yoshi's frost patch glints; Purple Yoshi's toxic puddle bubbles
       else if (p.sub === 'frost') G3.draw(T, M4.chain(M4.T(X, Y + 0.02, 0.35), M4.S(1.3, 1.3, 1.3)), ink(1.3, { self: 0.25 + 0.15 * Math.sin(fr * 0.12) }));
       else if (p.sub === 'toxic') G3.draw(T, M4.chain(M4.T(X, Y + 0.02, 0.35), M4.S(1.3, 1.3 * (1 + 0.12 * Math.sin(t * 0.3)), 1.3)), ink(1.3, { self: 0.15 }));
+      // Gladiator Toad's net, Mormon Toad's potluck dish, Dash Yoshi's burning skid marks
+      else if (p.sub === 'net') G3.draw(T, M4.chain(M4.T(X, Y + 0.01, 0.35), M4.S(1.25, 1, 1.25)), ink(1.25));
+      else if (p.sub === 'casserole') G3.draw(T, M4.chain(M4.T(X, Y, 0.35), M4.S(1.1, 1.1, 1.1)), ink(1.1));
+      else if (p.sub === 'flames') { const k = clamp01(((p.life || 200) - t) / 30); G3.draw(T, M4.chain(M4.T(X, Y, 0.35), M4.S(1.2, (1.1 + Math.sin(fr * 0.6) * 0.15) * k, 1.2)), { self: 1, alpha: 0.4 + 0.6 * k }); }
       else {
         // the amp thumps on each of its three pulses
         const pump = 1 + [20, 50, 80].reduce((a, t0) => a + Math.max(0, 1 - Math.abs(t - t0) / 5) * 0.14, 0);
@@ -60,14 +65,16 @@ const V3D = (() => {
     }
     if (p.k === 'fsdrop') {
       const s = FSDROP[p.sub] || 3.5;
-      G3.draw(P[p.sub] || P.egg, M4.chain(M4.T(X, Y, 0.4), M4.RZ(-t * 0.12 * dir), M4.S(s, s, s)), ink(s, p.sub === 'pill' ? { self: 0.15 } : p.sub === 'fire' ? { self: 1 } : null));
+      const glow = { pill: 0.15, fire: 1, lantern: 0.8, crystal: 0.45 }[p.sub], rot = p.sub === 'lantern' ? M4.RZ(Math.sin(t * 0.08 + p.id) * 0.2) : M4.RZ(-t * 0.12 * dir);
+      G3.draw(P[p.sub] || P.egg, M4.chain(M4.T(X, Y, 0.4), rot, M4.S(s, s, s)), ink(s, glow ? { self: glow } : null));
       // Volcano Rain: each fireball trails flames
       if (p.sub === 'fire') G3.draw(M3D.PROPS.flame, M4.chain(M4.T(X, Y + 0.5, 0.4), M4.RZ(Math.PI), M4.S(2.6, 2.2 + Math.random() * 0.8, 2.6)), { self: 1 });
       return;
     }
-    if (p.k === 'haze') {
-      const s = (p.r || 34) * PX;
-      G3.draw(P.haze, M4.chain(M4.T(X, Y, 0.35), M4.RZ(t * 0.02), M4.S(s, s * (0.9 + 0.1 * Math.sin(t * 0.2)), s)), { alpha: 0.5 * clamp01(((p.life || 200) - t) / 30), self: 0.2 });
+    if (p.k === 'haze' || p.k === 'shamac') {
+      // Purple Haze, and Subaru's Shamac: a cloud of black mist
+      const s = (p.r || 34) * PX, dark = p.k === 'shamac';
+      G3.draw(P.haze, M4.chain(M4.T(X, Y, 0.35), M4.RZ(t * 0.02), M4.S(s, s * (0.9 + 0.1 * Math.sin(t * 0.2)), s)), { alpha: (dark ? 0.72 : 0.5) * clamp01(((p.life || 200) - t) / 30), self: 0.2, tint: dark ? [0.1, 0.07, 0.16, 0.93] : undefined });
       return;
     }
     const m = P[p.k]; if (!m) return;
@@ -104,6 +111,19 @@ const V3D = (() => {
         R = M4.RY(dir > 0 ? 0 : Math.PI);
         G3.draw(M3D.PROPS.flame, M4.chain(M4.T(X - dir * 0.6, Y, 0.3), M4.RZ(dir > 0 ? -Math.PI / 2 : Math.PI / 2), M4.S(1.4, 1.6 + Math.random() * 0.6, 1.4)), { self: 1 });
         break;
+      // the v1.7 fighters' shots
+      case 'crescent': R = M4.RY(dir > 0 ? 0 : Math.PI); o = { self: 0.9, alpha: 0.9 }; break;
+      case 'axe': case 'mbomb': R = M4.RZ(-t * 0.35 * dir); break;
+      case 'scarab': R = M4.chain(M4.RY(dir > 0 ? 0 : Math.PI), M4.RX(0.3)); dy = Math.sin(t * 0.5) * 0.04; o = { self: 0.3 }; break;
+      case 'sandwave': R = M4.RY(dir > 0 ? 0 : Math.PI); s *= 1 + 0.1 * Math.sin(t * 0.5); break;
+      case 'trident': R = M4.RY(dir > 0 ? 0 : Math.PI); break;
+      case 'plasma': R = M4.RY(dir > 0 ? 0 : Math.PI); o = { self: 1 }; break;
+      case 'chi': s = ((p.r || 18) / 18) * 2.6; R = M4.RZ(t * 0.2); o = { self: 1, alpha: 0.85 }; break;
+      case 'date': case 'pepper': R = M4.RZ(-t * 0.3 * dir); break;
+      case 'lantern': R = M4.RZ(Math.sin(t * 0.1) * 0.15); o = { self: 0.75 }; break;
+      case 'jelly': R = M4.RZ(Math.sin(t * 0.4) * 0.2); s *= 1 + 0.1 * Math.sin(t * 0.8); break;
+      case 'latke': R = M4.chain(M4.RX(0.5), M4.RY(t * 0.5)); break;
+      case 'crystal': R = M4.chain(M4.RY(dir > 0 ? 0 : Math.PI), M4.RX(t * 0.3)); o = { self: 0.45 }; break;
     }
     G3.draw(m, M4.chain(M4.T(X, Y, 0.3), R, M4.T(0, dy, 0), M4.S(s, s, s)), ink(s, o));
   }
@@ -134,6 +154,8 @@ const V3D = (() => {
       case 'wave': M3D.drawCrowd(e, s0.y, fr); break;
       case 'meteor': {
         if (e.sub === 'cake') { const r = (e.r || 210) * PX * 0.42; G3.draw(F.cake, M4.chain(M4.T(X, Y - 30 * PX, 0), M4.RY(fr * 0.02), M4.S(r, r, r)), ink(r)); }
+        // Pharaoh Toad's Great Pyramid drops onto the stage
+        else if (e.sub === 'pyramid') { const r = (e.r || 240) * PX * 0.5; G3.draw(F.pyramid, M4.chain(M4.T(X, Y - r * 0.42, 0), M4.RY(0.5 + fr * 0.006), M4.S(r, r * 0.9, r)), ink(r)); }
         else { const r = (e.r || 250) * PX * 0.4; G3.draw(F.sun, M4.chain(M4.T(X, Y - 30 * PX + r, -0.5), M4.RZ(fr * 0.03), M4.S(r, r, r)), { self: 0.85 }); }
         break;
       }
@@ -154,17 +176,33 @@ const V3D = (() => {
         break;
       }
       case 'beam': if (e.t >= 24) {
+        // Mech Yoshi's Full Burst fires green energy
         const L = 46, cx = X + e.dir * L / 2, w = clamp01((e.t - 24) / 6) * (e.t > 70 ? clamp01(1 - (e.t - 70) / 10) : 1) + 0.01;
-        G3.draw(M3D.PROJ.ball, M4.chain(M4.T(cx, Y, 0.2), M4.S(L / 2, 2.4 * w, 1.3 * w)), { alpha: 0.5, tint: [1, 0.96, 0.7, 0.9], self: 1 });
+        G3.draw(M3D.PROJ.ball, M4.chain(M4.T(cx, Y, 0.2), M4.S(L / 2, 2.4 * w, 1.3 * w)), { alpha: 0.5, tint: e.sub === 'mech' ? [0.45, 1, 0.6, 0.9] : [1, 0.96, 0.7, 0.9], self: 1 });
         G3.draw(M3D.PROJ.ball, M4.chain(M4.T(cx, Y, 0.25), M4.S(L / 2, 1.1 * w, 0.6 * w)), { alpha: 0.85, tint: [1, 1, 1, 1], self: 1 });
       } break;
-      case 'sweep': if (e.t >= 16) {
+      // Lotus Bloom: a giant lotus opens beneath the Buddhist Toad
+      case 'burst': if (e.sub === 'lotus') {
+        const own = fighterOf(view, e.o);
+        if (own) { const k = clamp01(e.t / 30), s = 2.2 + 3.4 * k; G3.draw(F.lotus, M4.chain(M4.T(own.x * PX, -own.y * PX + 0.05, 0), M4.RY(fr * 0.01), M4.S(s, s * (0.4 + 0.6 * k), s)), { self: 0.35 }); }
+      } break;
+      // Mazel Tov!: a ring of dancing wedding guests
+      case 'lasso': if (e.sub === 'hora') M3D.drawHora(e, fighterOf(view, e.o), fr); break;
+      case 'sweep': if (e.t >= 16 && e.sub === 'petals') {
+        // Cherry Blossom Storm: a whirling column of petals sweeps the stage
+        const gy = -s0.y * PX, k = clamp01((e.t - 16) / 8) * clamp01((146 - e.t) / 10) + 0.05;
+        for (let q = 0; q < 64; q++) {
+          const h = ((q * 37 + fr * 3) % 160) / 160, a = fr * 0.22 + q * 1.7, rr = (0.6 + (q % 6) * 0.45) * k;
+          G3.draw(F.petal, M4.chain(M4.T(X + Math.cos(a) * rr, gy + h * 15, Math.sin(a) * rr), M4.RY(a * 2), M4.RX(a), M4.S(4, 4, 4)), { self: 0.5 });
+        }
+      } else if (e.t >= 16) {
         const k = clamp01((e.t - 16) / 8) * clamp01((146 - e.t) / 10) + 0.01, gy = -s0.y * PX;
         G3.draw(M3D.PROJ.ice3, M4.chain(M4.T(X, gy + 20, 0), M4.S(2.3 * k, 20, 1.2)), { alpha: 0.45, tint: [0.5, 1, 1, 0.9], self: 1 });
         G3.draw(M3D.PROJ.ice3, M4.chain(M4.T(X, gy + 20, 0.1), M4.S(0.9 * k, 20, 0.6)), { alpha: 0.85, tint: [0.92, 1, 1, 1], self: 1 });
       } break;
       case 'pulses': {
         const own = fighterOf(view, e.o); if (!own) break;
+        if (e.sub === 'choir') { M3D.drawChoir(e, s0.y, fr); break; }
         if (e.sub === 'quake') {
           // Mega Quake: every stomp throws boulders up out of the ground all along the stage
           const gy = -s0.y * PX;
@@ -351,7 +389,14 @@ const V3D = (() => {
         c.save(); c.globalAlpha = 0.45 * (1 - Math.abs(f.t - 11) / 9); c.fillStyle = '#fff6a8';
         c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + d * 200, y0 - 56); c.lineTo(x0 + d * 200, y0 + 96); c.closePath(); c.fill(); c.restore();
       }
-      if (f.sp === 'checkup' && f.t % 10 < 5) paperRing(c, cx, cy, f.h * 0.55, '#7dff8a', 2.5);
+      if ((f.sp === 'checkup' || f.sp === 'eidsweets') && f.t % 10 < 5) paperRing(c, cx, cy, f.h * 0.55, '#7dff8a', 2.5);
+      // Beatrice's magic circle glows over the backpack while she casts
+      if (f.ch === 'subaru' && f.st === 'spc' && (f.sp === 'minya' || f.sp === 'murak' || f.sp === 'fs')) {
+        const bx = cx - (f.fc || 1) * 20 * sc, by = top + 26 * sc;
+        c.save(); c.globalAlpha = 0.55 + 0.25 * Math.sin(fr * 0.4); paperRing(c, bx, by, (17 + Math.sin(fr * 0.3) * 2) * sc, '#c890ff', 3); paperRing(c, bx, by, 9 * sc, '#ff9cd0', 2); c.restore();
+      }
+      // the Samurai's and the Buddhist Toad's counters glow while they wait
+      if ((f.sp === 'iaicounter' || f.sp === 'stillmind' || f.sp === 'sarcophagus') && f.ctrT === 0 && f.t >= 3 && f.t <= 30) { c.save(); c.globalAlpha = 0.55 + Math.sin(fr * 0.8) * 0.2; paperRing(c, cx, cy, f.h * 0.66, f.sp === 'iaicounter' ? '#ffc0d8' : '#ffe28a', 4); c.restore(); }
       if (f.st === 'atk' && f.at) {
         const A = ATK[f.ch] && ATK[f.ch][f.at];
         if (A && A.fx !== 'tongue') for (const hb of A.hb) {
@@ -397,10 +442,10 @@ const V3D = (() => {
           c.restore();
           break;
         }
-        case 'burst': for (const [t0, r] of [[10, 150], [40, 235], [70, 340]]) { const q = (e.t - t0) / 16; if (q >= 0 && q <= 1) { c.save(); c.globalAlpha = 1 - q * 0.6; paperRing(c, e.x, e.y, r * q, '#ff8cc6', 10 * (1 - q) + 2); c.restore(); } } break;
-        case 'sweep': if (e.t < 140) { c.save(); c.globalAlpha = 0.8; paperRing(c, e.x, s0.y - 4, 30 + Math.sin(fr * 0.5) * 4, '#7dfcff', 3); c.restore(); } break;
+        case 'burst': for (const [t0, r] of [[10, 150], [40, 235], [70, 340]]) { const q = (e.t - t0) / 16; if (q >= 0 && q <= 1) { c.save(); c.globalAlpha = 1 - q * 0.6; paperRing(c, e.x, e.y, r * q, e.sub === 'lotus' ? '#ffe28a' : '#ff8cc6', 10 * (1 - q) + 2); c.restore(); } } break;
+        case 'sweep': if (e.t < 140) { c.save(); c.globalAlpha = 0.8; paperRing(c, e.x, s0.y - 4, 30 + Math.sin(fr * 0.5) * 4, e.sub === 'petals' ? '#ffc0d8' : '#7dfcff', 3); c.restore(); } break;
         case 'lasso': {
-          const own = fighterOf(view, e.o); if (!own || !e.vic) break;
+          const own = fighterOf(view, e.o); if (!own || !e.vic || e.sub === 'hora') break;
           for (const i of e.vic) { const v = fighterOf(view, i); if (v && v.st !== 'dead' && !v.out) paperRope(c, own.x, own.y - own.h * 0.9, v.x, v.y - v.h * 0.5, '#c8a060', 3, 'loop'); }
           break;
         }
@@ -487,9 +532,22 @@ const V3D = (() => {
     }
     c.restore();
   }
-  const TETHER = { canehook: { range: 84, a: 9, b: 13, col: '#8a5326', w: 5, end: 'hook' }, bandage: { range: 62, a: 8, b: 13, col: '#fbfbf6', w: 7, end: 'wrap' }, lasso: { range: 150, a: 10, b: 16, col: '#c8a060', w: 3, end: 'loop' } };
+  const TETHER = { canehook: { range: 84, a: 9, b: 13, col: '#8a5326', w: 5, end: 'hook' }, bandage: { range: 62, a: 8, b: 13, col: '#fbfbf6', w: 7, end: 'wrap' }, lasso: { range: 150, a: 10, b: 16, col: '#c8a060', w: 3, end: 'loop' },
+    unseenhand: { range: 150, a: 10, b: 18, col: '#2a1a3a', w: 9, end: 'hand' } };
   function paperRope(c, x0, y0, x1, y1, col, w, end) {
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2 + Math.min(18, Math.abs(x1 - x0) * 0.08);
+    // Subaru's Unseen Hand: a shadowy arm that ends in grasping fingers
+    if (end === 'hand') {
+      c.save(); c.globalAlpha *= 0.82;
+      pshadow(c, s => {
+        c.strokeStyle = s || col; c.lineCap = 'round'; c.lineWidth = w;
+        c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(mx, my - 20, x1, y1); c.stroke();
+        const a0 = Math.atan2(y1 - (my - 20), x1 - mx); c.lineWidth = Math.max(3, w * 0.5);
+        for (let k = -1.5; k <= 1.5; k++) { const a = a0 + k * 0.34; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x1 + Math.cos(a) * 18, y1 + Math.sin(a) * 18); c.stroke(); }
+      });
+      c.restore();
+      return;
+    }
     pshadow(c, s => {
       c.strokeStyle = s || col; c.lineWidth = w; c.lineCap = 'round';
       c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(mx, my, x1, y1); c.stroke();

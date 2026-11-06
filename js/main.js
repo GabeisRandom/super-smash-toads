@@ -213,7 +213,7 @@ function pickChar(id) {
   if (!canEditChar(k)) return;
   Lobby.slots[k].ch = id;
   if (k === Lobby.mySlot || (role === 'local' && Lobby.slots[k].type === 'p1')) { myChar = id; store('sst-char', id); }
-  Snd.play('select');
+  Snd.play('select'); voiceLine(90 + k, id, 'pick');
   if (role === 'client') netSend({ t: 'pick', ch: id });
   lobbyChanged();
 }
@@ -238,6 +238,8 @@ const ELEM_INFO = {
   shadow: 'Shadow: hits a little harder', light: 'Light: hits a little harder', steel: 'Steel: tough, solid hits',
   spore: 'Spore power', heart: 'Heart power', gold: 'Gold power', leaf: 'Leaf power', water: 'Sea power', heat: 'Kitchen heat',
   magic: 'Magic sparkles', cosmic: 'Cosmic power', dust: 'Desert dust', spirit: 'Spirit power', spark: 'Spark power', egg: 'Egg power', fruit: 'Fruit power',
+  sakura: 'Cherry blossoms', storm: 'Northern storm', sand: 'Desert sand', bronze: 'Arena bronze', chi: 'Inner calm', lantern: 'Lantern glow', hymn: 'Choir power',
+  joy: 'Pure joy', yin: "Beatrice's magic (her spark follows every hit)", speed: 'Pepper speed', plasma: 'Robo energy',
 };
 
 function renderLobby() {
@@ -402,6 +404,7 @@ function showResults(res, winner) {
   box.innerHTML = '';
   if (!res || !res.length) return;
   const w = res[0], C = CH[w.ch] || CH.toad;
+  if (winner >= 0) setTimeout(() => voiceLine(80, w.ch, 'win'), 400);
   const who = !w.tag || w.tag === 'CPU' ? `CPU ${C.name}` : w.tag;
   box.appendChild(el('h2', '', winner >= 0 ? `${who} wins!` : 'No contest!'));
   if (winner >= 0) {
@@ -695,6 +698,8 @@ const ELEM_FX = {
   fire: ['dot', 'rise'], heat: ['dot', 'rise'], spark: ['spark'], ice: ['flake'], poison: ['bubble', 'rise'], water: ['bubble'], electric: ['spark', 'zap'],
   wind: ['puff'], rock: ['dot', 'fall'], dust: ['puff'], music: ['note', 'rise'], heart: ['heart', 'rise'], shadow: ['puff'], spirit: ['puff'],
   light: ['star'], gold: ['star'], magic: ['star'], cosmic: ['star'], leaf: ['dot', 'fall'], spore: ['dot', 'fall'], egg: ['star'], fruit: ['dot', 'fall'], steel: ['spark'],
+  sakura: ['dot', 'fall'], storm: ['spark'], sand: ['puff'], bronze: ['spark'], chi: ['star'], lantern: ['star', 'rise'], hymn: ['note', 'rise'], joy: ['star', 'rise'],
+  yin: ['star'], speed: ['spark'], plasma: ['spark'],
 };
 function elemBurst(el, x, y, p, n0) {
   const F = ELEM_FX[el], C = ELEM_COL[el];
@@ -710,11 +715,23 @@ function elemBurst(el, x, y, p, n0) {
   }
   if (mode === 'zap' && p > 6) Snd.play('zap');
 }
+// ---- character voices: each fighter yelps, grunts and cheers in their own voice, but not too often ----
+const VO = { last: {}, glob: 0 };
+const NO_VOICE_SP = { scream: 1, scold: 1, brigade: 1, cowcharge: 1, moonjump: 1, minya: 1, murak: 1, haunt: 1, crown: 1 };
+const BEAKO_VOICE = { k: 'girl', p: 2.05, yo: false };
+function voiceLine(i, ch, line, chance) {
+  if (!CH[ch] || (chance !== undefined && Math.random() >= chance)) return;
+  const now = performance.now(), key = i + ':' + ch, gap = line === 'ko' || line === 'win' ? 0 : line === 'hurt' ? 260 : 330;
+  if (now - (VO.last[key] || 0) < gap || (line !== 'ko' && now - VO.glob < 90)) return;
+  VO.last[key] = now; VO.glob = now;
+  Snd.talk(voiceOf(ch), line);
+}
 function handleEvents(evs) {
   for (const e of evs) {
     switch (e.t) {
       case 'hit':
         Snd.play('hit', e.p);
+        if (e.v !== undefined && e.p >= 5) voiceLine(e.v, e.vch, 'hurt', e.p >= 12 ? 0.9 : 0.45);
         burst(e.x, e.y, 6 + Math.min(14, e.p), '#fff6a0', 4 + e.p * 0.4, 'spark', 4, 16);
         addP({ type: 'ring', x: e.x, y: e.y, size: 30 + e.p * 3, color: '#ffffff', life: 14 });
         if (e.p > 16) cam.shake = Math.max(cam.shake, e.p * 0.7);
@@ -724,16 +741,42 @@ function handleEvents(evs) {
       case 'block': Snd.play('block'); addP({ type: 'ring', x: e.x, y: e.y, size: 40, color: '#9fe4ff', life: 12 }); break;
       case 'break': Snd.play('break'); burst(e.x, e.y, 12, '#ffe866', 6, 'star', 6, 40); say('Shield break!', e.x, e.y - 20, 22, '#ffe866'); break;
       case 'ko':
-        Snd.play('ko'); cam.shake = 28;
+        Snd.play('ko'); cam.shake = 28; voiceLine(e.i, e.ch, 'ko');
         addP({ type: 'ko', x: e.x, y: e.y, color: SLOT_COLORS[e.i] || '#fff', rot: Math.random(), life: 50 });
         burst(e.x, e.y, 30, SLOT_COLORS[e.i] || '#fff', 14, 'spark', 6, 30);
         break;
       case 'jump': Snd.play('jump'); for (const s of [-1, 1]) addP({ type: 'puff', x: e.x + s * 10, y: e.y - 4, vx: s * 1.5, size: 7, color: 'rgba(255,255,255,0.7)', life: 18 }); break;
-      case 'djump': Snd.play('djump'); addP({ type: 'ring', x: e.x, y: e.y - 6, size: 28, color: 'rgba(255,255,255,0.8)', life: 14 }); break;
+      case 'djump': Snd.play('djump'); addP({ type: 'ring', x: e.x, y: e.y - 6, size: 28, color: 'rgba(255,255,255,0.8)', life: 14 }); if (e.i !== undefined) voiceLine(e.i, e.c, 'jump', 0.35); break;
       case 'walljump': Snd.play('djump'); for (let k = 0; k < 4; k++) addP({ type: 'puff', x: e.x, y: e.y + (k - 1.5) * 12, vx: (e.dir || 1) * 1.6, size: 6, color: 'rgba(255,255,255,0.85)', life: 16 }); break;
       case 'uplift': Snd.play('flutter'); addP({ type: 'ring', x: e.x, y: e.y - 6, size: 22, color: 'rgba(255,246,170,0.9)', life: 12 }); break;
       case 'land': for (const s of [-1, 1]) addP({ type: 'puff', x: e.x + s * 12, y: e.y - 3, vx: s * 1.2, size: 5, color: 'rgba(255,255,255,0.55)', life: 14 }); break;
-      case 'swing': Snd.play('swing'); break;
+      case 'swing': Snd.play('swing'); if (e.i !== undefined) voiceLine(e.i, e.ch, e.s ? 'smash' : Math.random() < 0.5 ? 'atk' : 'atk2', e.s ? 1 : 0.4); break;
+      case 'spc': if (e.sp === 'fs') voiceLine(e.i, e.ch, 'smash'); else if (!NO_VOICE_SP[e.sp]) voiceLine(e.i, e.ch, 'spc', 0.55); break;
+      // ---- the v1.7 fighters ----
+      case 'beako': // Beatrice calls out her spell from the backpack
+        Snd.play('magic'); Snd.talk(BEAKO_VOICE, 'spc'); if (e.s) say(e.s, e.x, e.y, 22, '#d8b0ff');
+        for (let k = 0; k < 6; k++) addP({ type: 'star', x: e.x + (Math.random() - 0.5) * 40, y: e.y + 30, vy: -0.8, size: 5, color: k % 2 ? '#c890ff' : '#ff9cd0', life: 24 });
+        break;
+      case 'beakospark': Snd.play('sparkle'); burst(e.x, e.y, 5, '#c890ff', 4, 'star', 4, 16); break;
+      case 'unseen': Snd.play('unseen'); for (let k = 0; k < 6; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 50, y: e.y + 40, vy: -0.5, size: 8, tint: 'rgba(40,20,60,0.7)', life: 26 }); break;
+      case 'slashfx': Snd.play('slash'); break;
+      case 'petal': addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 30, y: e.y, vy: 0.6, size: 5, color: Math.random() < 0.5 ? '#ffc0d8' : '#ffffff', life: 26, g: 0.02 }); break;
+      case 'warhorn': break;
+      case 'hornblast': Snd.play('hornblast'); cam.shake = Math.max(cam.shake, 8); addP({ type: 'ring', x: e.x, y: e.y, size: (e.r || 120) * 1.1, color: '#e6eef8', life: 20 }); addP({ type: 'ring', x: e.x, y: e.y, size: (e.r || 120) * 0.7, color: '#ffffff', life: 16 }); break;
+      case 'scarabfx': Snd.play('scarab'); break;
+      case 'sandfx': if (e.dir) Snd.play('sand'); addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 30, y: e.y + 10, vy: -0.4, size: 7, tint: 'rgba(232,207,143,0.85)', life: 22 }); break;
+      case 'netcatch': Snd.play('netcatch'); say('Caught!', e.x, e.y - 30, 20, '#ffe0a8'); break;
+      case 'chifx': Snd.play('chi'); addP({ type: 'ring', x: e.x, y: e.y, size: 40, color: '#ffe28a', life: 14 }); break;
+      case 'chime': Snd.play('chime'); break;
+      case 'jellyfx': Snd.play('jelly'); break;
+      case 'bikebell': Snd.play('bikebell'); say('Ring ring!', e.x, e.y - 70, 18, '#bfe0ff'); break;
+      case 'highnote': Snd.play('choir'); break;
+      case 'notefx': addP({ type: 'note', x: e.x + (Math.random() - 0.5) * 30, y: e.y, vy: 1, size: 6, color: Math.random() < 0.5 ? '#9fc8ff' : '#ffffff', life: 26 }); break;
+      case 'notesfx': for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 + Math.random(); addP({ type: 'note', x: e.x + Math.cos(a) * 20, y: e.y + Math.sin(a) * 20, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3 - 1, size: 6, color: k % 2 ? '#ffe066' : '#7dbbff', life: 28, drag: 0.94 }); } addP({ type: 'ring', x: e.x, y: e.y, size: (e.r || 60) * 1.1, color: '#ffe066', life: 14 }); break;
+      case 'klezmer': Snd.play('klezmer'); break;
+      case 'chairup': Snd.play('chairup'); say('Hey!', e.x, e.y - 90, 22, '#ffe066'); break;
+      case 'blasterfx': Snd.play('blaster'); addP({ type: 'ring', x: e.x, y: e.y, size: 18, color: '#7dff9a', life: 10 }); break;
+      case 'yinfx': addP({ type: 'star', x: e.x + (Math.random() - 0.5) * 30, y: e.y + 10, vy: 0.8, size: 5, color: Math.random() < 0.5 ? '#c890ff' : '#ff9cd0', life: 22 }); break;
       case 'pluck': Snd.play('pluck'); burst(e.x, e.y - 4, 7, '#8a5a2b', 3, 'dot', 4, 20); if (e.s) say(e.s, e.x, e.y - 90, 20, '#ffe866'); break;
       case 'pop': Snd.play('pop'); burst(e.x, e.y, 8, { ice: '#9fe4ff', fire: '#ff8a1f', coin: '#ffd23a', psn: '#9b4fd6', gust: '#ffffff', rock: '#a08a6a', heart: '#ff5aa8', bubble: '#c890ff', shade: '#8a7ad8', lightbolt: '#fff6c8', seed: '#5a4a30', melon: '#5fd04a' }[e.k] || '#f6f2ff', 4, 'dot', 4, 20); break;
       case 'throw': if (e.k) { Snd.play('throwfx'); addP({ type: 'ring', x: e.x, y: e.y, size: 34, color: '#ffe0a8', life: 12 }); } else Snd.play('shoot'); break;
@@ -792,7 +835,7 @@ function handleEvents(evs) {
         addP({ type: 'ring', x: e.x, y: e.y, size: 70, color: '#ffffff', life: 16 }); burst(e.x, e.y, 10, '#bff4ff', 8, 'spark', 5, 16);
         say('PARRY!', e.x, e.y - 50, 26, '#bff4ff');
         break;
-      case 'taunt': Snd.play(['booty', 'laugh', 'yawn', 'flip'][e.n - 1]); if (e.n === 1) for (let k = 0; k < 3; k++) say('♪', e.x + (k - 1) * 22, e.y - 10 - k * 8, 20, '#ffe866'); break;
+      case 'taunt': Snd.play(['booty', 'laugh', 'yawn', 'flip'][e.n - 1]); if (e.n === 1) for (let k = 0; k < 3; k++) say('♪', e.x + (k - 1) * 22, e.y - 10 - k * 8, 20, '#ffe866'); if (e.n === 1 || e.n === 4) voiceLine(e.i, e.ch, 'taunt'); break;
       case 'grab': Snd.play('grab'); addP({ type: 'ring', x: e.x, y: e.y, size: 26, color: '#ffe0a8', life: 12 }); break;
       case 'poof': Snd.play('poof'); for (let k = 0; k < 7; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 40, y: e.y + (Math.random() - 0.5) * 40, vy: -0.6, size: 9, color: e.k === 'magic' ? 'rgba(220,190,255,0.9)' : e.k === 'ghost' ? 'rgba(210,225,255,0.8)' : 'rgba(150,150,170,0.85)', life: 26 }); if (e.k === 'magic') burst(e.x, e.y, 8, '#e2c8ff', 4, 'star', 5, 26); break;
       case 'log': say('*log*', e.x, e.y - 20, 18, '#d8a060'); burst(e.x, e.y, 8, '#a8743c', 4, 'dot', 6, 30); break;
@@ -837,7 +880,12 @@ function handleEvents(evs) {
       case 'sbgone': say('The Smash Mushroom drifted away...', e.x, e.y - 40, 18, '#ffe9a8'); break;
       case 'fsready': Snd.play('fsready'); burst(e.x, e.y, 26, '#ffe066', 10, 'star', 8, 40); say('SMASH POWER!', e.x, e.y - 40, 28, '#ff7ad9'); break;
       case 'fs': Snd.play('fs'); cam.shake = Math.max(cam.shake, 16); fsBanner = { ch: e.ch, i: e.i, t: 0 }; burst(e.x, e.y, 20, '#ffe066', 9, 'star', 8, 36); break;
-      case 'fsgo': Snd.play({ wave: 'stampede', rain: 'cannon', beam: 'laser', sweep: 'laser', pulses: 'amp', freeze: 'frost', meteor: 'boom', vortex: 'wind', flood: 'steam', burst: 'crown', rush: 'horn', clone: 'poof', lasso: 'spin', swarm: 'boo', fist: 'rocket' }[e.k] || 'fs'); break;
+      case 'fsgo':
+        Snd.play({ petals: 'wind', ship: 'hornblast', legion: 'roar', lotus: 'chime', lantern: 'chime', choir: 'choir', hora: 'mazeltov', crystal: 'magic', dash: 'boostpad', mech: 'laser' }[e.sub] ||
+          { wave: 'stampede', rain: 'cannon', beam: 'laser', sweep: 'laser', pulses: 'amp', freeze: 'frost', meteor: 'boom', vortex: 'wind', flood: 'steam', burst: 'crown', rush: 'horn', clone: 'poof', lasso: 'spin', swarm: 'boo', fist: 'rocket' }[e.k] || 'fs');
+        if (e.sub === 'hora') say('Mazel Tov!', e.x, e.y - 120, 34, '#ffe066');
+        if (e.sub === 'crystal') { say('El Minya!', e.x, e.y - 120, 30, '#d8b0ff'); Snd.talk(BEAKO_VOICE, 'spc'); }
+        break;
       case 'frost': Snd.play('frost'); break;
       case 'shatter': Snd.play('break'); burst(e.x, e.y, 16, '#bff0ff', 9, 'dot', 7, 30); break;
       // --- stage hazards ---
