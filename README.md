@@ -116,6 +116,7 @@ Tips:
 - Up to 4 players can be in a room. The host's computer runs the match, so whoever has the steadiest internet should host.
 - Online play connects your browsers directly to each other. If a friend can't join, have them try again. Some school or work networks block these connections, so a home network or a phone hotspot can help.
 - Once you're in a room you can play match after match. After each game, press **Rematch!** or go back to the lobby to pick new fighters.
+- If the game won't open for you but works for your friends, press **Ctrl+F5** on the game page to load a fresh copy, or play the downloaded **Super-Smash-Toads.html** file instead. On networks that block the online library, the game still opens and Local Play still works.
 
 ## Playing on one computer
 

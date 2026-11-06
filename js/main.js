@@ -4,7 +4,7 @@ const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
 const STEP = 1000 / 60;
 // mode: 'start' (the press-start screen) -> 'title' (the main page) -> 'lobby' -> 'game'
-let mode = 'start', role = 'local', G = null, paused = false, frameCount = 0, pendingEv = [], resultsShown = false, goT = 0;
+let mode = $('start') ? 'start' : 'title', role = 'local', G = null, paused = false, frameCount = 0, pendingEv = [], resultsShown = false, goT = 0;
 let fsBanner = null; // the finale title card: { ch, i, t }
 const cam = { x: 0, y: -150, z: 0.8, shake: 0 };
 // origami 3D renderer when WebGL is available; the 2D vector renderer stays as a fallback
@@ -293,7 +293,7 @@ for (const b of document.querySelectorAll('[data-opt]')) {
 }
 
 function showScreen(id) {
-  for (const s of ['start', 'title', 'lobby']) $(s).classList.toggle('hidden', s !== id);
+  for (const s of ['start', 'title', 'lobby']) if ($(s)) $(s).classList.toggle('hidden', s !== id);
   for (const s of ['pause', 'results']) $(s).classList.add('hidden');
 }
 // the start menu: the first press also wakes up the sound, so the boot-up sting plays right as you start
@@ -447,10 +447,24 @@ function leaveOnline() {
   return old;
 }
 function randCode() { const a = 'ABCDEFGHJKMNPQRSTUVWXYZ'; let s = ''; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
+// the online library (PeerJS) loads in the background; if it isn't here yet, wait for it a little instead of failing
+const NO_ONLINE = 'Online play could not load: no internet, or this network blocks it. Local Play still works!';
+function withPeer(go) {
+  if (typeof Peer !== 'undefined') return go();
+  if (window.PEER_FAILED || performance.now() > 20000) { titleMsg(NO_ONLINE); return; }
+  if (withPeer.wait) return; // already waiting
+  titleMsg('Loading online play…');
+  const t0 = performance.now();
+  withPeer.wait = setInterval(() => {
+    if (typeof Peer === 'undefined' && !window.PEER_FAILED && performance.now() - t0 < 12000) return;
+    clearInterval(withPeer.wait); withPeer.wait = 0;
+    if (typeof Peer === 'undefined') titleMsg(NO_ONLINE); else { titleMsg(''); go(); }
+  }, 200);
+}
 
 function hostOnline(tries) {
   Snd.init();
-  if (typeof Peer === 'undefined') { titleMsg('Online library failed to load. Check your internet connection.'); return; }
+  if (typeof Peer === 'undefined') return withPeer(() => hostOnline(tries));
   leaveOnline();
   titleMsg('Opening a room…');
   const code = randCode();
@@ -526,7 +540,7 @@ function joinOnline(code) {
   Snd.init();
   code = String(code || '').toUpperCase().trim();
   if (!/^[A-Z]{4}$/.test(code)) { titleMsg('Room codes are 4 letters, like TOAD.'); return; }
-  if (typeof Peer === 'undefined') { titleMsg('Online library failed to load. Check your internet connection.'); return; }
+  if (typeof Peer === 'undefined') return withPeer(() => joinOnline(code));
   leaveOnline();
   titleMsg('Connecting to room ' + code + '…');
   const peer = new Peer({ debug: 1 });
@@ -887,7 +901,7 @@ try {
 (function loop() { pump(); draw(); requestAnimationFrame(loop); })();
 
 // ---------- Title wiring ----------
-$('start').onclick = pressStart;
+if ($('start')) $('start').onclick = pressStart;
 $('btnLocal').onclick = () => { Snd.init(); leaveOnline(); role = 'local'; localDefaults(); titleMsg(''); showLobby(); };
 $('btnHost').onclick = () => hostOnline(0);
 $('btnJoin').onclick = () => joinOnline($('codeIn').value);
