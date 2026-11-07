@@ -37,7 +37,7 @@ const V3D = (() => {
   const PSCALE = { turnip: 2.4, bomb: 1.9, ice: 1.9, fire: 1.9, boom: 2.3, psn: 1.5, egg: 2.1, coin: 2.2,
     cannon: 2.6, shuriken: 1.8, pancake: 2.2, star: 1.4, laser: 1.5, pill: 2.2, cork: 2.0, tumble: 2.1, boo: 2.2, fist: 2.4, pie: 2.3,
     gust: 2.4, rock: 2.2, heart: 2.4, bubble: 2.4, shade: 2.6, lightbolt: 2.0, seed: 2.6, melon: 2.4, milk: 2.4,
-    crescent: 2.4, axe: 2.0, scarab: 2.9, sandwave: 2.3, trident: 1.8, chi: 2.6, date: 2.9, lantern: 2.3, jelly: 2.3, latke: 2.1, pepper: 2.1, plasma: 1.5, crystal: 1.8, mbomb: 2.5 };
+    gift: 2.4, crescent: 2.4, axe: 2.0, scarab: 2.9, sandwave: 2.3, trident: 1.8, chi: 2.6, date: 2.9, lantern: 2.3, jelly: 2.3, latke: 2.1, pepper: 2.1, plasma: 1.5, crystal: 1.8, mbomb: 2.5 };
   const FSDROP = { egg: 3.8, cannon: 3.6, pill: 3.4, fire: 4.4, melon: 3.4, lantern: 4.2, crystal: 3.8 };
   const fighterOf = (view, i) => (view.fighters || []).find(f => f.i === i);
   const clamp01 = x => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -56,6 +56,8 @@ const V3D = (() => {
       else if (p.sub === 'net') G3.draw(T, M4.chain(M4.T(X, Y + 0.01, 0.35), M4.S(1.25, 1, 1.25)), ink(1.25));
       else if (p.sub === 'casserole') G3.draw(T, M4.chain(M4.T(X, Y, 0.35), M4.S(1.1, 1.1, 1.1)), ink(1.1));
       else if (p.sub === 'flames') { const k = clamp01(((p.life || 200) - t) / 30); G3.draw(T, M4.chain(M4.T(X, Y, 0.35), M4.S(1.2, (1.1 + Math.sin(fr * 0.6) * 0.15) * k, 1.2)), { self: 1, alpha: 0.4 + 0.6 * k }); }
+      // Catholic Toad's piñata sways on its string
+      else if (p.sub === 'pinata') G3.draw(T, M4.chain(M4.T(X, Y + 2.08, 0.35), M4.RZ(Math.sin(fr * 0.07 + p.id) * 0.12), M4.T(0, -2.08, 0), M4.RY(fr * 0.01), M4.S(1.3, 1.3, 1.3)), ink(1.3));
       else {
         // the amp thumps on each of its three pulses
         const pump = 1 + [20, 50, 80].reduce((a, t0) => a + Math.max(0, 1 - Math.abs(t - t0) / 5) * 0.14, 0);
@@ -69,6 +71,12 @@ const V3D = (() => {
       G3.draw(P[p.sub] || P.egg, M4.chain(M4.T(X, Y, 0.4), rot, M4.S(s, s, s)), ink(s, glow ? { self: glow } : null));
       // Volcano Rain: each fireball trails flames
       if (p.sub === 'fire') G3.draw(M3D.PROPS.flame, M4.chain(M4.T(X, Y + 0.5, 0.4), M4.RZ(Math.PI), M4.S(2.6, 2.2 + Math.random() * 0.8, 2.6)), { self: 1 });
+      return;
+    }
+    // Hindu Toad's Holi powder: a puff of bright colour (each throw picks the next colour)
+    if (p.k === 'gulal') {
+      const s = (p.r || 18) * PX * 0.95, C = [[1, 0.3, 0.65], [0.3, 0.85, 0.35], [1, 0.85, 0.2], [0.25, 0.55, 1]][(p.id || 0) % 4];
+      G3.draw(P.haze, M4.chain(M4.T(X, Y, 0.35), M4.RZ(t * 0.05), M4.S(s, s * 0.9, s)), { alpha: 0.85, self: 0.35, tint: [C[0], C[1], C[2], 0.95] });
       return;
     }
     if (p.k === 'haze' || p.k === 'shamac') {
@@ -124,6 +132,7 @@ const V3D = (() => {
       case 'jelly': R = M4.RZ(Math.sin(t * 0.4) * 0.2); s *= 1 + 0.1 * Math.sin(t * 0.8); break;
       case 'latke': R = M4.chain(M4.RX(0.5), M4.RY(t * 0.5)); break;
       case 'crystal': R = M4.chain(M4.RY(dir > 0 ? 0 : Math.PI), M4.RX(t * 0.3)); o = { self: 0.45 }; break;
+      case 'gift': R = M4.RZ(-t * 0.2 * dir); break;
     }
     G3.draw(m, M4.chain(M4.T(X, Y, 0.3), R, M4.T(0, dy, 0), M4.S(s, s, s)), ink(s, o));
   }
@@ -162,6 +171,11 @@ const V3D = (() => {
       case 'vortex': {
         const R = (e.r || 230) * PX;
         if (e.sub === 'rune') G3.draw(M3D.TRAP.rune, M4.chain(M4.T(X, Y, -1.0), M4.RX(Math.PI / 2), M4.RY(fr * 0.04), M4.S(R * 0.7, R * 0.7, R * 0.7)), { self: 1 });
+        // Festival of Colors: a whirlwind of Holi powder in every colour
+        else if (e.sub === 'color') for (let q = 0; q < 30; q++) {
+          const a = fr * 0.13 + q * 0.83, rr = R * (0.2 + ((q * 37) % 26) / 26 * 0.78), h = (((q * 53) % 20) - 10) * 0.045 * R, C = [[1, 0.3, 0.65], [0.3, 0.85, 0.35], [1, 0.85, 0.2], [0.25, 0.55, 1], [0.65, 0.35, 0.9]][q % 5];
+          G3.draw(M3D.PROJ.haze, M4.chain(M4.T(X + Math.cos(a) * rr, Y + h * 0.5 + Math.sin(a * 0.5) * 0.3, Math.sin(a) * rr * 0.45), M4.RZ(a), M4.S(0.75, 0.75, 0.75)), { alpha: 0.8, self: 0.35, tint: [C[0], C[1], C[2], 0.95] });
+        }
         else for (let q = 0; q < 26; q++) {
           // Leaf Storm whirls leaves; Blue Yoshi's Feather Cyclone whirls feathers
           const a = fr * 0.13 + q * 0.83, rr = R * (0.22 + ((q * 37) % 26) / 26 * 0.75), h = (((q * 53) % 20) - 10) * 0.045 * R;
@@ -430,7 +444,7 @@ const V3D = (() => {
         }
         case 'vortex': {
           c.save(); c.lineCap = 'round';
-          for (let k = 0; k < 5; k++) { c.globalAlpha = 0.5; c.strokeStyle = e.sub === 'rune' ? '#d8b0ff' : '#ffffff'; c.lineWidth = 4; c.beginPath(); c.arc(e.x, e.y, (e.r || 230) * (0.3 + k * 0.15), fr * 0.15 + k, fr * 0.15 + k + 1.6); c.stroke(); }
+          for (let k = 0; k < 5; k++) { c.globalAlpha = 0.5; c.strokeStyle = e.sub === 'rune' ? '#d8b0ff' : e.sub === 'color' ? ['#ff9cd0', '#9fe8a0', '#ffe28a', '#9fc8ff', '#d8b0ff'][k] : '#ffffff'; c.lineWidth = 4; c.beginPath(); c.arc(e.x, e.y, (e.r || 230) * (0.3 + k * 0.15), fr * 0.15 + k, fr * 0.15 + k + 1.6); c.stroke(); }
           c.restore();
           break;
         }

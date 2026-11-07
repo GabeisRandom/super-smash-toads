@@ -240,6 +240,7 @@ const ELEM_INFO = {
   magic: 'Magic sparkles', cosmic: 'Cosmic power', dust: 'Desert dust', spirit: 'Spirit power', spark: 'Spark power', egg: 'Egg power', fruit: 'Fruit power',
   sakura: 'Cherry blossoms', storm: 'Northern storm', sand: 'Desert sand', bronze: 'Arena bronze', chi: 'Inner calm', lantern: 'Lantern glow', hymn: 'Choir power',
   joy: 'Pure joy', yin: "Beatrice's magic (her spark follows every hit)", speed: 'Pepper speed', plasma: 'Robo energy',
+  fiesta: 'Fiesta confetti', holi: 'Holi colors',
 };
 
 function renderLobby() {
@@ -699,7 +700,7 @@ const ELEM_FX = {
   wind: ['puff'], rock: ['dot', 'fall'], dust: ['puff'], music: ['note', 'rise'], heart: ['heart', 'rise'], shadow: ['puff'], spirit: ['puff'],
   light: ['star'], gold: ['star'], magic: ['star'], cosmic: ['star'], leaf: ['dot', 'fall'], spore: ['dot', 'fall'], egg: ['star'], fruit: ['dot', 'fall'], steel: ['spark'],
   sakura: ['dot', 'fall'], storm: ['spark'], sand: ['puff'], bronze: ['spark'], chi: ['star'], lantern: ['star', 'rise'], hymn: ['note', 'rise'], joy: ['star', 'rise'],
-  yin: ['star'], speed: ['spark'], plasma: ['spark'],
+  yin: ['star'], speed: ['spark'], plasma: ['spark'], fiesta: ['dot', 'fall'], holi: ['puff'],
 };
 function elemBurst(el, x, y, p, n0) {
   const F = ELEM_FX[el], C = ELEM_COL[el];
@@ -776,6 +777,21 @@ function handleEvents(evs) {
       case 'klezmer': Snd.play('klezmer'); break;
       case 'chairup': Snd.play('chairup'); say('Hey!', e.x, e.y - 90, 22, '#ffe066'); break;
       case 'blasterfx': Snd.play('blaster'); addP({ type: 'ring', x: e.x, y: e.y, size: 18, color: '#7dff9a', life: 10 }); break;
+      // Catholic Toad
+      case 'bellswing': Snd.play('swing'); break;
+      case 'bellring': Snd.play('bell'); say('Ding-dong!', e.x, e.y - 50, 20, '#ffe28a'); addP({ type: 'ring', x: e.x, y: e.y, size: (e.r || 44) * 1.4, color: '#ffe28a', life: 16 }); break;
+      case 'popper': Snd.play('popper'); for (let k = 0; k < 14; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 30, y: e.y, vx: (Math.random() - 0.5) * 6, vy: -2 - Math.random() * 6, g: 0.18, size: 5, color: ['#ff4fa0', '#ffd23a', '#3fbf4a', '#2f7cf6'][k % 4], life: 40 }); break;
+      case 'confetti': addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 30, y: e.y + 10, vy: 0.5, g: 0.05, size: 4, color: ['#ff4fa0', '#ffd23a', '#3fbf4a', '#2f7cf6'][Math.floor(Math.random() * 4)], life: 30 }); break;
+      case 'candy':
+        Snd.play('candy'); say('Candy!', e.x, e.y - 40, 22, '#ff9cd0'); cam.shake = Math.max(cam.shake, 6);
+        for (let k = 0; k < 18; k++) { const a = (k / 18) * Math.PI * 2; addP({ type: k % 3 ? 'dot' : 'star', x: e.x, y: e.y, vx: Math.cos(a) * 5, vy: Math.sin(a) * 5 - 2, g: 0.2, size: 5, color: ['#ff4fa0', '#ffd23a', '#3fbf4a', '#2f7cf6', '#ff8a1f'][k % 5], life: 40, drag: 0.97 }); }
+        break;
+      // Hindu Toad
+      case 'gulalfx': Snd.play('poof2'); break;
+      case 'dandiyafx': Snd.play('clack'); break;
+      case 'kitefx': addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 20, y: e.y + 10, vy: 0.6, size: 6, tint: ['rgba(255,120,190,0.7)', 'rgba(120,220,130,0.7)', 'rgba(255,220,90,0.7)', 'rgba(110,160,255,0.7)'][Math.floor(Math.random() * 4)], life: 20 }); break;
+      case 'squirt': Snd.play('squirt'); break;
+      case 'splashfx': Snd.play('squirt'); for (let k = 0; k < 6; k++) addP({ type: 'dot', x: e.x + (e.dir || 1) * (Math.random() * 30), y: e.y + (Math.random() - 0.5) * 20, vx: (e.dir || 1) * (2 + Math.random() * 3), vy: -1 - Math.random() * 2, g: 0.2, size: 5, color: ['#ff4fa0', '#3fbf4a', '#ffd23a', '#2f7cf6'][k % 4], life: 26 }); break;
       case 'yinfx': addP({ type: 'star', x: e.x + (Math.random() - 0.5) * 30, y: e.y + 10, vy: 0.8, size: 5, color: Math.random() < 0.5 ? '#c890ff' : '#ff9cd0', life: 22 }); break;
       case 'pluck': Snd.play('pluck'); burst(e.x, e.y - 4, 7, '#8a5a2b', 3, 'dot', 4, 20); if (e.s) say(e.s, e.x, e.y - 90, 20, '#ffe866'); break;
       case 'pop': Snd.play('pop'); burst(e.x, e.y, 8, { ice: '#9fe4ff', fire: '#ff8a1f', coin: '#ffd23a', psn: '#9b4fd6', gust: '#ffffff', rock: '#a08a6a', heart: '#ff5aa8', bubble: '#c890ff', shade: '#8a7ad8', lightbolt: '#fff6c8', seed: '#5a4a30', melon: '#5fd04a' }[e.k] || '#f6f2ff', 4, 'dot', 4, 20); break;
@@ -794,10 +810,12 @@ function handleEvents(evs) {
       case 'smoke': addP({ type: 'puff', x: e.x, y: e.y, vy: 2, size: 8, color: 'rgba(200,200,210,0.7)', life: 24 }); break;
       case 'cloud': Snd.play('bounce'); for (let k = 0; k < 6; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 100, y: e.y + 10, size: 10, color: 'rgba(255,255,255,0.9)', life: 22 }); break;
       case 'boom': {
-        const s = e.s || 1;
-        Snd.play('boom'); cam.shake = Math.max(cam.shake, 12 * s * (e.k === 'quake' ? 1.6 : 1));
+        const s = e.s || 1, soft = e.k === 'gulal' || e.k === 'gift';
+        // a gift box pops into confetti and a puff of Holi powder bursts softly: no big bang for those
+        Snd.play(soft ? (e.k === 'gift' ? 'candy' : 'poof2') : 'boom'); if (!soft) cam.shake = Math.max(cam.shake, 12 * s * (e.k === 'quake' ? 1.6 : 1));
         // a few landings and finales carry their own flavour: rocks, feathers, melon bits, hearts...
-        const BK = { quake: ['#c0a882', '#8a7a60'], feather: ['#ffffff', '#e6eef8'], melon: ['#5fd04a', '#ff5a5a'], love: ['#ff8cc6', '#ff5aa8'], bubble: ['#c890ff', '#ffffff'], light: ['#fff6c8', '#ffe066'] }[e.k];
+        const BK = { quake: ['#c0a882', '#8a7a60'], feather: ['#ffffff', '#e6eef8'], melon: ['#5fd04a', '#ff5a5a'], love: ['#ff8cc6', '#ff5aa8'], bubble: ['#c890ff', '#ffffff'], light: ['#fff6c8', '#ffe066'],
+          gift: ['#ff4fa0', '#ffd23a'], gulal: ['#ff4fa0', '#3fbf4a'], color: ['#ff4fa0', '#ffd23a'], pyramid: ['#e8cf8f', '#ffd23a'], lantern: ['#ffcf5a', '#fff6c8'], crystal: ['#c8a0ff', '#ff9cd0'] }[e.k];
         burst(e.x, e.y, 16 * s, BK ? BK[0] : '#ff8a1f', 7 * s, 'dot', 10, 28); burst(e.x, e.y, 10 * s, BK ? BK[1] : '#ffe866', 5 * s, 'dot', 8, 22);
         addP({ type: 'ring', x: e.x, y: e.y, size: 90 * s, color: e.k === 'quake' ? '#e6d2a8' : '#ffffff', life: 16 });
         if (e.star) burst(e.x, e.y - 10, 8, '#ffe866', 7, 'star', 8, 34);
@@ -881,9 +899,11 @@ function handleEvents(evs) {
       case 'fsready': Snd.play('fsready'); burst(e.x, e.y, 26, '#ffe066', 10, 'star', 8, 40); say('SMASH POWER!', e.x, e.y - 40, 28, '#ff7ad9'); break;
       case 'fs': Snd.play('fs'); cam.shake = Math.max(cam.shake, 16); fsBanner = { ch: e.ch, i: e.i, t: 0 }; burst(e.x, e.y, 20, '#ffe066', 9, 'star', 8, 36); break;
       case 'fsgo':
-        Snd.play({ petals: 'wind', ship: 'hornblast', legion: 'roar', lotus: 'chime', lantern: 'chime', choir: 'choir', hora: 'mazeltov', crystal: 'magic', dash: 'boostpad', mech: 'laser' }[e.sub] ||
+        Snd.play({ petals: 'wind', ship: 'hornblast', legion: 'roar', lotus: 'chime', lantern: 'chime', choir: 'choir', hora: 'mazeltov', crystal: 'magic', dash: 'boostpad', mech: 'laser', parranda: 'parranda', color: 'candy' }[e.sub] ||
           { wave: 'stampede', rain: 'cannon', beam: 'laser', sweep: 'laser', pulses: 'amp', freeze: 'frost', meteor: 'boom', vortex: 'wind', flood: 'steam', burst: 'crown', rush: 'horn', clone: 'poof', lasso: 'spin', swarm: 'boo', fist: 'rocket' }[e.k] || 'fs');
         if (e.sub === 'hora') say('Mazel Tov!', e.x, e.y - 120, 34, '#ffe066');
+        if (e.sub === 'parranda') say('¡Feliz Navidad!', e.x, e.y - 120, 30, '#ffe066');
+        if (e.sub === 'color') say('Happy Holi!', e.x, e.y - 120, 32, '#ff9cd0');
         if (e.sub === 'crystal') { say('El Minya!', e.x, e.y - 120, 30, '#d8b0ff'); Snd.talk(BEAKO_VOICE, 'spc'); }
         break;
       case 'frost': Snd.play('frost'); break;

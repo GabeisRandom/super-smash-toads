@@ -907,6 +907,16 @@ function updTrap(g, p) {
     if (p.t === 20 || p.t === 50 || p.t === 80) { blastAt(g, p.x, p.y - 24, p.o, 110, 5 * p.pm, 7, 0.07, 55); g.ev.push({ t: 'amp', x: p.x, y: p.y - 24 }); }
     return false;
   }
+  // Catholic Toad's piñata: the first foe to bump into it bursts it open, and candy flies everywhere
+  if (p.sub === 'pinata') {
+    for (const v of g.fighters) {
+      if (v.i === p.o || !hittable(v) || !circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
+      applyHit(g, v, fighterBy(g, p.o), 9 * p.pm, 9, 0.12, 80, v.x >= p.x ? 1 : -1, { proj: true });
+      g.ev.push({ t: 'candy', x: p.x, y: p.y });
+      return true;
+    }
+    return false;
+  }
   for (const v of g.fighters) {
     if (v.i === p.o || !hittable(v)) continue;
     if (Math.abs(v.x - p.x) > p.r + v.w / 2 || v.y < p.y - 30 || v.y > p.y + 8) continue;
@@ -1228,6 +1238,7 @@ const FSDEF = {
   gladiator: { k: 'wave', sub: 'legion' }, buddhist: { k: 'burst', sub: 'lotus' }, muslim: { k: 'rain', sub: 'lantern', n: 16, cols: 1 },
   mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 18 },
   dashyoshi: { k: 'rush', sub: 'dash', spd: 24 }, mechyoshi: { k: 'beam', sub: 'mech' },
+  catholic: { k: 'wave', sub: 'parranda' }, hindu: { k: 'vortex', sub: 'color', move: 2.6, life: 210, r: 240 },
 };
 // finales that keep their user busy until they finish
 const FS_LOCK = { burst: 1, rush: 1, clone: 1, beam: 1, pulses: 1, lasso: 1 };
@@ -1722,7 +1733,8 @@ function spTrap(o) {
       f.vx *= 0.8;
       if (f.t === (o.at || 10)) {
         if (o.one) for (const p of g.proj) if (p.k === 'trap' && p.o === f.i && p.sub === o.sub) p.t = p.life + 1;
-        spawnProj(g, f, { k: 'trap', sub: o.sub, x: f.x + f.fc * (o.ox || 40) * f.sc, y: f.y - 12, vx: 0, vy: 0, grav: 0, d: 1, kb: 0, gr: 0, ang: 0, r: o.r || 40, life: o.life || 360 });
+        // a hanging trap (the piñata) stays up in the air where it was hung
+        spawnProj(g, f, { k: 'trap', sub: o.sub, x: f.x + f.fc * (o.ox || 40) * f.sc, y: f.y - (o.hang || 12), landed: o.hang ? 1 : 0, vx: 0, vy: 0, grav: 0, d: 1, kb: 0, gr: 0, ang: 0, r: o.r || 40, life: o.life || 360 });
       }
       return f.t >= (o.end || 22) ? 1 : 0;
     },
@@ -2213,6 +2225,17 @@ const SP = {
   chairlift: spRise({ vy: 18, hold: 8, end: 30, drift: 5, ev: 'chairup', hb: { a: 0, b: 14, y: 0, r: 34, d: 8, k: 7, g: 0.1, ang: 80 } }),
   klezmer: spPulse({ slot: 'd', cd: 60, ev: 'klezmer', at: [{ t: 10, r: 56, d: 3, k: 3, g: 0.02, ang: 60, ev: 'notesfx' }, { t: 20, r: 64, d: 3, k: 3, g: 0.02, ang: 60, ev: 'notesfx' },
     { t: 30, r: 76, d: 6, k: 8, g: 0.1, ang: 55, ev: 'notesfx' }], end: 40 }),
+  // --- Catholic Toad: Christmas, Three Kings Day and fiesta fun ---
+  kingsgift: spShot({ cd: 32, at: 9, end: 22, p: { k: 'gift', vx: 7, vy: -6, grav: 0.42, bounce: 5, bounces: 1, d: 7, kb: 6, gr: 0.08, ang: 50, r: 14, life: 140, explode: { r: 44, d: 4, k: 5, g: 0.05 } } }),
+  bellring: spPulse({ slot: 's', cd: 40, ev: 'bellswing', at: [{ t: 10, x: 50, r: 44, d: 10, k: 8, g: 0.12, ang: 40, fwd: 1, ev: 'bellring' }], end: 28 }),
+  partypopper: spRise({ vy: 17.5, hold: 5, end: 28, drift: 5, ev: 'popper', trail: 'confetti', hb: { a: 0, b: 10, y: 0.2, r: 36, d: 8, k: 7, g: 0.1, ang: 85 } }),
+  pinata: spTrap({ sub: 'pinata', life: 420, r: 30, cd: 200, at: 12, ox: 44, one: true, hang: 58 }),
+  // --- Hindu Toad: Holi colors, the dandiya dance and festival kites ---
+  colorthrow: spShot({ cd: 28, at: 8, end: 20, ev: 'gulalfx', p: { k: 'gulal', vx: 8, vy: -1, grav: 0.05, d: 5, kb: 5, gr: 0.07, ang: 45, r: 18, grow: 0.25, life: 45, ghost: 1, fuse: 1, explode: { r: 40, d: 3, k: 4, g: 0.04 } } }),
+  dandiya: spDash({ cd: 36, speed: 8.5, startup: 4, frames: 22, hb: { x: 14, y: 0.5, r: 34, d: 2, k: 2, g: 0.01, ang: 60, every: 5 }, fin: { x: 28, d: 7, k: 8, g: 0.12, ang: 40 }, lag: 10, ev: 'dandiyafx' }),
+  kitefly: spFloat({ frames: 70, rise: 4.8, drift: 6, ev: 'kitefx' }),
+  pichkari: spPulse({ slot: 'd', cd: 40, ev: 'squirt', at: [{ t: 8, x: 46, r: 30, d: 3, k: 3, g: 0.02, ang: 40, fwd: 1, ev: 'splashfx' }, { t: 14, x: 60, r: 32, d: 3, k: 3, g: 0.02, ang: 40, fwd: 1, ev: 'splashfx' },
+    { t: 20, x: 74, r: 34, d: 5, k: 7, g: 0.09, ang: 35, fwd: 1, ev: 'splashfx' }], end: 30 }),
   // --- Subaru Toad: Beatrice casts from the backpack (the Unseen Hand is his own) ---
   minya: spCast(spShot({ cd: 40, at: 10, end: 24, shots: [-1.2, 0, 1.2].map(vy => ({ k: 'crystal', vx: 11, vy, d: 3.5, kb: 3.5, gr: 0.04, ang: 35, r: 10, life: 40, ghost: 1, oy: 0.75 })) }), 'beako', 'Minya!'),
   shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 2.2, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 40, ghost: 1 } }), 'beako', 'Shamac!'),

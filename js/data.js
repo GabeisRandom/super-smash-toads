@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611061830';
+const GAME_BUILD = '202611061859';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -142,6 +142,14 @@ const CHARS = [
     weight: 1.05, run: 6.2, air: 5.0, pow: 1.0, swoosh: '#fff6d8', sp: { n: 'latke', s: 'dreidel', u: 'chairlift', d: 'klezmer' },
     blurb: 'Full of joy and always ready to dance. Latke tosses, a spinning dreidel, the wedding-chair lift and a klezmer tune.',
     quote: 'Mazel tov! Now everybody dance!' }),
+  defChar({ id: 'catholic', name: 'Catholic Toad', look: { cap: '#ffffff', spot: '#2f6bd8', vest: '#fbfbf8', trim: '#fbfbf8', robe: true, robeCol: '#c8202a', shirt: '#c8202a', cross: true },
+    weight: 1.0, run: 6.4, air: 5.2, pow: 1.04, swoosh: '#fff2c8', sp: { n: 'kingsgift', s: 'bellring', u: 'partypopper', d: 'pinata' },
+    blurb: 'In his Sunday-best choir robes and always ready to celebrate: Three Kings gift boxes, a ringing bell, a party-popper jump and a candy piñata.',
+    quote: 'Ring the bells, it\'s time for a fiesta!' }),
+  defChar({ id: 'hindu', name: 'Hindu Toad', look: { cap: '#ffffff', spotCols: ['#ff4fa0', '#3fbf4a', '#ffd23a', '#2f7cf6'], vest: '#fbfbf6', trim: '#ffd23a', robe: true, robeCol: '#fbfbf6', shirt: '#fbfbf6', pants: '#fbfbf6', holi: true },
+    weight: 0.98, run: 6.8, air: 5.4, jump: 15.5, pow: 1.02, swoosh: '#ffe0f0', sp: { n: 'colorthrow', s: 'dandiya', u: 'kitefly', d: 'pichkari' },
+    blurb: 'Celebrating Holi, the festival of colors! Clouds of bright powder, the dandiya stick dance, a festival kite to fly home on and a squirt of colored water.',
+    quote: 'Happy Holi! Hold still... this color looks great on you!' }),
   // Ice Climbers style: Beatrice rides in a backpack and casts his specials; her little spark follows his attacks
   defChar({ id: 'subaru', name: 'Subaru Toad', look: { cap: '#2a2a33', spot: '#ffffff', vest: '#ececf0', trim: '#ff8a1f', shirt: '#ececf0', pants: '#2b2b34', sleeves: '#3a3a44', zip: true, eyes: 'sharp', beako: true },
     weight: 0.96, run: 6.6, air: 5.4, jump: 15, djump: 13.5, pow: 1.0, duo: true, swoosh: '#e8d8ff', sp: { n: 'minya', s: 'shamac', u: 'murak', d: 'unseenhand' },
@@ -248,6 +256,8 @@ const SPNAME = {
   minya: 'Minya', shamac: 'Shamac', murak: 'Murak', unseenhand: 'Unseen Hand',
   pepper: 'Hot Pepper', pepperdash: 'Pepper Dash', speedspiral: 'Speed Spiral', burnout: 'Burnout',
   blaster: 'Ray Blaster', airdash: 'Air Dash', booster: 'Booster Jump', bomblob: 'Bomb Lob',
+  kingsgift: "Three Kings' Gift", bellring: 'Bell Ring', partypopper: 'Party Popper', pinata: 'Piñata',
+  colorthrow: 'Color Throw', dandiya: 'Dandiya Dance', kitefly: 'Kite Flight', pichkari: 'Pichkari Splash',
 };
 // each fighter's Smash Mushroom finale
 const FSNAME = {
@@ -261,6 +271,7 @@ const FSNAME = {
   orangeyoshi: 'Fruit Frenzy', babyyoshi: 'Yoshi Stampede', cowtoad: 'Cattle Stampede',
   samurai: 'Cherry Blossom Storm', viking: 'Longship Raid', pharaoh: 'Great Pyramid', gladiator: 'Legion March',
   buddhist: 'Lotus Bloom', muslim: 'Lantern Night', mormon: 'Grand Choir', hasidic: 'Mazel Tov!', subaru: 'El Minya',
+  catholic: 'Christmas Parranda', hindu: 'Festival of Colors',
   dashyoshi: 'Supersonic Lap', mechyoshi: 'Full Burst',
 };
 // how each fighter sounds: a voice kind (toad, yoshi, girl, old, ghost, robot) and a pitch (1 = normal)
@@ -269,7 +280,7 @@ const VOICE = {
   pirate: { p: 0.9 }, ninja: { p: 0.95 }, knight: { p: 0.84 }, chef: { p: 0.88 }, wizard: { p: 0.96 }, doctor: { p: 0.96 }, rocker: { p: 0.9 },
   cowboy: { p: 0.88 }, ghost: { k: 'ghost' }, robo: { k: 'robot', p: 0.8 }, cowtoad: { p: 0.92 },
   samurai: { p: 0.86 }, viking: { p: 0.72 }, pharaoh: { p: 0.95 }, gladiator: { p: 0.8 }, buddhist: { p: 0.9 }, muslim: { p: 0.96 },
-  mormon: { p: 1.02 }, hasidic: { p: 0.84 }, subaru: { p: 0.92 },
+  mormon: { p: 1.02 }, hasidic: { p: 0.84 }, catholic: { p: 0.98 }, hindu: { p: 1.04 }, subaru: { p: 0.92 },
   redyoshi: { p: 0.95 }, blueyoshi: { p: 1.05 }, yellowyoshi: { p: 0.85 }, pinkyoshi: { p: 1.12 }, blackyoshi: { p: 0.8 }, whiteyoshi: { p: 1.08 },
   orangeyoshi: { p: 1.02 }, babyyoshi: { p: 1.35 }, dashyoshi: { p: 1.06 }, mechyoshi: { k: 'robot', p: 0.95 },
 };
@@ -413,6 +424,8 @@ const FIGHT = {
   muslim:      { style: 'toad', elem: 'lantern', idle: 'cheer', moves: { side: 'roundhouse', usmash: 'geyser', nair: 'aura' } },
   mormon:      { style: 'toad', elem: 'hymn', idle: 'cheer', moves: { jab3: 'palm3', side: 'dropkick', usmash: 'geyser' } },
   hasidic:     { style: 'toad', elem: 'joy', idle: 'groove', moves: { jab3: 'kick3', side: 'roundhouse', up: 'flipup', dsmash: 'spinsweep', nair: 'sexkick' } },
+  catholic:    { style: 'toad', elem: 'fiesta', idle: 'cheer', moves: { jab3: 'palm3', side: 'shove', usmash: 'geyser', nair: 'aura' } },
+  hindu:       { style: 'toad', elem: 'holi', idle: 'groove', moves: { jab3: 'flurry', side: 'roundhouse', usmash: 'geyser', nair: 'spin', fair: 'drill' } },
   subaru:      { style: 'toad', elem: 'yin', moves: { jab3: 'kick3', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura' } },
   dashyoshi:   { style: 'yoshi', elem: 'speed', moves: { side: 'dropkick', nair: 'sexkick', dair: 'stomp' } },
   mechyoshi:   { style: 'yoshi', elem: 'plasma', idle: 'robot', gait: 'heavy', moves: { jab: 'punch', jab2: 'punch2', jab3: 'flurry', side: 'zapside', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura', fair: 'drill' } },
@@ -434,6 +447,7 @@ const ELEM_COL = {
   sakura: ['#ffc0d8', '#ffffff'], storm: ['#bfe0ff', '#fff36a'], sand: ['#f0d290', '#ffd23a'], bronze: ['#e0a050', '#fff0c8'],
   chi: ['#ffe28a', '#ffffff'], lantern: ['#ffcf5a', '#fff6c8'], hymn: ['#9fc8ff', '#ffffff'], joy: ['#ffe066', '#7dbbff'],
   yin: ['#b07dff', '#ff9cd0'], speed: ['#ff8a1f', '#ffe066'], plasma: ['#7dff9a', '#d8fff0'],
+  fiesta: ['#ff4fa0', '#ffd23a'], holi: ['#ff4fa0', '#3fbf4a'],
 };
 const ATK = {};
 for (const c of CHARS) {

@@ -1,6 +1,6 @@
 # Super Smash Toads
 
-A free, fan-made **platform fighter** you play right in your web browser. Forty-two fighters, twenty-nine Toads (one riding a cow, one carrying a tiny spirit in his backpack) and thirteen Yoshis, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
+A free, fan-made **platform fighter** you play right in your web browser. Forty-four fighters, thirty-one Toads (one riding a cow, one carrying a tiny spirit in his backpack) and thirteen Yoshis, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
 
 ### ▶ [Play now in your browser](https://gabeisrandom.github.io/super-smash-toads/)
 
@@ -115,6 +115,8 @@ The title screen, lobby and results screen each have their own music too.
 | **Muslim Toad** (dressed for Eid) | Lantern glow | Date Toss | Lantern Light | Lantern Lift | Eid Sweets | Lantern Night |
 | **Mormon Toad** (missionary) | Choir power | Green Jelly | Bike Ride | High Note | Potluck Potatoes | Grand Choir |
 | **Hasidic Toad** | Pure joy | Latke Toss | Dreidel Spin | Chair Lift | Klezmer Tune | Mazel Tov! |
+| **Catholic Toad** (choir robes) | Fiesta confetti | Three Kings' Gift | Bell Ring | Party Popper | Piñata | Christmas Parranda |
+| **Hindu Toad** (celebrating Holi) | Holi colors | Color Throw | Dandiya Dance | Kite Flight | Pichkari Splash | Festival of Colors |
 | **Subaru Toad** (with Beatrice) | Beatrice's magic | Minya | Shamac | Murak | Unseen Hand | El Minya |
 | **Yoshi** | Egg | Egg Toss | Egg Roll | Flutter Jump | Yoshi Bomb | Egg Storm |
 | **Red Yoshi** | Fire | Fire Spit | Flame Rush | Blaze Jump | Magma Pound | Volcano Rain |
@@ -130,7 +132,7 @@ The title screen, lobby and results screen each have their own music too.
 | **Dash Yoshi** (fastest runner) | Pepper speed | Hot Pepper | Pepper Dash | Speed Spiral | Burnout | Supersonic Lap |
 | **Mech Yoshi** (styled after Ray MK III) | Robo energy | Ray Blaster | Air Dash | Booster Jump | Bomb Lob | Full Burst |
 
-**Subaru Toad** works a little like the Ice Climbers: Beatrice rides in a carrier on his back, casts his Minya and Murak spells, and follows every one of his attacks that lands with a small spark of her own. He hits softly himself, so he isn't a powerhouse. The Toads of different faiths were made with the players who asked for them: their moves come from celebrations, food and music (lanterns and sweets for Eid, a wedding dance, a choir, a kung fu monk's calm), never from prayers or sacred objects.
+**Subaru Toad** works a little like the Ice Climbers: Beatrice rides in a carrier on his back, casts his Minya and Murak spells, and follows every one of his attacks that lands with a small spark of her own. He hits softly himself, so he isn't a powerhouse. The Toads of different faiths were made with the players who asked for them: their moves come from celebrations, food and music (lanterns and sweets for Eid, a wedding dance, a choir, a kung fu monk's calm, Christmas and Three Kings Day, Holi colors and the dandiya dance), never from prayers or sacred objects.
 
 ## Playing online with friends
 

@@ -170,6 +170,14 @@ const Snd = (() => {
     sparkle() { tone(1800, 2600, 0.08, 'sine', 0.05); },
     roar() { noise(1.0, 0.3, 700, 0, 0.4); noise(0.8, 0.2, 1500, 0.1, 0.5); },
     mazeltov() { [523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.13, 'square', 0.07, i * 0.1)); },
+    // Catholic Toad and Hindu Toad
+    bell() { [880, 1320, 2215].forEach((f, i) => tone(f, f * 0.995, 0.9 - i * 0.2, 'sine', 0.12 - i * 0.03)); },
+    popper() { noise(0.12, 0.45, 2200, 0, 0.8); tone(700, 1400, 0.1, 'square', 0.08); },
+    candy() { noise(0.18, 0.3, 1500, 0, 0.7); [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, f, 0.09, 'triangle', 0.08, i * 0.05)); },
+    parranda() { for (let k = 0; k < 8; k++) noise(0.05, 0.16, 6000, k * 0.13, 1.5); [392, 494, 587, 784].forEach((f, i) => tone(f, f, 0.14, 'triangle', 0.1, i * 0.13)); },
+    clack() { [0, 0.1].forEach(d => { tone(1800, 1200, 0.04, 'square', 0.07, d); noise(0.03, 0.2, 3000, d, 2); }); },
+    squirt() { noise(0.3, 0.22, 3200, 0, 1.2); },
+    poof2() { noise(0.25, 0.25, 1100, 0, 0.6); tone(600, 300, 0.12, 'sine', 0.08); },
   };
 
   // ---------- character voices: a little formant synth for Toad yelps and Yoshi chirps ----------
