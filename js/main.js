@@ -996,12 +996,18 @@ function handleEvents(evs) {
         if (e.k === 'speed') { Snd.play('dodge'); for (let k = 0; k < 6; k++) addP({ type: 'spark', x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 10, vy: 0, size: 4, color: k % 2 ? '#ffe066' : '#ff8a1f', life: 14 }); break; }
         Snd.play('poof'); for (let k = 0; k < 7; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 40, y: e.y + (Math.random() - 0.5) * 40, vy: -0.6, size: 9, color: e.k === 'magic' ? 'rgba(220,190,255,0.9)' : e.k === 'ghost' ? 'rgba(210,225,255,0.8)' : 'rgba(150,150,170,0.85)', life: 26 }); if (e.k === 'magic') burst(e.x, e.y, 8, '#e2c8ff', 4, 'star', 5, 26); break;
       // Dash Yoshi's sonic booms and speed lines
-      // El Minya cracking and breaking the platforms
-      case 'platcrack': Snd.play('clack'); burst(e.x, e.y + 6, 8, '#c8a0ff', 4, 'dot', 4, 18); say('Crack!', e.x, e.y - 30, 18, '#d8b0ff'); break;
+      // El Minya turning the platforms to pink crystal, hit by hit, until they shatter (the view grows the crystals)
+      case 'platcrack':
+        Snd.play('crystal'); burst(e.x, e.y, 10, '#ff9cd0', 5, 'star', 5, 24); burst(e.x, e.y + 4, 6, '#c8a0ff', 4, 'dot', 4, 18);
+        say(e.n >= 2 ? 'About to shatter!' : 'Crystallizing!', e.x, e.y - 30, e.n >= 2 ? 20 : 18, '#ff9cd0');
+        break;
       case 'platbreak':
-        Snd.play('break'); cam.shake = Math.max(cam.shake, 10);
-        for (let k = 0; k < 18; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * (e.w || 160), y: e.y + Math.random() * 16, vx: (Math.random() - 0.5) * 5, vy: -2 - Math.random() * 4, g: 0.3, size: 6 + Math.random() * 4, color: k % 3 ? '#8a6a5a' : '#c8a0ff', life: 50 });
-        say('The platform broke!', e.x, e.y - 40, 22, '#d8b0ff');
+        Snd.play('shatter'); cam.shake = Math.max(cam.shake, 12);
+        if (USE3D) V3D.shatter(e);
+        addP({ type: 'ring', x: e.x, y: e.y, size: (e.w || 160) * 0.7, color: '#ff9cd0', life: 18 }); addP({ type: 'ring', x: e.x, y: e.y, size: (e.w || 160) * 0.45, color: '#ffffff', life: 14 });
+        burst(e.x, e.y, 16, '#ffd6f0', 9, 'star', 6, 34); burst(e.x, e.y, 10, '#c8a0ff', 7, 'spark', 5, 22);
+        for (let k = 0; k < 14; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * (e.w || 160), y: e.y + Math.random() * 14, vx: (Math.random() - 0.5) * 5, vy: -2 - Math.random() * 4, g: 0.3, size: 4 + Math.random() * 4, color: k % 3 ? '#ff8fd0' : '#c8a0ff', life: 46 });
+        say('Shattered!', e.x, e.y - 40, 24, '#ff9cd0');
         break;
       case 'platback': Snd.play('item'); burst(e.x, e.y, 10, '#fff6a0', 5, 'star', 6, 26); break;
       case 'boomfx': Snd.play('slash'); addP({ type: 'ring', x: e.x, y: e.y, size: 46, color: '#ffe066', life: 12 }); addP({ type: 'ring', x: e.x, y: e.y, size: 28, color: '#ffffff', life: 10 }); break;

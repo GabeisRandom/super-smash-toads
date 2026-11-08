@@ -176,6 +176,12 @@ const Snd = (() => {
     candy() { noise(0.18, 0.3, 1500, 0, 0.7); [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, f, 0.09, 'triangle', 0.08, i * 0.05)); },
     parranda() { for (let k = 0; k < 8; k++) noise(0.05, 0.16, 6000, k * 0.13, 1.5); [392, 494, 587, 784].forEach((f, i) => tone(f, f, 0.14, 'triangle', 0.1, i * 0.13)); },
     clack() { [0, 0.1].forEach(d => { tone(1800, 1200, 0.04, 'square', 0.07, d); noise(0.03, 0.2, 3000, d, 2); }); },
+    // El Minya: crystal creeping over a platform (a glassy shimmer and a crackle), then the platform shattering
+    crystal() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, f * 1.01, 0.22, 'sine', 0.045, i * 0.035)); noise(0.1, 0.14, 5200, 0, 2.5); tone(620, 1240, 0.16, 'triangle', 0.05); },
+    shatter() {
+      noise(0.55, 0.38, 4800, 0, 0.8); noise(0.3, 0.26, 2400, 0.02, 1.2); tone(260, 70, 0.4, 'triangle', 0.16);
+      [3520, 2794, 4186, 2349, 3136, 2637, 3951].forEach((f, i) => tone(f, f * 0.98, 0.3, 'sine', 0.04, 0.03 + i * 0.045));
+    },
     squirt() { noise(0.3, 0.22, 3200, 0, 1.2); },
     poof2() { noise(0.25, 0.25, 1100, 0, 0.6); tone(600, 300, 0.12, 'sine', 0.08); },
   };

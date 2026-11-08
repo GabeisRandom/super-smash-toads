@@ -11,7 +11,7 @@ const V3D = (() => {
     bgc = document.getElementById('bgc'); glc = document.getElementById('glc'); cv2 = document.getElementById('cv');
     if (!bgc || !glc || !cv2) return false;
     if (!G3.init(glc)) { glc.style.display = 'none'; return false; }
-    try { M3D.build(); } catch (e) { console.warn('3D models failed to build', e); glc.style.display = 'none'; return false; }
+    try { M3D.build(); cryMeshes(); } catch (e) { console.warn('3D models failed to build', e); glc.style.display = 'none'; return false; }
     bgx = bgc.getContext('2d'); cx2 = cv2.getContext('2d');
     ok = true;
     grainOverlay();
@@ -263,14 +263,138 @@ const V3D = (() => {
       } break;
     }
   }
+  // ---------- El Minya's crystal corruption ----------
+  // Every crystal that lands on a platform turns it a little more to pink crystal: its colour drains toward pink,
+  // crystals grow out of it (two clusters on the first hit, five more on the second, when it also trembles and
+  // pulses), and the third hit shatters it into a burst of crystal shards. All of it is worked out from the hit
+  // counts (view.php) and break times (view.brk) the host sends, so every player sees the same thing.
+  const CORR = {}, LAY = {}, CRY = {}, SHARDS = [];
+  // faceted crystal colours, pink with a touch of El Minya's lavender: [tip, body, lower, base] x [two faces]
+  const CRYCOL = [['#ffe2f4', '#ffd2ee'], ['#ff86cc', '#f2a2f4'], ['#f064b4', '#c87ae6'], ['#d0509c', '#a866de']];
+  const PINK = [1, 0.5, 0.8];
+  const easeBack = x => { const u = x - 1; return 1 + 2.70158 * u * u * u + 1.70158 * u * u; };
+  // when each platform took each of its hits (C.at[0] = the first), so the crystals can grow in over time
+  function corrOf(view, pi) {
+    const n = (view.php && view.php[pi]) || 0, now = view.frame || 0, key = view.stage + ':' + pi;
+    let C = CORR[key];
+    if (!C || n < C.n || now < C.last) C = CORR[key] = { n: 0, at: [], last: now };
+    while (C.n < n) C.at[C.n++] = now;
+    C.last = now;
+    return C;
+  }
+  // how far a platform has turned to crystal (0..1): it creeps up to the new level over 45 frames after each hit
+  function corrAmt(C, now) {
+    if (!C.n) return 0;
+    const LV = [0, 0.45, 0.82, 0.82], a = LV[C.n - 1], b = LV[C.n];
+    return a + (b - a) * clamp01((now - C.at[C.n - 1]) / 45);
+  }
+  // one faceted crystal: a five-sided column with a pointed tip, rooted at `base` and pointing along `dir`
+  function crystalInto(out, base, dir, len, r, seed) {
+    const B = G3.B;
+    B.start();
+    B.lathe([[0, len], [r * 0.92, len * 0.72], [r, len * 0.12], [r * 0.55, -0.06], [0, -0.1]], 5, { center: [0, len * 0.4, 0], rot0: seed * 0.9, mat: (m, i, j) => CRYCOL[Math.min(i, 3)][j % 2] });
+    const F = B.frameFor(dir), T = B.take(), tr = q => [F.r[0] * q[0] + F.n[0] * q[1] + F.u[0] * q[2], F.r[1] * q[0] + F.n[1] * q[1] + F.u[1] * q[2], F.r[2] * q[0] + F.n[2] * q[1] + F.u[2] * q[2]];
+    B.xformTris(T, p => { const q = tr(p); return [base[0] + q[0], base[1] + q[1], base[2] + q[2]]; }, tr);
+    for (const t of T) { t.vary = 0.16; out.push(t); }
+  }
+  // a cluster of crystals splaying out from one root (up from a platform's top, or hanging under it)
+  function clusterMesh(seed, down, small) {
+    const R = G3.B.prng(seed), out = [], n = small ? 2 + (seed % 2) : 3 + Math.floor(R() * 2), sg = down ? -1 : 1;
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2 + R() * 0.8, tilt = k === 0 ? 0.08 + R() * 0.1 : 0.4 + R() * 0.4;
+      const dir = [Math.cos(a) * Math.sin(tilt), sg * Math.cos(tilt), Math.sin(a) * Math.sin(tilt) * 0.7];
+      const len = (small ? 0.5 : down ? 0.85 : 1.0) * (k === 0 ? 1.35 : 0.65 + R() * 0.45), r = len * (0.2 + R() * 0.07);
+      crystalInto(out, [k ? Math.cos(a) * 0.07 : 0, 0, k ? Math.sin(a) * 0.05 : 0], dir, len, r, seed * 7 + k);
+    }
+    return G3.compile(out);
+  }
+  // a jagged crystal shard for the shatter
+  function shardMesh(seed) {
+    const R = G3.B.prng(seed), B = G3.B, h = 0.45 + R() * 0.28, r = 0.18 + R() * 0.1;
+    B.start();
+    B.lathe([[0, h], [r, 0], [0, -h * (0.45 + R() * 0.3)]], 3 + (seed % 2), { center: [0, 0, 0], jit: 0.05, seed: seed + 3, rot0: R() * 3, mat: (m, i, j) => CRYCOL[i ? 2 : 1][(j + seed) % 2] });
+    const T = B.take(); for (const t of T) t.vary = 0.2;
+    return G3.compile(T);
+  }
+  function cryMeshes() {
+    if (!CRY.up) Object.assign(CRY, { up: [11, 12, 13].map(s => clusterMesh(s, false, false)), down: [21, 22].map(s => clusterMesh(s, true, false)),
+      small: [31, 32].map(s => clusterMesh(s, false, true)), shard: [41, 42, 43, 44].map(shardMesh) });
+    return CRY;
+  }
+  // where a platform's crystals grow (fixed for each platform, so they always come up in the same places):
+  // hit 1: two big clusters on top at the back and one hanging underneath; hit 2: six more all over it.
+  // mv.dz is how deep the platform's top is (front to back), mv.bot how far down its underside is (world units)
+  function layoutFor(key, half, mv) {
+    if (LAY[key]) return LAY[key];
+    let h = 7; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) % 100003;
+    const R = G3.B.prng(h), dz = mv.dz || 0.8, bot = mv.bot == null ? -0.4 : mv.bot, L = [];
+    [[1, -0.35, 'up'], [1, 0.55, 'up'], [1, 0.1, 'down'], [2, 0.1, 'up'], [2, -0.8, 'up'], [2, -0.6, 'small'], [2, 0.75, 'small'], [2, -0.45, 'down'], [2, 0.6, 'down']].forEach(([lv, fx, kind], k) => {
+      const z = kind === 'up' ? -dz * (0.45 + R() * 0.2) : kind === 'small' ? dz * (0.55 + R() * 0.15) : (R() - 0.3) * dz * 0.4;
+      L.push({ lv, kind, x: (fx + (R() - 0.5) * 0.15) * half, y: kind === 'down' ? bot + 0.12 : -0.05, z, m: Math.floor(R() * 4), ry: R() * Math.PI * 2, s: kind === 'small' ? 0.8 + R() * 0.3 : 0.9 + R() * 0.4, d: k * 3 });
+    });
+    return (LAY[key] = L);
+  }
+  // a platform El Minya has hit: tinted toward pink, glowing, trembling when it's about to go, and growing crystals
+  function drawCorrupt(view, mv, s, C, M0) {
+    const now = view.frame || 0, amt = corrAmt(C, now), K = cryMeshes(), half = (s.w / 2) * PX;
+    const shake = C.n >= 2 ? [Math.sin(now * 1.7) * 0.03, Math.cos(now * 2.3) * 0.018] : [0, 0];
+    const X = (s.x + s.w / 2) * PX + shake[0], Y = -s.y * PX + shake[1];
+    const glow = C.n >= 2 ? 0.14 + 0.1 * Math.sin(now * 0.25) : 0.05 * amt / 0.3;
+    G3.draw(mv.mesh, M4.chain(M4.T(shake[0], shake[1], 0), M0), Object.assign({}, mv.o, { tint: [PINK[0], PINK[1], PINK[2], amt * 0.75], self: Math.min(1, ((mv.o && mv.o.self) || 0) + glow) }));
+    for (const c of layoutFor(view.stage + ':' + (mv.idx - STG[view.stage].solids.length), half, mv)) {
+      if (c.lv > C.n) continue;
+      const g = clamp01((now - C.at[c.lv - 1] - c.d) / 16); if (g <= 0) continue;
+      const k = easeBack(g) * c.s, list = K[c.kind];
+      G3.draw(list[c.m % list.length], M4.chain(M4.T(X + c.x, Y + c.y, c.z), M4.RY(c.ry), M4.S(k, k, k)), ink(Math.max(0.3, k), { self: 0.4 + 0.12 * Math.sin(now * 0.12 + c.ry) }));
+    }
+  }
+  // the third hit: the platform flashes pink-white and bursts into glowing crystal shards (called on 'platbreak')
+  function shatter(e) {
+    const R = G3.B.prng((e.x * 13 + e.y * 7 + (e.pi || 0)) % 9973 + 1), n = 14 + Math.min(12, Math.round((e.w || 160) / 22)), half = ((e.w || 160) / 2) * PX, list = [];
+    for (let k = 0; k < n; k++) {
+      const ox = (R() - 0.5) * 2 * half * 0.92;
+      list.push({ ox, oy: -R() * 0.35, oz: (R() - 0.5) * 0.9, vx: ox * 0.03 + (R() - 0.5) * 0.05, vy: 0.06 + R() * 0.13, vz: (R() - 0.3) * 0.06,
+        r0: [R() * 6, R() * 6, R() * 6], w: [(R() - 0.5) * 0.45, (R() - 0.5) * 0.35, (R() - 0.5) * 0.45], m: k % 4, s: 0.8 + R() * 0.8, life: 55 + Math.floor(R() * 30) });
+    }
+    SHARDS.push({ x: e.x, y: e.y, pi: e.pi, f0: null, st: null, list });
+    if (SHARDS.length > 8) SHARDS.shift();
+  }
+  function drawShards(view, S) {
+    const now = view.frame || 0;
+    for (let i = SHARDS.length - 1; i >= 0; i--) {
+      const B = SHARDS[i];
+      if (B.f0 === null) { B.f0 = now; B.st = view.stage; }
+      const t = now - B.f0;
+      if (B.st !== view.stage || t < 0 || t > 90) { SHARDS.splice(i, 1); continue; }
+      const X = B.x * PX, Y = -B.y * PX, K = cryMeshes();
+      // the platform itself flashes and swells for a moment as it bursts
+      const mv = B.pi != null && S.movers.find(m => m.idx === STG[view.stage].solids.length + B.pi);
+      if (mv && t < 12) { const k = 1 + t * 0.012; G3.draw(mv.mesh, M4.chain(M4.T(X, Y, 0), M4.S(k, k, k)), { alpha: 0.85 * (1 - t / 12), tint: [1, 0.78, 0.94, 0.7], self: 0.9 }); }
+      for (const p of B.list) {
+        if (t > p.life) continue;
+        const fade = clamp01((p.life - t) / 18), k = p.s * (0.5 + 0.5 * fade);
+        const M = M4.chain(M4.T(X + p.ox + p.vx * t, Y + p.oy + p.vy * t - 0.0045 * t * t, p.oz + p.vz * t), M4.RX(p.r0[0] + p.w[0] * t), M4.RY(p.r0[1] + p.w[1] * t), M4.RZ(p.r0[2] + p.w[2] * t), M4.S(k, k, k));
+        G3.draw(K.shard[p.m], M, ink(k, { self: 0.5, alpha: fade < 1 ? fade : undefined }));
+      }
+    }
+  }
   function drawWorld(view, fr) {
     const S = S3D.get(view.stage);
     // (a static can carry draw options, e.g. Rainbow Road glows: { mesh, o })
     for (const m of S.statics) G3.draw(m.mesh || m, I, m.o);
     if (S.movers.length) {
-      // (a platform broken by El Minya is gone until it comes back)
-      const surf = computeSurfaces(view.stage, view.frame, view.clouds, view.brk);
-      for (const mv of S.movers) { const s = surf[mv.idx]; if (s && !s.gone) G3.draw(mv.mesh, M4.T((s.x + s.w / 2) * PX, -s.y * PX, 0), mv.o); }
+      // (a platform broken by El Minya is gone until it comes back, and pops back into place when it does;
+      // one it has hit is turning to pink crystal)
+      const surf = computeSurfaces(view.stage, view.frame, view.clouds, view.brk), nS = STG[view.stage].solids.length;
+      for (const mv of S.movers) {
+        const s = surf[mv.idx]; if (!s || s.gone) continue;
+        const pi = mv.idx - nS, back = view.brk && view.brk[pi] != null ? (view.frame || 0) - view.brk[pi] : 99;
+        let M = M4.T((s.x + s.w / 2) * PX, -s.y * PX, 0);
+        if (back >= 0 && back < 14) { const k = 0.4 + 0.6 * easeBack(back / 14); M = M4.chain(M, M4.S(k, k, k)); }
+        const C = view.php ? corrOf(view, pi) : null;
+        if (C && C.n) drawCorrupt(view, mv, s, C, M); else G3.draw(mv.mesh, M, mv.o);
+      }
+      if (SHARDS.length) drawShards(view, S);
     }
     for (const cl of view.clouds || []) G3.draw(M3D.PROJ.cloud, M4.chain(M4.T((cl.x + cl.w / 2) * PX, -(cl.y + 8) * PX, 0), M4.S(cl.w / 120, 0.8, 0.8)), cl.life < 60 ? { alpha: cl.life / 60 } : null);
     const k = view.kart;
@@ -377,16 +501,25 @@ const V3D = (() => {
   }
   function shade(hex, k) { const c = G3.B.hex(hex); return `rgb(${Math.min(255, c[0] * k) | 0},${Math.min(255, c[1] * k) | 0},${Math.min(255, c[2] * k) | 0})`; }
   function paperFx(c, view, fr) {
-    // platforms cracked by El Minya show jagged cracks (more with every hit)
+    // platforms El Minya has hit show glowing pink crystal veins (two more with every hit), which creep down the
+    // front of the platform as the crystal spreads (no deeper than the platform is thick)
     if (view.php) {
-      const surf = computeSurfaces(view.stage, view.frame, view.clouds, view.brk);
+      const surf = computeSurfaces(view.stage, view.frame, view.clouds, view.brk), nS = STG[view.stage].solids.length, S3 = S3D.get(view.stage), now = view.frame || 0;
       for (const pi in view.php) {
         const n = view.php[pi]; if (!n) continue;
-        const s = surf[STG[view.stage].solids.length + +pi]; if (!s || s.gone) continue;
-        c.save(); c.strokeStyle = '#2b1a12'; c.lineWidth = 3; c.lineJoin = 'round';
+        const s = surf[nS + +pi]; if (!s || s.gone) continue;
+        const C = corrOf(view, +pi), mv = S3.movers.find(m => m.idx === nS + +pi), deep = Math.min(22, Math.max(8, -((mv && mv.bot) || -0.8) / PX - 2)) / 22;
+        c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
         for (let k = 0; k < n * 2; k++) {
+          const g = clamp01((now - (C.at[k < 2 ? 0 : 1] || 0) - (k % 2) * 6) / 26); if (g <= 0) continue;
           const x0 = s.x + s.w * (0.2 + ((k * 0.37 + +pi * 0.13) % 0.6)), dir = k % 2 ? 1 : -1;
-          c.beginPath(); c.moveTo(x0, s.y - 2); c.lineTo(x0 + dir * 8, s.y + 6); c.lineTo(x0 - dir * 4, s.y + 13); c.lineTo(x0 + dir * 10, s.y + 22); c.stroke();
+          const P = [[x0, s.y - 2], [x0 + dir * 8, s.y + 6 * deep], [x0 - dir * 4, s.y + 13 * deep], [x0 + dir * 10, s.y + 22 * deep]];
+          const vein = () => {
+            c.beginPath(); c.moveTo(P[0][0], P[0][1]);
+            for (let q = 1; q < 4; q++) { const u = clamp01(g * 3 - (q - 1)); if (u <= 0) break; c.lineTo(P[q - 1][0] + (P[q][0] - P[q - 1][0]) * u, P[q - 1][1] + (P[q][1] - P[q - 1][1]) * u); }
+          };
+          c.globalAlpha = 0.5; c.strokeStyle = '#ff6ec4'; c.lineWidth = 6; vein(); c.stroke();
+          c.globalAlpha = 1; c.strokeStyle = '#ffe3f6'; c.lineWidth = 1.8; vein(); c.stroke();
         }
         c.restore();
       }
@@ -616,7 +749,7 @@ const V3D = (() => {
     c.restore();
   }
   const TETHER = { canehook: { range: 84, a: 9, b: 13, col: '#8a5326', w: 5, end: 'hook' }, bandage: { range: 62, a: 8, b: 13, col: '#fbfbf6', w: 7, end: 'wrap' }, lasso: { range: 150, a: 10, b: 16, col: '#c8a060', w: 3, end: 'loop' },
-    unseenhand: { range: 150, a: 10, b: 18, col: '#2a1a3a', w: 9, end: 'hand' } };
+    unseenhand: { range: 180, a: 10, b: 18, col: '#2a1a3a', w: 9, end: 'hand' } };
   function paperRope(c, x0, y0, x1, y1, col, w, end) {
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2 + Math.min(18, Math.abs(x1 - x0) * 0.08);
     // Subaru's Unseen Hand: a shadowy arm that ends in grasping fingers
@@ -808,5 +941,5 @@ const V3D = (() => {
     frame(view, { x: 0, y: -170, z: 0.8, shake: 0 }, fr, { hud: false, tags: false });
     if (dim) { cx2.fillStyle = 'rgba(30,18,10,.58)'; cx2.fillRect(0, 0, 1280, 720); }
   }
-  return { init, frame, attract, portrait: portrait3, stageThumb: stageThumb3, get ok() { return ok; } };
+  return { init, frame, attract, shatter, portrait: portrait3, stageThumb: stageThumb3, get ok() { return ok; } };
 })();

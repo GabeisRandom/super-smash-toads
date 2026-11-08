@@ -102,7 +102,7 @@ function stepGame(g, getBits) {
     if (g.pt <= 0) { g.phase = 'play'; g.ev.push({ t: 'go' }); }
   }
   // broken platforms pop back into place when their time is up
-  for (const pi in g.brk) if (g.brk[pi] === g.frame) { const S = STG[g.stage].plats[pi]; g.ev.push({ t: 'platback', x: S.x + S.w / 2, y: S.y }); }
+  for (const pi in g.brk) if (g.brk[pi] === g.frame) { const S = STG[g.stage].plats[pi]; g.ev.push({ t: 'platback', x: S.x + S.w / 2, y: S.y, pi: +pi }); }
   for (const f of g.fighters) updateFighter(g, f, counting ? 0 : getBits(f));
   updateProj(g);
   updateItems(g);
@@ -910,7 +910,8 @@ function updateProj(g) {
     }
     if (p.x < BLAST.l || p.x > BLAST.r || p.y > BLAST.b) { kill = true; boom = false; }
     if (kill) {
-      if (boom && p.explode) { const E = p.explode; g.ev.push({ t: 'boom', x: p.x, y: p.y, s: E.r / 55, k: p.k }); blastAt(g, p.x, p.y, p.o, E.r, E.d * p.pm, E.k, E.g, 55); }
+      // (a finale's raining drop bursts in its own colours: El Minya's crystals in pink and lavender, melons, lanterns, fire)
+      if (boom && p.explode) { const E = p.explode; g.ev.push({ t: 'boom', x: p.x, y: p.y, s: E.r / 55, k: p.k === 'fsdrop' ? p.sub : p.k }); blastAt(g, p.x, p.y, p.o, E.r, E.d * p.pm, E.k, E.g, 55); }
       else if (boom && (p.k === 'bomb' || p.k === 'egg')) explode(g, p);
       else if (boom) g.ev.push({ t: 'pop', x: p.x, y: p.y, k: p.k });
       const idx = g.proj.indexOf(p);
@@ -919,16 +920,17 @@ function updateProj(g) {
   }
 }
 
-// a platform takes a hit: it cracks, and after three hits it breaks apart (anyone on it falls) for twelve seconds
-const PLAT_HP = 3, PLAT_DOWN = 720;
+// a platform takes a hit: it crystallizes a little more, and on the third hit it shatters (anyone on it falls)
+// for fifteen seconds. The view grows pink crystals on it hit by hit (php) and bursts it into shards
+const PLAT_HP = 3, PLAT_DOWN = 900;
 function damagePlat(g, pi) {
   if (g.brk[pi] > g.frame) return;
   const idx = STG[g.stage].solids.length + pi, S = g.surf[idx];
   g.php[pi] = (g.php[pi] || 0) + 1;
-  if (g.php[pi] < PLAT_HP) { g.ev.push({ t: 'platcrack', x: S.x + S.w / 2, y: S.y }); return; }
+  if (g.php[pi] < PLAT_HP) { g.ev.push({ t: 'platcrack', x: S.x + S.w / 2, y: S.y, n: g.php[pi], pi }); return; }
   g.php[pi] = 0; g.brk[pi] = g.frame + PLAT_DOWN;
   for (const f of g.fighters) if (f.gi === idx) { f.gi = -1; if (f.st === 'idle' || f.st === 'run' || f.st === 'crouch' || f.st === 'shield') f.st = 'air'; }
-  g.ev.push({ t: 'platbreak', x: S.x + S.w / 2, y: S.y, w: S.w });
+  g.ev.push({ t: 'platbreak', x: S.x + S.w / 2, y: S.y, w: S.w, pi });
 }
 function explode(g, p) {
   const big = p.k === 'bomb', r = big ? 85 : 55;
@@ -1358,7 +1360,8 @@ const FSDEF = {
   cowtoad: { k: 'wave', sub: 'cows', both: 1 },
   samurai: { k: 'sweep', sub: 'petals' }, viking: { k: 'rush', sub: 'ship' }, pharaoh: { k: 'meteor', sub: 'pyramid', r: 240, d: 32 },
   gladiator: { k: 'wave', sub: 'legion' }, buddhist: { k: 'burst', sub: 'lotus' }, muslim: { k: 'rain', sub: 'lantern', n: 16, cols: 1 },
-  mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 18 },
+  // El Minya rains crystals at the same pace as the other rains, but 30% longer (23 crystals instead of 18)
+  mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 23, every: 8.15 },
   dashyoshi: { k: 'rush', sub: 'dash', spd: 26, laps: 3 }, mechyoshi: { k: 'beam', sub: 'mech' },
   catholic: { k: 'wave', sub: 'parranda' }, hindu: { k: 'vortex', sub: 'color', move: 2.6, life: 210, r: 240 },
 };
@@ -1376,7 +1379,8 @@ function fsLaunch(g, f) {
     case 'flood': e.life = 250; e.lv = s.y + 260; break;
     case 'burst': e.life = 84; e.crown = D.crown || 0; break;
     case 'rush': e.laps = D.laps || 1; e.life = 130 * e.laps; e.spd = D.spd || 17; break;
-    case 'rain': e.life = 240; e.n = D.n; e.cnt = 0; e.side = D.side || 0; e.cols = D.cols || 0; break;
+    // (a rain with its own pace, `every` frames per drop, lives long enough for its last drop to land)
+    case 'rain': e.life = D.every ? Math.ceil(D.every * D.n) + 100 : 240; e.n = D.n; e.every = D.every || 0; e.cnt = 0; e.side = D.side || 0; e.cols = D.cols || 0; break;
     case 'clone': e.life = 400; break;
     case 'beam': e.life = 80; break;
     case 'sweep': e.life = 146; e.x = e.dir > 0 ? s.x - 150 : s.x + s.w + 150; break;
@@ -1523,8 +1527,9 @@ const FXU = {
   },
   // eggs, cannonballs or megavitamins pour down all over the stage
   rain(g, e, own) {
-    const s = STG[g.stage].solids[0], every = Math.floor(160 / e.n);
-    if (e.cnt < e.n && e.t % every === 1) {
+    // one drop every `every` frames, starting on the first frame (the pace can be fractional, as El Minya's is)
+    const s = STG[g.stage].solids[0], every = e.every || Math.floor(160 / e.n);
+    if (e.cnt < e.n && e.t >= 1 + e.cnt * every) {
       e.cnt++;
       const shooter = own || { i: e.o, pm: 1, fc: 1 }, P = { k: 'fsdrop', sub: e.sub, grav: 0.32, d: 9, kb: 8, gr: 0.11, ang: 60, r: 22, life: 320, explode: { r: 72, d: 9, k: 9, g: 0.12 } };
       if (e.side) {
@@ -1840,14 +1845,15 @@ function spTether(o) {
       if (f.ctr >= 0) {
         const v = fighterBy(g, f.ctr);
         if (!v || !alive(v)) { f.ctr = -1; return 1; }
-        const k = f.t - f.t2;
-        if (k < 12) fsHold(v, v.x + (f.x + f.fc * 34 - v.x) * 0.3, v.y + (f.y - v.y) * 0.3);
-        else if (k === 12) {
+        // the catch is held (reeled in) for `hold` frames, then `fin` lands
+        const k = f.t - f.t2, hold = o.hold || 12;
+        if (k < hold) fsHold(v, v.x + (f.x + f.fc * 34 - v.x) * 0.3, v.y + (f.y - v.y) * 0.3);
+        else if (k === hold) {
           const F = o.fin;
           if (F.daze) applyHit(g, v, f, F.d * f.pm, 0.5, 0, 30, f.fc, { daze: F.daze });
           else applyHit(g, v, f, F.d * f.pm, F.k, F.g, F.ang, F.back ? -f.fc : f.fc, { psn: F.psn });
         }
-        if (k >= 22) { f.ctr = -1; return 1; }
+        if (k >= hold + 10) { f.ctr = -1; return 1; }
         return 0;
       }
       return f.t >= (o.end || 30) ? 1 : 0;
@@ -1894,8 +1900,9 @@ function spCounter(o) {
     },
   };
 }
-// Beatrice's Minya: three crystal shards (the special itself, and a mid-Murak cast)
-const MINYA = { cd: 30, vys: [-1.2, 0, 1.2], p: { k: 'crystal', vx: 16.5, d: 5.5, kb: 4.5, gr: 0.055, ang: 35, r: 10, life: 54, ghost: 1, oy: 0.75 } };
+// Beatrice's Minya: three crystal shards (the special itself, and a mid-Murak cast). Its knockback grows
+// steeply with the foe's damage (gr), so it can KO at high percents
+const MINYA = { cd: 30, vys: [-1.2, 0, 1.2], p: { k: 'crystal', vx: 16.5, d: 5.5, kb: 4.5, gr: 0.09, ang: 35, r: 10, life: 54, ghost: 1, oy: 0.75 } };
 function fireMinya(g, f, c) {
   f.cd.n = MINYA.cd;
   if (c.dirX) f.fc = c.dirX;
@@ -2379,7 +2386,8 @@ const SP = {
   // --- Subaru Toad: Beatrice casts from the backpack (the Unseen Hand is his own) ---
   // Minya flies twice as far and half again as fast as it first did, with a quarter less cooldown
   minya: spCast(spShot({ cd: MINYA.cd, at: 10, end: 24, shots: MINYA.vys.map(vy => Object.assign({ vy }, MINYA.p)) }), 'beako', 'Minya!'),
-  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 4.4, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 40, ghost: 1 } }), 'beako', 'Shamac!'),
+  // Shamac's black mist stuns for a full second
+  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 4.4, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 60, ghost: 1 } }), 'beako', 'Shamac!'),
   // Murak floats them up (15% longer than before), and Beatrice can still fire Minya on the way: press Special again
   murak: (() => {
     const base = spFloat({ frames: 81, rise: 4.4, drift: 5.5, ev: 'yinfx' });
@@ -2390,7 +2398,8 @@ const SP = {
       },
     }), 'beako', 'Murak!');
   })(),
-  unseenhand: spCast(spTether({ slot: 'd', cd: 70, range: 150, a: 10, b: 18, fin: { d: 7, k: 8, g: 0.11, ang: 70 } }), 'unseen', ''),
+  // the Unseen Hand reaches 180 and holds its catch for 18 frames before the squeeze launches them
+  unseenhand: spCast(spTether({ slot: 'd', cd: 70, range: 180, a: 10, b: 18, hold: 18, fin: { d: 7, k: 8, g: 0.11, ang: 70 } }), 'unseen', ''),
   // --- Dash Yoshi: pure speed ---
   // a kick so fast it sends a sonic boom across the stage
   boomkick: spShot({ cd: 28, at: 6, end: 16, ev: 'boomfx', p: { k: 'gust', vx: 15, d: 7, kb: 7, gr: 0.09, ang: 32, r: 22, life: 36, pierce: 1, ghost: 1 } }),
