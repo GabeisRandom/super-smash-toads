@@ -88,7 +88,8 @@ const S3D = (() => {
           if (big) for (const sx of [-1, 1]) B.decalAt([X + 0.25 * sx, Y - L * 0.55, -1.15 + 0.62], [0.3 * sx, 0, 1], [0.08, 0.14, 0.03], '#3a2a20');
         }
       }));
-      S.statics.push(mesh(() => { st.plats.forEach((p, i) => { const [X, Y] = toW(p.x + p.w / 2, p.y); capPlat(X, Y, (p.w / 2) * PX, 1.4, i === 2 ? '#5fbf5a' : '#e64a40', '#fbf8f1', '#efe2c6'); }); }));
+      // each mushroom cap is its own piece, so El Minya can break it (the stems stay put)
+      st.plats.forEach((p, i) => S.movers.push({ idx: st.solids.length + i, mesh: mesh(() => capPlat(0, 0, (p.w / 2) * PX, 1.4, i === 2 ? '#5fbf5a' : '#e64a40', '#fbf8f1', '#efe2c6')) }));
       S.statics.push(mesh(() => {
         B.lathe([[0, 0], [1, 0]], 12, { c: [0, -3.2, -60], sx: 160, sz: 58, center: [0, -20, -60], col: '#b5df98' });
         for (const [x, z, s, cc] of [[-26, -16, 2.4, '#5a8ae0'], [-14, -22, 2.6, '#f2c84a'], [-3, -28, 2.3, '#e64a40'], [9, -19, 2.5, '#5fbf5a'], [21, -16, 2.3, '#9b6ad6'], [32, -26, 2.6, '#5a8ae0'], [-36, -27, 2.5, '#e64a40'], [44, -32, 2.8, '#f2c84a']]) house(x, -3.2, z, s, cc);
@@ -159,16 +160,18 @@ const S3D = (() => {
           for (const sz of [-1, 1]) B.box([cx, 0.02, 0.4 + sz * 1.5], [hw, 0.012, 0.06], { col: '#ff8a1f' });
         }
       }));
+      // the road signs are the platforms (each its own piece, so it can break); their posts stay standing
+      st.plats.forEach((p, i) => {
+        const hw = (p.w / 2) * PX, dir = p.x < 0 ? -1 : 1;
+        S.movers.push({ idx: st.solids.length + i, mesh: mesh(() => {
+          B.box([0, -0.85, 0], [hw, 0.85, 0.15], { col: '#2e8b4a' });
+          for (const [dx, dy, sx, sy] of [[0, -0.08, hw, 0.08], [0, -1.62, hw, 0.08], [-hw + 0.08, -0.85, 0.08, 0.85], [hw - 0.08, -0.85, 0.08, 0.85]]) B.box([dx, dy, 0.16], [sx, sy, 0.02], { col: '#f6f1e6' });
+          B.box([-dir * 0.6, -0.85, 0.17], [1.4, 0.16, 0.02], { col: '#f6f1e6' });
+          B.addTri([dir * 0.8, -0.35, 0.18], [dir * 0.8, -1.35, 0.18], [dir * 1.7, -0.85, 0.18], '#f6f1e6', [0, -0.85, -1]);
+        }) });
+      });
       S.statics.push(mesh(() => {
-        for (const p of st.plats) {
-          const [X, Y] = toW(p.x + p.w / 2, p.y), hw = (p.w / 2) * PX;
-          B.box([X, Y - 0.85, 0], [hw, 0.85, 0.15], { col: '#2e8b4a' });
-          for (const [dx, dy, sx, sy] of [[0, -0.08, hw, 0.08], [0, -1.62, hw, 0.08], [-hw + 0.08, -0.85, 0.08, 0.85], [hw - 0.08, -0.85, 0.08, 0.85]]) B.box([X + dx, Y + dy, 0.16], [sx, sy, 0.02], { col: '#f6f1e6' });
-          const dir = p.x < 0 ? -1 : 1;
-          B.box([X - dir * 0.6, Y - 0.85, 0.17], [1.4, 0.16, 0.02], { col: '#f6f1e6' });
-          B.addTri([X + dir * 0.8, Y - 0.35, 0.18], [X + dir * 0.8, Y - 1.35, 0.18], [X + dir * 1.7, Y - 0.85, 0.18], '#f6f1e6', [X, Y - 0.85, -1]);
-          for (const dx of [-hw + 0.7, hw - 0.7]) B.box([X + dx, (Y - 1.7) / 2, -0.3], [0.12, (Y - 1.7) / 2, 0.12], { col: '#9aa0b0' });
-        }
+        for (const p of st.plats) { const [X, Y] = toW(p.x + p.w / 2, p.y), hw = (p.w / 2) * PX; for (const dx of [-hw + 0.7, hw - 0.7]) B.box([X + dx, (Y - 1.7) / 2, -0.3], [0.12, (Y - 1.7) / 2, 0.12], { col: '#9aa0b0' }); }
       }));
       S.statics.push(mesh(() => {
         const r = B.prng(31);
@@ -193,13 +196,14 @@ const S3D = (() => {
       S.statics.push(mesh(() => {
         B.lathe([[0, 0], [0.98, 0], [1, -0.2], [1.03, -3], [0.97, -8], [0.9, -18]], 24, { sx: half, sz: 2.5, jit: 0.12, seed: 61, center: [0, -6, 0], mat: (m, i) => (i === 0 ? '#9fd57f' : i === 1 ? '#7fc062' : i % 2 ? '#b8703f' : '#a5612f') });
       }));
+      // stems stay put; each mushroom cap is its own piece so it can break
       S.statics.push(mesh(() => {
-        st.plats.forEach((p, i) => {
-          const [X, Y] = toW(p.x + p.w / 2, p.y), hw = (p.w / 2) * PX, bounce = !!p.bounce;
-          B.lathe([[0.5, -0.44], [0.55, -4], [0.7, bounce ? -24 : -9]], 10, { c: [X, Y, -0.4], center: [X, Y - 5, -0.4], col: '#f3e0bf' });
-          capPlat(X, Y, hw * (bounce ? 1.08 : 1), bounce ? 1.9 : 1.4, bounce ? '#ff8a2a' : '#4a8ae6', '#fbf8f1', '#efe2c6');
-        });
+        st.plats.forEach(p => { const [X, Y] = toW(p.x + p.w / 2, p.y); B.lathe([[0.5, -0.44], [0.55, -4], [0.7, p.bounce ? -24 : -9]], 10, { c: [X, Y, -0.4], center: [X, Y - 5, -0.4], col: '#f3e0bf' }); });
       }));
+      st.plats.forEach((p, i) => {
+        const hw = (p.w / 2) * PX, bounce = !!p.bounce;
+        S.movers.push({ idx: st.solids.length + i, mesh: mesh(() => capPlat(0, 0, hw * (bounce ? 1.08 : 1), bounce ? 1.9 : 1.4, bounce ? '#ff8a2a' : '#4a8ae6', '#fbf8f1', '#efe2c6')) });
+      });
       S.statics.push(mesh(() => {
         const r = B.prng(13);
         for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) {
@@ -235,8 +239,7 @@ const S3D = (() => {
         // flowers along the back of the island, behind the fighters
         for (let k = 0; k < 8; k++) { const x = -0.7 * half + k * ((1.4 * half) / 7); flower(x, 0, -0.75 * ellZ(x, half, 2.6), 0.55 + (k % 3) * 0.12, ['#ff6fae', '#ffd23a', '#ffffff', '#ff8a1f'][k % 4]); }
       }));
-      S.statics.push(mesh(() => { for (const p of st.plats) if (!p.move) { const [X, Y] = toW(p.x + p.w / 2, p.y); islet(X, Y, (p.w / 2) * PX, 1.4); flower(X + 1.1, Y, -0.7, 0.45, '#ff6fae'); } }));
-      st.plats.forEach((p, idx) => { if (p.move) S.movers.push({ idx: st.solids.length + idx, mesh: mesh(() => { islet(0, 0, (p.w / 2) * PX, 1.4); flower(-1.1, 0, -0.7, 0.45, '#ffd23a'); }) }); });
+      st.plats.forEach((p, idx) => S.movers.push({ idx: st.solids.length + idx, mesh: mesh(() => { islet(0, 0, (p.w / 2) * PX, 1.4); flower(idx % 2 ? -1.1 : 1.1, 0, -0.7, 0.45, idx % 2 ? '#ffd23a' : '#ff6fae'); }) }));
       S.statics.push(mesh(() => {
         B.lathe([[0, 0], [1, 0]], 12, { c: [0, -4, -60], sx: 160, sz: 58, center: [0, -20, -60], col: '#c8f0a8' });
         for (const [x, z, rr, h, col] of [[-40, -40, 14, 12, '#ffb8d8'], [-12, -55, 20, 16, '#b8e8a0'], [22, -46, 16, 13, '#fff0a0'], [48, -60, 22, 15, '#a8d8ff'], [-58, -70, 24, 18, '#d8c0ff'], [5, -82, 30, 22, '#c0f0b0']])
@@ -285,15 +288,16 @@ const S3D = (() => {
         B.box([0, -0.32 - (hh - 0.32) / 2, 0], [half, (hh - 0.32) / 2, 2.4], { col: '#3e2632' });
         for (const x of [-half + 0.3, half - 0.3]) B.box([x, -hh / 2, 2.45], [0.22, hh / 2, 0.08], { col: '#c8a060' });
       }));
-      S.statics.push(mesh(() => {
-        for (const p of st.plats) {
-          if (p.move) continue;
-          const [X, Y] = toW(p.x + p.w / 2, p.y), hw = (p.w / 2) * PX;
-          B.box([X, Y - 0.14, 0], [hw, 0.14, 1.1], { col: '#6a3e26' });
-          B.box([X, Y - 1.75, -0.7], [hw - 0.15, 1.45, 0.42], { col: '#4a2a1a' });
-          for (let row = 0; row < 3; row++) for (let b = 0; b < 8; b++) B.box([X - hw + 0.5 + b * ((2 * hw - 1.0) / 7), Y - 0.75 - row * 0.9, -0.26], [0.1, 0.32, 0.05], { col: ['#c03a3a', '#3a6ac0', '#3aa060', '#d8a040', '#8a3ab0'][(b + row * 2) % 5] });
-        }
-      }));
+      // bookshelf balconies, each its own piece so it can break
+      st.plats.forEach((p, idx) => {
+        if (p.move) return;
+        const hw = (p.w / 2) * PX;
+        S.movers.push({ idx: st.solids.length + idx, mesh: mesh(() => {
+          B.box([0, -0.14, 0], [hw, 0.14, 1.1], { col: '#6a3e26' });
+          B.box([0, -1.75, -0.7], [hw - 0.15, 1.45, 0.42], { col: '#4a2a1a' });
+          for (let row = 0; row < 3; row++) for (let b = 0; b < 8; b++) B.box([-hw + 0.5 + b * ((2 * hw - 1.0) / 7), -0.75 - row * 0.9, -0.26], [0.1, 0.32, 0.05], { col: ['#c03a3a', '#3a6ac0', '#3aa060', '#d8a040', '#8a3ab0'][(b + row * 2) % 5] });
+        }) });
+      });
       st.plats.forEach((p, idx) => {
         if (!p.move) return;
         const hw = (p.w / 2) * PX;
@@ -328,13 +332,14 @@ const S3D = (() => {
         B.box([0, 0.03, 0], [half + 0.06, 0.07, 2.56], { col: '#8a8a98' });
         for (const sx of [-1, 1]) { B.box([sx * (half - 0.4), 1.2, -2.0], [0.4, 1.2, 0.4], { col: '#5a5a66' }); B.cone([sx * (half - 0.4), 2.4, -2.0], 0.4, 0.9, 4, { col: '#8a8a98' }); }
       }));
-      S.statics.push(mesh(() => {
-        for (const p of st.plats) {
-          const [X, Y] = toW(p.x + p.w / 2, p.y), hw = (p.w / 2) * PX;
-          bricks(X - hw, X + hw, Y, Y - 0.9, 1.1, 5, 1);
-          for (const sx of [-1, 1]) B.capsule([X + sx * (hw - 0.4), Y, -0.6], [X + sx * (hw - 0.4), Y + 12, -0.6], 0.06, 4, { col: '#4a4a52' });
-        }
-      }));
+      // hanging stone ledges, each its own piece (with its chains) so it can break
+      st.plats.forEach((p, idx) => {
+        const hw = (p.w / 2) * PX;
+        S.movers.push({ idx: st.solids.length + idx, mesh: mesh(() => {
+          bricks(-hw, hw, 0, -0.9, 1.1, 5, 1);
+          for (const sx of [-1, 1]) B.capsule([sx * (hw - 0.4), 0, -0.6], [sx * (hw - 0.4), 12, -0.6], 0.06, 4, { col: '#4a4a52' });
+        }) });
+      });
       S.statics.push({ mesh: mesh(() => {
         for (const sx of [-1, 1]) B.cone([sx * (half - 0.4), 3.3, -2.0], 0.3, 0.9, 6, { col: '#ff8a1f' });
         for (const x of [-24, -8, 8, 24]) B.box([x, 8, -19.4], [2.2, 4.0, 0.1], { col: '#ff7a2a' });

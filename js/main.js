@@ -135,7 +135,7 @@ function getBits(f) {
 }
 
 // ---------- Lobby state ----------
-const Lobby = { slots: [], stage: 'town', stocks: 3, items: true, hazards: true, music: 'shuffle', active: 0, mySlot: 0 };
+const Lobby = { slots: [], stage: 'town', stocks: 3, items: true, hazards: true, music: 'shuffle', active: 0, mySlot: 0, bans: {}, banMode: false, need: 2 };
 // battle music: the four stage themes plus four extra fight tracks; "Shuffle" plays them all in a random order
 const BATTLE_SONGS = ['funk', 'hop', 'turbo', 'jazz', 'town', 'diorama', 'turnpike', 'gorge'];
 const MUSIC_OPTS = [['shuffle', 'Shuffle'], ['stage', 'Stage theme'], ['funk', 'Spore Funk'], ['hop', 'Toad Hop'], ['turbo', 'Turbo Toad'], ['jazz', 'Shroom Session'],
@@ -154,11 +154,64 @@ let myChar = store('sst-char') || 'toad';
 if (!CH[myChar]) myChar = 'toad';
 function localDefaults() {
   Lobby.slots = [{ type: 'p1', ch: myChar, lvl: 2 }, { type: 'cpu', ch: 'toadette', lvl: 2 }, { type: 'off', ch: 'captain', lvl: 2 }, { type: 'off', ch: 'yoshi', lvl: 2 }];
-  Lobby.active = 0; Lobby.mySlot = 0;
+  Lobby.active = 0; Lobby.mySlot = 0; Lobby.bans = {}; Lobby.banMode = false;
 }
 function hostDefaults() {
   Lobby.slots = [{ type: 'host', ch: myChar, lvl: 2 }, { type: 'off', ch: 'toadette', lvl: 2 }, { type: 'off', ch: 'captain', lvl: 2 }, { type: 'off', ch: 'yoshi', lvl: 2 }];
-  Lobby.active = 0; Lobby.mySlot = 0;
+  Lobby.active = 0; Lobby.mySlot = 0; Lobby.bans = {}; Lobby.banMode = false;
+}
+
+// ---------- Character bans (online rooms) ----------
+// The host can ban fighters. Each banned fighter keeps a list of the players voting to unban it: once a
+// majority of the people in the room want it back (the host counts as one of them, CPUs don't), it comes back.
+// Lobby.bans = { fighter id: voters }. On the host the voters are guest connection ids; guests get slot numbers
+// instead, so each guest can see its own vote.
+const MIN_FIGHTERS = 4; // the host can't ban the roster below this many fighters
+const isBanned = id => !!(Lobby.bans && Lobby.bans[id]);
+function humansInRoom() { return Lobby.slots.filter(s => s.type === 'host' || s.type === 'net').length; }
+function unbanNeed() { return role === 'client' ? Lobby.need : Math.floor(humansInRoom() / 2) + 1; }
+function firstAllowed(pref) {
+  if (pref && CH[pref] && !isBanned(pref)) return pref;
+  const C = CHARS.find(c => !isBanned(c.id));
+  return C ? C.id : 'toad';
+}
+function toggleBan(id) {
+  if (role !== 'host' || !CH[id]) return;
+  if (isBanned(id)) {
+    delete Lobby.bans[id];
+    Snd.play('grow'); toast(CH[id].name + ' is unbanned.');
+    netBroadcast({ t: 'ban', ch: id, how: 'unban' });
+  } else {
+    if (CHARS.length - Object.keys(Lobby.bans).length <= MIN_FIGHTERS) { Snd.play('block'); toast(`Keep at least ${MIN_FIGHTERS} fighters to pick from!`); return; }
+    Lobby.bans[id] = [];
+    Snd.play('shrink'); toast(CH[id].name + ' is banned. Players can vote to bring them back.');
+    netBroadcast({ t: 'ban', ch: id, how: 'ban' });
+    // anyone using that fighter (even an empty slot's leftover pick) switches to one that's still allowed
+    for (const s of Lobby.slots) if (s.ch === id) s.ch = firstAllowed();
+  }
+  lobbyChanged();
+}
+// host: a banned fighter whose unban votes reach a majority of the room comes back.
+// Only votes from guests still in the room count, so this runs whenever the room changes.
+function checkUnbans() {
+  if (role !== 'host') return;
+  const need = unbanNeed();
+  for (const id of Object.keys(Lobby.bans)) {
+    const v = Lobby.bans[id] = Lobby.bans[id].filter(pid => Net.conns.has(pid));
+    if (v.length < need) continue;
+    delete Lobby.bans[id];
+    Snd.play('grow'); toast(CH[id].name + ' was unbanned by vote!');
+    netBroadcast({ t: 'ban', ch: id, how: 'vote' });
+  }
+}
+// guest: clicking a banned fighter adds (or takes back) your vote to unban it
+function voteUnban(id) {
+  if (role !== 'client' || !isBanned(id)) return;
+  const v = Lobby.bans[id], i = v.indexOf(Lobby.mySlot);
+  if (i >= 0) v.splice(i, 1); else v.push(Lobby.mySlot); // shown right away; the host's next update has the real count
+  Snd.play('select');
+  netSend({ t: 'unban', ch: id });
+  renderLobby();
 }
 function canEditChar(k) {
   const s = Lobby.slots[k];
@@ -194,7 +247,7 @@ function cycleType(k) {
   lobbyChanged();
 }
 function lobbyChanged() {
-  if (role === 'host') broadcastLobby();
+  if (role === 'host') { checkUnbans(); broadcastLobby(); }
   renderLobby();
 }
 
@@ -228,6 +281,13 @@ function buildRoster() {
 }
 
 function pickChar(id) {
+  // ban mode: the host's clicks ban and unban fighters instead of picking them
+  if (role === 'host' && Lobby.banMode) { toggleBan(id); return; }
+  if (isBanned(id)) {
+    if (role === 'client') { voteUnban(id); return; }
+    Snd.play('block'); toast(CH[id].name + ' is banned. Click "Ban fighters" to unban them.');
+    return;
+  }
   let k = role === 'client' ? Lobby.mySlot : Lobby.active;
   if (!canEditChar(k)) return;
   Lobby.slots[k].ch = id;
@@ -268,13 +328,32 @@ function renderLobby() {
   const code = $('lbCode');
   code.classList.toggle('hidden', role === 'local');
   if (role !== 'local') { code.innerHTML = ''; code.append('Room code: '); code.appendChild(el('b', '', Net.code)); }
-  // roster pips
+  // character bans: only the host of an online room can ban (guests vote on the banned cards)
+  const bb = $('lbBans'), nb = Object.keys(Lobby.bans).length;
+  if (role !== 'host') Lobby.banMode = false;
+  bb.classList.toggle('hidden', role !== 'host');
+  bb.classList.toggle('on', Lobby.banMode);
+  bb.textContent = Lobby.banMode ? '✔ Done banning' : '🚫 Ban fighters' + (nb ? ` (${nb})` : '');
+  $('roster').classList.toggle('banMode', Lobby.banMode);
+  // roster pips, plus the BANNED stamp and the unban vote count
   for (const d of $('roster').children) {
     const pips = d.querySelector('.pips');
     pips.innerHTML = '';
     Lobby.slots.forEach((s, k) => {
       if (s.type !== 'off' && s.ch === d.dataset.ch) { const p = el('i', '', String(k + 1)); p.style.background = SLOT_COLORS[k]; pips.appendChild(p); }
     });
+    const v = Lobby.bans[d.dataset.ch];
+    let tag = d.querySelector('.ban');
+    d.classList.toggle('banned', !!v);
+    d.title = !v ? '' : role === 'client' ? 'Banned by the host: click to vote to unban' : 'Banned: unban with "Ban fighters"';
+    if (!v) { if (tag) tag.remove(); continue; }
+    if (!tag) { tag = el('div', 'ban'); d.appendChild(tag); }
+    tag.innerHTML = '';
+    const mine = role === 'client' && v.includes(Lobby.mySlot);
+    tag.appendChild(el('span', '', 'BANNED'));
+    tag.appendChild(el('small', mine ? 'mine' : '', `Unban votes ${v.length}/${unbanNeed()}`));
+    if (role === 'client') tag.appendChild(el('small', mine ? 'mine' : '', mine ? '✔ you voted' : 'click to vote'));
+    else if (Lobby.banMode) tag.appendChild(el('small', '', 'click to unban'));
   }
   // slots
   const box = $('slots');
@@ -376,7 +455,7 @@ function buildCfg() {
     } else if (s.type === 'host') { ctrl = 'any'; tag = myName(); }
     else if (s.type === 'net') { ctrl = 'net'; tag = s.name || 'Player'; }
     else { ctrl = 'cpu'; tag = 'CPU'; }
-    return { slot: k, ch: s.ch, name: tag, tag, ctrl, pid: s.pid, lvl: s.lvl };
+    return { slot: k, ch: isBanned(s.ch) ? firstAllowed() : s.ch, name: tag, tag, ctrl, pid: s.pid, lvl: s.lvl };
   });
   return { stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, slots };
 }
@@ -389,6 +468,7 @@ function enterGame(stage, songs) {
   Snd.playlist(songs && songs.length ? songs : [stage], 100); Snd.duck(false);
 }
 function startMatch() {
+  Lobby.banMode = false;
   G = makeGame(buildCfg());
   pendingEv = [];
   const songs = battleOrder(G.stage);
@@ -396,6 +476,7 @@ function startMatch() {
   if (role === 'host') netBroadcast({ t: 'start', stage: G.stage, songs });
 }
 function backToLobby() {
+  if (role === 'host') checkUnbans(); // someone may have left mid-match, which changes the vote count
   showLobby();
   if (role === 'host') broadcastLobby();
 }
@@ -527,6 +608,9 @@ function lobbyPublic() {
   return {
     slots: Lobby.slots.map((s, k) => ({ type: s.type, ch: s.ch, name: s.type === 'host' ? myName() : s.name || '', lvl: s.lvl, streak: s.type !== 'off' ? streakOf(k) : 0 })),
     stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, music: Lobby.music, code: Net.code,
+    // banned fighters with the slot numbers of the guests voting to unban each one, and how many votes it takes
+    bans: Object.keys(Lobby.bans).map(id => ({ ch: id, v: Lobby.bans[id].map(pid => (Net.conns.get(pid) || { slot: -1 }).slot).filter(k => k >= 0) })),
+    need: unbanNeed(),
   };
 }
 function broadcastLobby() {
@@ -541,6 +625,7 @@ function leaveOnline() {
   Net.conns.clear();
   try { if (Net.peer) Net.peer.destroy(); } catch (e) { /* already gone */ }
   Net.peer = null; Net.conn = null; Net.inputs = {}; Net.taps = {}; SN.prev = SN.cur = null; Net.banned.clear(); Net.bannedNames.clear();
+  Lobby.bans = {}; Lobby.banMode = false; // fighter bans belong to the room
   return old;
 }
 function randCode() { const a = 'ABCDEFGHJKMNPQRSTUVWXYZ'; let s = ''; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
@@ -603,7 +688,7 @@ function onClientJoin(conn) {
   let k = Lobby.slots.findIndex((s, i) => i > 0 && s.type === 'off');
   if (k < 0) k = Lobby.slots.findIndex((s, i) => i > 0 && s.type === 'cpu');
   if (k < 0) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 400); return; }
-  Lobby.slots[k] = { type: 'net', pid: conn.peer, ch: 'toad', name: 'Player', lvl: 2 };
+  Lobby.slots[k] = { type: 'net', pid: conn.peer, ch: firstAllowed('toad'), name: 'Player', lvl: 2 };
   Net.conns.set(conn.peer, { conn, slot: k });
   Snd.play('join');
   lobbyChanged();
@@ -620,11 +705,20 @@ function onHostData(conn, d) {
   }
   if (mode !== 'lobby' || !s || s.type !== 'net') return;
   if (d.t === 'hello') {
-    s.name = cleanName(d.name) || 'Player'; if (CH[d.ch]) s.ch = d.ch;
+    s.name = cleanName(d.name) || 'Player'; if (CH[d.ch] && !isBanned(d.ch)) s.ch = d.ch;
     if (Net.bannedNames.has(s.name.toLowerCase())) { kickPlayer(e.slot); return; } // kicked earlier: still not welcome
     toast(s.name + ' joined!'); lobbyChanged();
   }
-  else if (d.t === 'pick' && CH[d.ch]) { s.ch = d.ch; lobbyChanged(); }
+  // a banned pick is refused; the update sent back puts the guest's old fighter back on their screen
+  else if (d.t === 'pick' && CH[d.ch]) { if (!isBanned(d.ch)) s.ch = d.ch; lobbyChanged(); }
+  // a guest's vote to unban a banned fighter (sending it again takes the vote back)
+  else if (d.t === 'unban' && isBanned(d.ch)) {
+    const v = Lobby.bans[d.ch], i = v.indexOf(conn.peer);
+    if (i >= 0) v.splice(i, 1); else v.push(conn.peer);
+    if (i < 0) toast(`${s.name || 'A player'} votes to unban ${CH[d.ch].name} (${v.length}/${unbanNeed()})`);
+    Snd.play('select');
+    lobbyChanged();
+  }
 }
 function onClientLeave(conn) {
   const e = Net.conns.get(conn.peer);
@@ -677,6 +771,11 @@ function onClientData(d) {
       Lobby.stage = STG[L.stage] ? L.stage : 'town';
       Lobby.stocks = L.stocks | 0; Lobby.items = L.items === 'smash' ? 'smash' : !!L.items; Lobby.hazards = !!L.hazards;
       Lobby.music = MUSIC_OPTS.some(m => m[0] === L.music) ? L.music : 'shuffle';
+      Lobby.bans = {};
+      if (Array.isArray(L.bans)) for (const b of L.bans.slice(0, CHARS.length)) {
+        if (b && CH[b.ch]) Lobby.bans[b.ch] = Array.isArray(b.v) ? b.v.filter(k => Number.isInteger(k) && k >= 0 && k < 4).slice(0, 4) : [];
+      }
+      Lobby.need = Math.min(4, Math.max(1, L.need | 0 || 2));
       Lobby.mySlot = d.you | 0; Lobby.active = Lobby.mySlot;
       if (mode !== 'lobby') { titleMsg(''); showLobby(); } else renderLobby();
       break;
@@ -688,6 +787,15 @@ function onClientData(d) {
       break;
     }
     case 's': onSnap(d.d); break;
+    // the host banned or unbanned a fighter (the room update with the new list comes right after)
+    case 'ban': {
+      const C = CH[d.ch];
+      if (!C) break;
+      const mine = Lobby.slots[Lobby.mySlot] && Lobby.slots[Lobby.mySlot].ch === d.ch;
+      if (d.how === 'ban') { Snd.play('shrink'); toast(`The host banned ${C.name}${mine ? ', so you got a new fighter' : ''}. Click a banned fighter to vote to unban.`); }
+      else { Snd.play('grow'); toast(d.how === 'vote' ? `${C.name} was unbanned by vote!` : `The host unbanned ${C.name}.`); }
+      break;
+    }
     case 'busy': leaveOnline(); toTitle('That room is mid-match. Try again in a moment.'); break;
     case 'kicked': leaveOnline(); toTitle('The host removed you from the room.'); break;
     case 'full': leaveOnline(); toTitle('That room is full.'); break;
@@ -888,10 +996,23 @@ function handleEvents(evs) {
         if (e.k === 'speed') { Snd.play('dodge'); for (let k = 0; k < 6; k++) addP({ type: 'spark', x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 10, vy: 0, size: 4, color: k % 2 ? '#ffe066' : '#ff8a1f', life: 14 }); break; }
         Snd.play('poof'); for (let k = 0; k < 7; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 40, y: e.y + (Math.random() - 0.5) * 40, vy: -0.6, size: 9, color: e.k === 'magic' ? 'rgba(220,190,255,0.9)' : e.k === 'ghost' ? 'rgba(210,225,255,0.8)' : 'rgba(150,150,170,0.85)', life: 26 }); if (e.k === 'magic') burst(e.x, e.y, 8, '#e2c8ff', 4, 'star', 5, 26); break;
       // Dash Yoshi's sonic booms and speed lines
+      // El Minya cracking and breaking the platforms
+      case 'platcrack': Snd.play('clack'); burst(e.x, e.y + 6, 8, '#c8a0ff', 4, 'dot', 4, 18); say('Crack!', e.x, e.y - 30, 18, '#d8b0ff'); break;
+      case 'platbreak':
+        Snd.play('break'); cam.shake = Math.max(cam.shake, 10);
+        for (let k = 0; k < 18; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * (e.w || 160), y: e.y + Math.random() * 16, vx: (Math.random() - 0.5) * 5, vy: -2 - Math.random() * 4, g: 0.3, size: 6 + Math.random() * 4, color: k % 3 ? '#8a6a5a' : '#c8a0ff', life: 50 });
+        say('The platform broke!', e.x, e.y - 40, 22, '#d8b0ff');
+        break;
+      case 'platback': Snd.play('item'); burst(e.x, e.y, 10, '#fff6a0', 5, 'star', 6, 26); break;
       case 'boomfx': Snd.play('slash'); addP({ type: 'ring', x: e.x, y: e.y, size: 46, color: '#ffe066', life: 12 }); addP({ type: 'ring', x: e.x, y: e.y, size: 28, color: '#ffffff', life: 10 }); break;
       case 'speedfx': addP({ type: 'spark', x: e.x, y: e.y + (Math.random() - 0.5) * 30, vx: -(e.dir || 0) * 6 - (Math.random() - 0.5) * 2, vy: 0, size: 4, color: Math.random() < 0.5 ? '#ffe066' : '#ff8a1f', life: 14 }); break;
       // Hasidic Toad: a seltzer blast and a burrow
-      case 'seltzerfx': Snd.play('squirt'); Snd.play('jelly'); for (let k = 0; k < 14; k++) addP({ type: 'bubble', x: e.x + (Math.random() - 0.5) * 34, y: e.y - Math.random() * 20, vx: (Math.random() - 0.5) * 3, vy: 1 + Math.random() * 4, size: 3 + Math.random() * 4, color: '#bfe6ff', life: 34 }); say('Fizz!', e.x, e.y - 40, 20, '#bfe6ff'); break;
+      // Hasidic Toad's up smash: a burst of Hanukkah gelt (chocolate coins in gold and silver foil) blasts him upward
+      case 'risefx':
+        Snd.play('coin'); Snd.play('candy');
+        for (let k = 0; k < 18; k++) addP({ type: 'gelt', x: e.x + (Math.random() - 0.5) * 40, y: e.y - Math.random() * 16, vx: (Math.random() - 0.5) * 7, vy: 1 + Math.random() * 5, g: 0.25, size: 6 + Math.random() * 2, color: k % 3 ? '#ffd23a' : '#d8dde6', choc: k % 4 === 0, life: 44 });
+        say('Hanukkah gelt!', e.x, e.y - 40, 20, '#ffe066');
+        break;
       case 'digfx': Snd.play('poof2'); for (let k = 0; k < 8; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 40, y: e.y - 4, vx: (Math.random() - 0.5) * 5, vy: -2 - Math.random() * 3, g: 0.25, size: 5, color: Math.random() < 0.5 ? '#8a5a2b' : '#b08050', life: 26 }); break;
       case 'log': say('*log*', e.x, e.y - 20, 18, '#d8a060'); burst(e.x, e.y, 8, '#a8743c', 4, 'dot', 6, 30); break;
       case 'heal': if (frameCount % 2 === 0) Snd.play('heal'); addP({ type: 'text', text: '+', x: e.x + (Math.random() - 0.5) * 30, y: e.y, vy: -1.4, size: 22, color: '#7dff8a', life: 30, drag: 0.98 }); break;
@@ -1142,6 +1263,7 @@ $('btnHelp').onclick = () => $('help').classList.remove('hidden');
 $('helpClose').onclick = () => $('help').classList.add('hidden');
 $('lbBack').onclick = () => { leaveOnline(); toTitle(''); };
 $('lbStart').onclick = () => { if (role !== 'client') startMatch(); };
+$('lbBans').onclick = () => { if (role !== 'host') return; Lobby.banMode = !Lobby.banMode; Snd.play('select'); if (Lobby.banMode) toast('Ban mode: click fighters to ban or unban them.'); renderLobby(); };
 document.fonts && document.fonts.ready.then(() => { for (const k in PORT) delete PORT[k]; buildRoster(); if (mode === 'lobby') renderLobby(); });
 buildRoster();
 Snd.music('title');

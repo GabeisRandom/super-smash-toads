@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611080014';
+const GAME_BUILD = '202611080122';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -387,9 +387,9 @@ const MOVE_T = {
   blitzkick:  { dur: 26, lunge: 9, fx: 'kick', hb: [{ a: 5, b: 10, x: 38, y: -22, r: 26, d: 10, k: 7, g: 0.12, ang: 35 }] },
   jetkick:    { dur: 38, lunge: 12, fx: 'kick', hb: [{ a: 12, b: 17, x: 42, y: -24, r: 30, d: 16, k: 8, g: 0.2, ang: 34 }] },
   cyclone:    { dur: 40, fx: 'spin', hb: [{ a: 8, b: 20, x: 0, y: -40, r: 40, d: 2, k: 2, g: 0.01, ang: 88, every: 4 }, { a: 22, b: 24, x: 0, y: -60, r: 44, d: 6, k: 8, g: 0.17, ang: 88, sep: 1 }] },
-  // Hasidic Toad: `dig` burrows forward underground (can't be hit) and pops up under foes; `rise` blasts the user upward
+  // Hasidic Toad: `dig` burrows forward underground (can't be hit) and pops up under foes; `rise` blasts the user upward (on a burst of Hanukkah gelt)
   burrow:     { dur: 52, dig: { a: 8, b: 34, speed: 6.5 }, fx: 'stomp', hb: [{ a: 36, b: 41, x: 0, y: -24, r: 46, d: 15, k: 8, g: 0.19, ang: 85 }] },
-  seltzer:    { dur: 46, rise: { at: 13, vy: 15 }, fx: 'ring', hb: [{ a: 13, b: 22, x: 0, y: -60, r: 40, d: 14, k: 8, g: 0.19, ang: 88 }, { a: 13, b: 18, x: 0, y: 10, r: 36, d: 6, k: 6, g: 0.1, ang: 80, sep: 1 }] },
+  gelt:       { dur: 46, rise: { at: 13, vy: 15 }, fx: 'ring', hb: [{ a: 13, b: 22, x: 0, y: -60, r: 40, d: 14, k: 8, g: 0.19, ang: 88 }, { a: 13, b: 18, x: 0, y: 10, r: 36, d: 6, k: 6, g: 0.1, ang: 80, sep: 1 }] },
   bombdrop:   { dur: 32, drop: { at: 9, p: { k: 'dbomb', vy: 4, grav: 0.55, d: 4, kb: 4, gr: 0.05, ang: -70, r: 14, life: 90, explode: { r: 56, d: 10, k: 7, g: 0.12 } } }, fx: 'stomp', hb: [] },
   // the same for everyone
   pick:       { dur: 24, fx: 'pick', hb: [{ a: 7, b: 11, x: 44, y: -40, r: 34, d: 11, k: 6, g: 0.13, ang: 55 }] },
@@ -451,7 +451,7 @@ const FIGHT = {
   buddhist:    { style: 'toad', elem: 'chi', idle: 'fight', moves: { jab: 'chop', jab3: 'palm3', side: 'roundhouse', up: 'flipup', fsmash: 'energypalm', usmash: 'rising', dsmash: 'spinsweep', nair: 'sexkick', uair: 'scissor' } },
   muslim:      { style: 'toad', elem: 'lantern', idle: 'cheer', moves: { side: 'roundhouse', usmash: 'geyser', nair: 'aura' } },
   mormon:      { style: 'toad', elem: 'hymn', idle: 'cheer', moves: { jab3: 'palm3', side: 'dropkick', usmash: 'geyser' } },
-  hasidic:     { style: 'toad', elem: 'joy', idle: 'groove', moves: { jab3: 'kick3', side: 'roundhouse', up: 'flipup', usmash: 'seltzer', dsmash: 'burrow', nair: 'sexkick', dair: 'bombdrop' } },
+  hasidic:     { style: 'toad', elem: 'joy', idle: 'groove', moves: { jab3: 'kick3', side: 'roundhouse', up: 'flipup', usmash: 'gelt', dsmash: 'burrow', nair: 'sexkick', dair: 'bombdrop' } },
   catholic:    { style: 'toad', elem: 'fiesta', idle: 'cheer', moves: { jab3: 'palm3', side: 'shove', usmash: 'geyser', nair: 'aura' } },
   hindu:       { style: 'toad', elem: 'holi', idle: 'groove', moves: { jab3: 'flurry', side: 'roundhouse', usmash: 'geyser', nair: 'spin', fair: 'drill' } },
   subaru:      { style: 'toad', elem: 'yin', moves: { jab3: 'kick3', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura' } },

@@ -136,7 +136,7 @@ The title screen, lobby and results screen each have their own music too.
 | **Dash Yoshi** (fastest fighter, quickest attacks) | Speed | Boom Kick | Blitz Dash | Cyclone Climb | Afterimage | Supersonic Lap (three laps) |
 | **Mech Yoshi** (styled after Ray MK III) | Robo energy | Ray Blaster | Air Dash | Booster Jump | Bomb Lob | Full Burst |
 
-**Subaru Toad** works a little like the Ice Climbers: Beatrice rides in a carrier on his back, casts his Minya and Murak spells, and follows every one of his attacks that lands with a small spark of her own. He hits softly himself, so he isn't a powerhouse. The Toads of different faiths were made with the players who asked for them: their moves come from celebrations, food and music (lanterns and sweets for Eid, a wedding dance, a choir, a kung fu monk's calm, Christmas and Three Kings Day, Holi colors and the dandiya dance), never from prayers or sacred objects.
+**Subaru Toad** works a little like the Ice Climbers: Beatrice rides in a carrier on his back, casts his Minya and Murak spells, and follows every one of his attacks that lands with a small spark of her own. He hits softly himself, so he isn't a powerhouse. Beatrice's crystal finale, El Minya, slowly breaks the platforms: each crystal that lands on one cracks it, the third crack breaks it (anyone standing there falls), and it comes back twelve seconds later. **Hasidic Toad's** up smash is a fountain of Hanukkah gelt (chocolate coins in gold and silver foil) that launches him upward; his down smash burrows underground and his down air drops a Bob-omb. The Toads of different faiths were made with the players who asked for them: their moves come from celebrations, food and music (lanterns and sweets for Eid, a wedding dance, a choir, a kung fu monk's calm, Christmas and Three Kings Day, Holi colors and the dandiya dance), never from prayers or sacred objects.
 
 ## Playing online with friends
 
@@ -145,6 +145,8 @@ The title screen, lobby and results screen each have their own music too.
 3. Send that code to your friends (Discord, a text, anything).
 4. Each friend types their name, enters the code under **Room code**, and clicks **Join**.
 5. Everyone clicks a fighter to pick it. The host chooses the stage, stocks, items and hazards, and can fill empty slots with CPUs (**Add**, then **Lv** for difficulty). Then the host presses **FIGHT!**
+
+**Banning fighters:** the host can click **Ban fighters** at the top of the lobby, then click fighters to ban them (click again to unban, and **Done banning** to go back to picking). Anyone using a banned fighter gets switched to another one. The other players can click a banned fighter to vote to bring it back (click again to take the vote back). Once most of the people in the room want it back, counting the host, it's unbanned. With two people that means both of you; with three or four, the guests can outvote the host. CPUs don't vote.
 
 Tips:
 

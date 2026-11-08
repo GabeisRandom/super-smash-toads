@@ -268,8 +268,9 @@ const V3D = (() => {
     // (a static can carry draw options, e.g. Rainbow Road glows: { mesh, o })
     for (const m of S.statics) G3.draw(m.mesh || m, I, m.o);
     if (S.movers.length) {
-      const surf = computeSurfaces(view.stage, view.frame, view.clouds);
-      for (const mv of S.movers) { const s = surf[mv.idx]; if (s) G3.draw(mv.mesh, M4.T((s.x + s.w / 2) * PX, -s.y * PX, 0), mv.o); }
+      // (a platform broken by El Minya is gone until it comes back)
+      const surf = computeSurfaces(view.stage, view.frame, view.clouds, view.brk);
+      for (const mv of S.movers) { const s = surf[mv.idx]; if (s && !s.gone) G3.draw(mv.mesh, M4.T((s.x + s.w / 2) * PX, -s.y * PX, 0), mv.o); }
     }
     for (const cl of view.clouds || []) G3.draw(M3D.PROJ.cloud, M4.chain(M4.T((cl.x + cl.w / 2) * PX, -(cl.y + 8) * PX, 0), M4.S(cl.w / 120, 0.8, 0.8)), cl.life < 60 ? { alpha: cl.life / 60 } : null);
     const k = view.kart;
@@ -376,6 +377,20 @@ const V3D = (() => {
   }
   function shade(hex, k) { const c = G3.B.hex(hex); return `rgb(${Math.min(255, c[0] * k) | 0},${Math.min(255, c[1] * k) | 0},${Math.min(255, c[2] * k) | 0})`; }
   function paperFx(c, view, fr) {
+    // platforms cracked by El Minya show jagged cracks (more with every hit)
+    if (view.php) {
+      const surf = computeSurfaces(view.stage, view.frame, view.clouds, view.brk);
+      for (const pi in view.php) {
+        const n = view.php[pi]; if (!n) continue;
+        const s = surf[STG[view.stage].solids.length + +pi]; if (!s || s.gone) continue;
+        c.save(); c.strokeStyle = '#2b1a12'; c.lineWidth = 3; c.lineJoin = 'round';
+        for (let k = 0; k < n * 2; k++) {
+          const x0 = s.x + s.w * (0.2 + ((k * 0.37 + +pi * 0.13) % 0.6)), dir = k % 2 ? 1 : -1;
+          c.beginPath(); c.moveTo(x0, s.y - 2); c.lineTo(x0 + dir * 8, s.y + 6); c.lineTo(x0 - dir * 4, s.y + 13); c.lineTo(x0 + dir * 10, s.y + 22); c.stroke();
+        }
+        c.restore();
+      }
+    }
     for (const f of view.fighters || []) {
       if (f.st === 'dead' || f.out) continue;
       const sc = f.sc || 1, cx = f.x, cy = f.y - f.h * 0.5, top = f.y - f.h;
@@ -657,6 +672,15 @@ const V3D = (() => {
         case 'ring': paperRing(c, p.x, p.y, p.size * (1 - k) + 6, p.color, 3 * k + 1.5); break;
         case 'star': paperStar(c, p.x, p.y, p.size, p.color, shade(p.color.startsWith('#') ? p.color : '#ffe066', 0.8), p.life * 0.2); break;
         case 'heart': c.fillStyle = p.color; c.beginPath(); c.moveTo(p.x, p.y + 8); c.lineTo(p.x - 8, p.y - 1); c.lineTo(p.x - 4, p.y - 6); c.lineTo(p.x, p.y - 2); c.lineTo(p.x + 4, p.y - 6); c.lineTo(p.x + 8, p.y - 1); c.closePath(); c.fill(); break;
+        // Hanukkah gelt: chocolate coins in gold or silver foil, spinning (some unwrapped, showing the chocolate)
+        case 'gelt': {
+          const s = p.size, w = Math.abs(Math.cos(p.life * 0.35 + p.x)) * s + 1.5, foil = p.color;
+          c.fillStyle = 'rgba(58,36,20,.3)'; c.beginPath(); c.ellipse(p.x + 1, p.y + 1.5, w, s, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = foil; c.beginPath(); c.ellipse(p.x, p.y, w, s, 0, 0, Math.PI * 2); c.fill();
+          if (p.choc) { c.fillStyle = '#6a3a1a'; c.beginPath(); c.ellipse(p.x, p.y, w * 0.8, s * 0.8, 0, -1.2, 1.9); c.fill(); }
+          c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.2; c.beginPath(); c.ellipse(p.x, p.y, w * 0.62, s * 0.62, 0, 0, Math.PI * 2); c.stroke();
+          break;
+        }
         case 'text': {
           c.font = `${p.size}px ${FONT}`; c.textAlign = 'center'; c.lineJoin = 'round';
           c.strokeStyle = INKC; c.lineWidth = Math.max(3, p.size / 5); c.strokeText(p.text, p.x + 1.5, p.y + 2); c.strokeText(p.text, p.x, p.y);

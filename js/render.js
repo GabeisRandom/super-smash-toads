@@ -738,7 +738,7 @@ function renderScene(c, view, cam, fr, bs, noFx) {
   const sh = cam.shake || 0;
   const shx = sh ? (Math.random() - 0.5) * sh : 0, shy = sh ? (Math.random() - 0.5) * sh : 0;
   c.setTransform(bs * cam.z, 0, 0, bs * cam.z, bs * (W / 2 - cam.x * cam.z + shx), bs * (H / 2 - cam.y * cam.z + shy));
-  const surf = computeSurfaces(view.stage, view.frame, view.clouds);
+  const surf = computeSurfaces(view.stage, view.frame, view.clouds, view.brk).filter(s => !s.gone);
   drawStageFG(c, view.stage, surf, fr);
   for (const cl of view.clouds || []) drawCloud(c, cl, fr);
   drawHaz2D(c, view, fr);

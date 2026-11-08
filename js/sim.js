@@ -14,17 +14,21 @@ function circRect(cx, cy, r, x, y, w, h) {
   return dx * dx + dy * dy <= r * r;
 }
 
-function computeSurfaces(stageId, frame, clouds) {
+// brk: platforms broken by El Minya ({ plat index: the frame it comes back }). A broken platform stays in the list
+// (so every index stays put) but moves far out of reach, and nobody can stand on it
+function computeSurfaces(stageId, frame, clouds, brk) {
   const st = STG[stageId], out = [];
   for (const s of st.solids) out.push({ x: s.x, y: s.y, w: s.w, h: s.h, solid: true, dx: 0, dy: 0 });
-  for (const p of st.plats) {
+  for (let pi = 0; pi < st.plats.length; pi++) {
+    const p = st.plats[pi];
+    if (brk && brk[pi] > frame) { out.push({ x: p.x, y: 1e5, w: 0, h: 0, solid: false, gone: true, pi, dx: 0, dy: 0 }); continue; }
     let x = p.x, y = p.y, dx = 0, dy = 0;
     if (p.move) {
       const m = p.move, k = (Math.PI * 2) / m.per;
       const sa = Math.sin(frame * k + m.ph), sb = Math.sin((frame - 1) * k + m.ph);
       x += m.ax * sa; y += m.ay * sa; dx = m.ax * (sa - sb); dy = m.ay * (sa - sb);
     }
-    out.push({ x, y, w: p.w, h: 0, solid: false, bounce: !!p.bounce, mv: !!p.move, dx, dy });
+    out.push({ x, y, w: p.w, h: 0, solid: false, bounce: !!p.bounce, mv: !!p.move, pi, dx, dy });
   }
   if (clouds) for (const c of clouds) out.push({ x: c.x, y: c.y, w: c.w, h: 0, solid: false, cloud: true, dx: 0, dy: 0 });
   return out;
@@ -62,13 +66,15 @@ function makeGame(cfg) {
     itemsOn: cfg.items, hazOn: cfg.hazards, nextItem: 540, kart: null, surf: [], results: null, winner: -1, pid: 1,
     // items: true = everything, 'smash' = only Smash Mushrooms (and much more often), false = none
     sbT: cfg.items === 'smash' ? 420 + RND() * 300 : 1500 + RND() * 900, haz: initHaz(st),
+    // platforms cracked (php: hits taken) and broken (brk: when each comes back) by Subaru's El Minya
+    brk: {}, php: {},
   };
   let n = 0;
   for (const s of cfg.slots) {
     if (!s) continue;
     g.fighters.push(makeFighter(s, st.spawn[n++ % st.spawn.length], cfg.stocks));
   }
-  g.surf = computeSurfaces(g.stage, g.frame, g.clouds);
+  g.surf = computeSurfaces(g.stage, g.frame, g.clouds, g.brk);
   return g;
 }
 
@@ -87,7 +93,7 @@ function initHaz(st) {
 
 function stepGame(g, getBits) {
   g.frame++;
-  g.surf = computeSurfaces(g.stage, g.frame, g.clouds);
+  g.surf = computeSurfaces(g.stage, g.frame, g.clouds, g.brk);
   if (g.phase === 'over') { g.pt++; return; }
   const counting = g.phase === 'count';
   if (counting) {
@@ -95,6 +101,8 @@ function stepGame(g, getBits) {
     if (g.pt === 180 || g.pt === 120 || g.pt === 60) g.ev.push({ t: 'count', n: g.pt / 60 });
     if (g.pt <= 0) { g.phase = 'play'; g.ev.push({ t: 'go' }); }
   }
+  // broken platforms pop back into place when their time is up
+  for (const pi in g.brk) if (g.brk[pi] === g.frame) { const S = STG[g.stage].plats[pi]; g.ev.push({ t: 'platback', x: S.x + S.w / 2, y: S.y }); }
   for (const f of g.fighters) updateFighter(g, f, counting ? 0 : getBits(f));
   updateProj(g);
   updateItems(g);
@@ -349,8 +357,8 @@ function updAttack(g, f, c) {
   if (c.onG) f.vx *= 0.82;
   else if (c.dirX) f.vx = clamp(f.vx + c.dirX * 0.35, -C.air, C.air);
   if (A.lunge && c.onG && A.hb.length && crossed(A.hb[0].a)) f.vx += f.fc * A.lunge;
-  // Hasidic Toad's seltzer blast shoots him upward
-  if (A.rise && crossed(A.rise.at)) { f.vy = -A.rise.vy; f.gi = -1; g.ev.push({ t: 'seltzerfx', x: f.x, y: f.y }); }
+  // Hasidic Toad's burst of Hanukkah gelt shoots him upward
+  if (A.rise && crossed(A.rise.at)) { f.vy = -A.rise.vy; f.gi = -1; g.ev.push({ t: 'risefx', x: f.x, y: f.y, k: A.tpl }); }
   // a thrown projectile: Yoshi's egg drop, the Bob-omb
   if (A.drop && crossed(A.drop.at)) {
     spawnProj(g, f, Object.assign({ grav: 0.5, life: 90 }, JSON.parse(JSON.stringify(A.drop.p)), { x: f.x + f.fc * 6, y: f.y + 4, vx: f.vx * 0.3, fc: f.fc }));
@@ -873,7 +881,11 @@ function updateProj(g) {
           } else if (s) {
             if (p.bounce && (p.bounces === undefined || p.bounces-- > 0)) p.vy = -p.bounce;
             else if (p.k === 'psn') p.vy = 0;
-            else { kill = true; boom = true; }
+            else {
+              kill = true; boom = true;
+              // El Minya's crystals chip away at the platforms they land on
+              if (p.k === 'fsdrop' && p.sub === 'crystal' && s.pi !== undefined) damagePlat(g, s.pi);
+            }
           }
         }
       }
@@ -907,6 +919,17 @@ function updateProj(g) {
   }
 }
 
+// a platform takes a hit: it cracks, and after three hits it breaks apart (anyone on it falls) for twelve seconds
+const PLAT_HP = 3, PLAT_DOWN = 720;
+function damagePlat(g, pi) {
+  if (g.brk[pi] > g.frame) return;
+  const idx = STG[g.stage].solids.length + pi, S = g.surf[idx];
+  g.php[pi] = (g.php[pi] || 0) + 1;
+  if (g.php[pi] < PLAT_HP) { g.ev.push({ t: 'platcrack', x: S.x + S.w / 2, y: S.y }); return; }
+  g.php[pi] = 0; g.brk[pi] = g.frame + PLAT_DOWN;
+  for (const f of g.fighters) if (f.gi === idx) { f.gi = -1; if (f.st === 'idle' || f.st === 'run' || f.st === 'crouch' || f.st === 'shield') f.st = 'air'; }
+  g.ev.push({ t: 'platbreak', x: S.x + S.w / 2, y: S.y, w: S.w });
+}
 function explode(g, p) {
   const big = p.k === 'bomb', r = big ? 85 : 55;
   g.ev.push({ t: 'boom', x: p.x, y: p.y, s: big ? 1.6 : 1 });
@@ -1509,7 +1532,12 @@ const FXU = {
         const x0 = e.dir > 0 ? s.x - 620 : s.x + s.w + 620, tx = s.x + 40 + RND() * (s.w - 80), T = 70, y0 = -260;
         Object.assign(P, { x: x0, y: y0, vx: (tx - x0) / T, vy: (s.y - y0 - 0.5 * 0.32 * T * T) / T });
       } else {
-        const tx = e.cols ? s.x + 30 + ((e.cnt * 97) % (s.w - 60)) : s.x - 80 + RND() * (s.w + 160);
+        let tx = e.cols ? s.x + 30 + ((e.cnt * 97) % (s.w - 60)) : s.x - 80 + RND() * (s.w + 160);
+        // El Minya aims half its crystals at the platforms, so they slowly crack and break
+        if (e.sub === 'crystal') {
+          const up = g.surf.filter(q => !q.solid && !q.gone && !q.cloud && q.pi !== undefined);
+          if (up.length && RND() < 0.55) { const q = up[Math.floor(RND() * up.length)]; tx = q.x + 20 + RND() * (q.w - 40); }
+        }
         Object.assign(P, { x: tx, y: -760, vx: 0, vy: 6 });
         // Lantern Night: glowing lanterns drift down slowly
         if (e.sub === 'lantern') Object.assign(P, { vy: 2.5, grav: 0.06 });
@@ -1867,7 +1895,7 @@ function spCounter(o) {
   };
 }
 // Beatrice's Minya: three crystal shards (the special itself, and a mid-Murak cast)
-const MINYA = { cd: 30, vys: [-1.2, 0, 1.2], p: { k: 'crystal', vx: 16.5, d: 3.5, kb: 3.5, gr: 0.04, ang: 35, r: 10, life: 54, ghost: 1, oy: 0.75 } };
+const MINYA = { cd: 30, vys: [-1.2, 0, 1.2], p: { k: 'crystal', vx: 16.5, d: 5.5, kb: 4.5, gr: 0.055, ang: 35, r: 10, life: 54, ghost: 1, oy: 0.75 } };
 function fireMinya(g, f, c) {
   f.cd.n = MINYA.cd;
   if (c.dirX) f.fc = c.dirX;
@@ -2351,7 +2379,7 @@ const SP = {
   // --- Subaru Toad: Beatrice casts from the backpack (the Unseen Hand is his own) ---
   // Minya flies twice as far and half again as fast as it first did, with a quarter less cooldown
   minya: spCast(spShot({ cd: MINYA.cd, at: 10, end: 24, shots: MINYA.vys.map(vy => Object.assign({ vy }, MINYA.p)) }), 'beako', 'Minya!'),
-  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 2.53, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 40, ghost: 1 } }), 'beako', 'Shamac!'),
+  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 4.4, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 40, ghost: 1 } }), 'beako', 'Shamac!'),
   // Murak floats them up (15% longer than before), and Beatrice can still fire Minya on the way: press Special again
   murak: (() => {
     const base = spFloat({ frames: 81, rise: 4.4, drift: 5.5, ev: 'yinfx' });
@@ -2434,6 +2462,7 @@ function snapshot(g, ev) {
     proj: g.proj.map(p => ({ id: p.id, k: p.k, x: Math.round(p.x), y: Math.round(p.y), vx: r1(p.vx), t: p.t, o: p.o, sub: p.sub, face: p.face, fc: p.fc, life: p.life, r: Math.round(p.r) })),
     items: g.items.map(it => ({ k: it.k, x: Math.round(it.x), y: Math.round(it.y), t: it.t, sprout: it.sprout, life: it.life, hp: it.hp })),
     clouds: g.clouds.map(c => ({ x: Math.round(c.x), y: Math.round(c.y), w: c.w, life: c.life })),
+    brk: g.brk, php: g.php,
     kart: g.kart ? { x: Math.round(g.kart.x), dir: g.kart.dir, warn: g.kart.warn, c: g.kart.c } : null,
     fx: g.fx.map(e => ({ id: e.id, k: e.k, sub: e.sub, o: e.o, t: e.t, life: e.life, x: Math.round(e.x), y: Math.round(e.y), x2: e.x2 !== undefined ? Math.round(e.x2) : undefined,
       dir: e.dir, r: e.r, lv: e.lv !== undefined ? Math.round(e.lv) : undefined, vic: e.vic, b: e.b ? e.b.map(b => [Math.round(b[0]), Math.round(b[1])]) : undefined,

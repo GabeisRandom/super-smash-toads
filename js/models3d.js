@@ -960,6 +960,12 @@ const M3D = (() => {
       for (let k = 0; k < 4; k++) B.ellipsoid([Math.sin(k * 1.3) * 0.05, -0.56 - k * 0.12, 0], [0.04, 0.04, 0.012], 2, 5, { col: cols[k] });
     });
     PROPS.string = mesh(() => B.capsule([0, 0, 0], [0, 1, 0], 0.014, 3, { col: '#f6f1e6' }), { ink: false });
+    // a little blue net bag of Hanukkah gelt, gold and silver coins peeking out of the top
+    PROPS.geltbag = mesh(() => {
+      B.ellipsoid([0, 0.1, 0], [0.13, 0.15, 0.12], 3, 8, { mat: m => (Math.floor((m[1] + 1) * 22) % 2 ? '#2f6bd8' : '#7fb0ff') });
+      B.lathe([[0.05, 0.27], [0.06, 0.24], [0.05, 0.21]], 8, { col: '#ffd23a' });
+      for (const [x, z, c] of [[-0.05, 0.03, '#ffd23a'], [0.045, -0.02, '#d8dde6'], [0.0, 0.07, '#ffd23a']]) B.ellipsoid([x, 0.27, z], [0.055, 0.055, 0.014], 2, 8, { col: c });
+    });
     // a seltzer siphon: blue glass with a silver head and spout (along +y out of the fist)
     PROPS.siphon = mesh(() => {
       B.lathe([[0, -0.3], [0.1, -0.29], [0.11, -0.05], [0.1, 0.02], [0, 0.02]], 10, { col: '#5aa8e8' });
@@ -1200,7 +1206,8 @@ const M3D = (() => {
       else if (t <= D.b) { P.bob = -2.05; P.side = Math.sin(t * 1.4) * 0.05; F.digging = 1; }
       else { const k = clamp01((t - D.b) / 6); P.bob = lerp(-2.05, 0.25, k); ARMS_UP(P, 2.7); P.sy = 1.12; F.mouthO = true; }
     },
-    seltzer(P, F, c) { if (c.k < 0) { P.sy = 0.84; P.sx = 1.08; P.af = [0.5, 0.3, -0.3, 0]; P.an = [-0.4, -0.6, -0.4, 0]; } else { P.af = [0.2, 0.25, -0.1, 0]; P.an = [0, -2.3, 0, 0]; P.sy = 1.1; P.slY = 0.12; P.srY = 0.12; F.mouthO = c.on; } F.siphon = 1; },
+    // holding a bag of Hanukkah gelt, then a burst of it rockets him upward
+    gelt(P, F, c) { if (c.k < 0) { P.sy = 0.84; P.sx = 1.08; P.af = [-1.0, 0.3, -0.6, 0]; P.an = [-1.0, -0.3, -0.6, 0]; F.geltBag = 1; } else { ARMS_UP(P, 2.5); P.sy = 1.1; P.slY = 0.12; P.srY = 0.12; F.mouthO = c.on; } },
     bombdrop(P, F, c) { P.hx = 0.4; P.af = [lerp(-1.2, 0.4, clamp01(c.t / 9)), 0.2, 0, 0]; P.an = [0.3, -0.5, -0.3, 0]; P.slY = 0.22; P.srY = 0.22; F.bombHand = c.t < 9; },
     pick(P, F, c) { P.af = [lerp(-2.9, -0.6, c.q), 0.1, 0, 0]; P.an = [0.2, -0.3, -0.3, 0]; P.lean = 0.25 * c.q; c.profile(0.35 * c.q); },
     getup(P, F, c) { TPOSE.punch(P, F, c); },
@@ -1731,6 +1738,7 @@ const M3D = (() => {
         if (F.dishHand) G3.draw(TRAP.casserole, M4.chain(Mhand, M4.T(0, 0.06, 0.1), M4.S(0.32, 0.32, 0.32)), d);
         if (F.giftHand) G3.draw(PROJ.gift, M4.chain(Mhand, M4.T(0, 0.12, 0), M4.S(1.3, 1.3, 1.3)), d);
         if (F.siphon) G3.draw(PROPS.siphon, M4.chain(Mhand, M4.S(1.6, 1.6, 1.6)), d);
+        if (F.geltBag) G3.draw(PROPS.geltbag, M4.chain(Mhand, M4.T(0, 0.06, 0.05), M4.S(1.5, 1.5, 1.5)), d);
         if (F.bombHand) G3.draw(PROJ.bomb, M4.chain(Mhand, M4.T(0, 0.12, 0), M4.S(1.15, 1.15, 1.15)), d);
         if (F.bellHand) G3.draw(PROPS.handbell, M4.chain(Mhand, M4.RX(P.grip), M4.S(1.5, 1.5, 1.5)), d);
         if (F.gulalHand) G3.draw(PROJ.haze, M4.chain(Mhand, M4.T(0, 0.08, 0), M4.S(0.18, 0.18, 0.18)), { tint: [1, 0.3, 0.65, 0.9], alpha: 0.85 });
