@@ -37,7 +37,7 @@ const V3D = (() => {
   const PSCALE = { turnip: 2.4, bomb: 1.9, ice: 1.9, fire: 1.9, boom: 2.3, psn: 1.5, egg: 2.1, coin: 2.2,
     cannon: 2.6, shuriken: 1.8, pancake: 2.2, star: 1.4, laser: 1.5, pill: 2.2, cork: 2.0, tumble: 2.1, boo: 2.2, fist: 2.4, pie: 2.3,
     gust: 2.4, rock: 2.2, heart: 2.4, bubble: 2.4, shade: 2.6, lightbolt: 2.0, seed: 2.6, melon: 2.4, milk: 2.4,
-    gift: 2.4, crescent: 2.4, axe: 2.0, scarab: 2.9, sandwave: 2.3, trident: 1.8, chi: 2.6, date: 2.9, lantern: 2.3, jelly: 2.3, latke: 2.1, pepper: 2.1, plasma: 1.5, crystal: 1.8, mbomb: 2.5 };
+    dbomb: 1.8, gift: 2.4, crescent: 2.4, axe: 2.0, scarab: 2.9, sandwave: 2.3, trident: 1.8, chi: 2.6, date: 2.9, lantern: 2.3, jelly: 2.3, latke: 2.1, pepper: 2.1, plasma: 1.5, crystal: 1.8, mbomb: 2.5 };
   const FSDROP = { egg: 3.8, cannon: 3.6, pill: 3.4, fire: 4.4, melon: 3.4, lantern: 4.2, crystal: 3.8 };
   const fighterOf = (view, i) => (view.fighters || []).find(f => f.i === i);
   const clamp01 = x => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -91,7 +91,7 @@ const V3D = (() => {
       case 'turnip': R = M4.RZ(-t * 0.25 * dir); dy = -0.17 * s; break;
       case 'psn': dy = -0.3 * s; break;
       case 'boom': R = M4.RZ(t * 0.5); break;
-      case 'egg': case 'bomb': case 'tumble': case 'pie': R = M4.RZ(-t * 0.2 * dir); break;
+      case 'egg': case 'bomb': case 'dbomb': case 'tumble': case 'pie': R = M4.RZ(-t * 0.2 * dir); break;
       case 'coin': R = M4.RY(t * 0.3); break;
       case 'fire':
         o = { self: 1 };
@@ -151,6 +151,21 @@ const V3D = (() => {
       const h = ph === 'up' ? -0.85 * clamp01(((s.t || 0) - 95) / 5) : -0.66 + 0.05 * Math.sin(fr * 1.9);
       G3.draw(F.spikes, M4.chain(M4.T(cx, top + h, 0.2), M4.S(w, 1.35, 1)));
     });
+    // Yoshi's Island's rolling boulder
+    if (H && H.rock && H.rock.on) {
+      const R = H.rock, s = 60 * PX / 0.23;
+      G3.draw(M3D.PROJ.rock, M4.chain(M4.T(R.x * PX, top + 60 * PX, 0.4), M4.RZ((-R.x * PX) / (60 * PX)), M4.S(s, s, s)), ink(s));
+    }
+    // Bowser's Castle lava: a glowing sea that rises over the floor
+    if (H && H.lava && st.haz.includes('lava')) {
+      const ly = -H.lava.lv * PX, bot = -(BLAST.b + 400) * PX, wob = Math.sin(fr * 0.08) * 0.06;
+      G3.draw(M3D.PROJ.ice3, M4.chain(M4.T(0, (ly + bot) / 2 + wob, 0.2), M4.S(60, (ly - bot) / 2, 3.9)), { tint: [1, 0.42, 0.08, 0.96], self: 0.95 });
+      G3.draw(M3D.PROJ.ice3, M4.chain(M4.T(0, ly + wob - 0.04, 0.25), M4.S(60, 0.07, 3.95)), { tint: [1, 0.85, 0.3, 0.96], self: 1 });
+    }
+    // Boo Mansion: Boos swoop through the dark
+    if (H && H.dark && H.dark.ph === 'dark') for (const b of booPath((view.frame || 0) - (H.dark.t0 || 0))) {
+      G3.draw(M3D.PROJ.boo, M4.chain(M4.T(b.x * PX, -b.y * PX, 0.6), M4.RY(b.vx > 0 ? 0.5 : -0.5), M4.S(3.2, 3.2, 3.2)), { self: 0.55, alpha: 0.92 });
+    }
     if (st.boost) for (const b of st.boost) for (let k = 0; k < 3; k++) {
       const x = (b.x + b.w * (0.2 + k * 0.3)) * PX, glow = Math.max(0, Math.sin(fr * 0.22 - k * 1.1));
       G3.draw(F.chev, M4.chain(M4.T(x, top + 0.02, 0.4), M4.RY(b.dir > 0 ? 0 : Math.PI), M4.S(1.2, 1, 1.4)), { self: 0.25 + 0.75 * glow, tint: [1, 0.9, 0.3, 0.3 * glow] });
@@ -250,10 +265,11 @@ const V3D = (() => {
   }
   function drawWorld(view, fr) {
     const S = S3D.get(view.stage);
-    for (const m of S.statics) G3.draw(m, I);
+    // (a static can carry draw options, e.g. Rainbow Road glows: { mesh, o })
+    for (const m of S.statics) G3.draw(m.mesh || m, I, m.o);
     if (S.movers.length) {
       const surf = computeSurfaces(view.stage, view.frame, view.clouds);
-      for (const mv of S.movers) { const s = surf[mv.idx]; if (s) G3.draw(mv.mesh, M4.T((s.x + s.w / 2) * PX, -s.y * PX, 0)); }
+      for (const mv of S.movers) { const s = surf[mv.idx]; if (s) G3.draw(mv.mesh, M4.T((s.x + s.w / 2) * PX, -s.y * PX, 0), mv.o); }
     }
     for (const cl of view.clouds || []) G3.draw(M3D.PROJ.cloud, M4.chain(M4.T((cl.x + cl.w / 2) * PX, -(cl.y + 8) * PX, 0), M4.S(cl.w / 120, 0.8, 0.8)), cl.life < 60 ? { alpha: cl.life / 60 } : null);
     const k = view.kart;
@@ -288,6 +304,7 @@ const V3D = (() => {
     drawWorld(view, fr);
     G3.end();
     cx2.setTransform(1, 0, 0, 1, 0, 0); cx2.clearRect(0, 0, 1280, 720);
+    darkness(cx2, view, cam, z, fr);
     cx2.setTransform(z, 0, 0, z, 640 - (cam.x + sh[0]) * z, 360 - (cam.y + sh[1]) * z);
     paperFx(cx2, view, fr);
     paperParticles(cx2);
@@ -299,8 +316,30 @@ const V3D = (() => {
     if (W && !W.on && W.warn > 0 && Math.floor(fr / 8) % 2) kartWarning(cx2, W.dir, 'WIGGLER!');
     if (opts.hud !== false) paperHUD(cx2, view);
   }
+  // Boo Mansion lights-out: the screen goes dark except a little light around each fighter (and each Boo).
+  // It's drawn first on the overlay, so hit sparks, name tags and the HUD stay visible on top
+  function darkness(c, view, cam, z, fr) {
+    const D = view.haz && view.haz.dark;
+    if (!D || (D.ph !== 'dark' && D.ph !== 'warn')) return;
+    if (D.ph === 'warn' && Math.floor(fr / 5) % 3) return; // flickering
+    const at = (x, y) => [640 + (x - cam.x) * z, 360 + (y - cam.y) * z];
+    c.save(); c.fillStyle = D.ph === 'warn' ? 'rgba(8,4,18,0.55)' : 'rgba(8,4,18,0.9)'; c.fillRect(0, 0, 1280, 720);
+    c.globalCompositeOperation = 'destination-out';
+    const hole = (x, y, r) => { const g = c.createRadialGradient(x, y, r * 0.3, x, y, r); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); };
+    for (const f of view.fighters || []) if (f.st !== 'dead' && !f.out) { const [x, y] = at(f.x, f.y - f.h * 0.5); hole(x, y, 115 * z); }
+    if (D.ph === 'dark') for (const b of booPath((view.frame || 0) - (D.t0 || 0))) { const [x, y] = at(b.x, b.y); hole(x, y, 60 * z); }
+    c.restore();
+  }
   // screen-space weather: Mushroom Gorge gusts and the Absolute Zero frost
   function screenFx(c, view, fr) {
+    // Bowser's Castle: the lava's warning glow, and the boulder warning on Yoshi's Island
+    const L = view.haz && view.haz.lava;
+    if (L && L.ph === 'warn' && STG[view.stage].haz.includes('lava')) {
+      const g = c.createLinearGradient(0, 720, 0, 420); g.addColorStop(0, `rgba(255,90,20,${0.35 + 0.2 * Math.sin(fr * 0.3)})`); g.addColorStop(1, 'rgba(255,90,20,0)');
+      c.fillStyle = g; c.fillRect(0, 0, 1280, 720);
+    }
+    const R = view.haz && view.haz.rock;
+    if (R && !R.on && R.warn > 0 && Math.floor(fr / 8) % 2) kartWarning(c, R.dir, 'BOULDER!');
     const w = view.haz && view.haz.wind;
     if (w && w.ph === 'blow' && view.stage === 'gorge') {
       c.save(); c.lineCap = 'round';
@@ -404,6 +443,14 @@ const V3D = (() => {
         c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + d * 200, y0 - 56); c.lineTo(x0 + d * 200, y0 + 96); c.closePath(); c.fill(); c.restore();
       }
       if ((f.sp === 'checkup' || f.sp === 'eidsweets') && f.t % 10 < 5) paperRing(c, cx, cy, f.h * 0.55, '#7dff8a', 2.5);
+      // burrowing: a mound of dirt moves along the ground above him
+      if (f.st === 'atk' && f.at) {
+        const A = ATK[f.ch] && ATK[f.ch][f.at], D = A && A.dig;
+        if (D && f.t >= D.a && f.t <= D.b + 2) {
+          pshadow(c, s => { c.fillStyle = s || '#8a5a2b'; c.beginPath(); c.ellipse(f.x, f.y + 2, 30 * sc, (12 + Math.sin(fr * 0.6) * 2) * sc, 0, Math.PI, 0); c.fill(); });
+          c.fillStyle = '#b08050'; for (let k = -1; k <= 1; k++) { c.beginPath(); c.arc(f.x + k * 12 * sc, f.y - 6 * sc, 5 * sc, 0, Math.PI * 2); c.fill(); }
+        }
+      }
       // Beatrice's magic circle glows over the backpack while she casts
       if (f.ch === 'subaru' && f.st === 'spc' && (f.sp === 'minya' || f.sp === 'murak' || f.sp === 'fs')) {
         const bx = cx - (f.fc || 1) * 20 * sc, by = top + 26 * sc;
@@ -531,6 +578,13 @@ const V3D = (() => {
           c.lineWidth = 3; c.beginPath(); c.ellipse(x, y + r * 0.35, r * (0.5 + k * 0.6), r * 0.18, 0, 0, Math.PI * 2); c.stroke();
         });
         break;
+      case 'breath': { // puffs pouring out of the mouth in a cone (Red Yoshi's fire breath)
+        for (let n = 0; n < 6; n++) {
+          const q = (f.t * 0.3 + n / 6) % 1, px = cx + fc * (16 + q * (Math.abs(x - cx) + r * 0.6)), py = y + Math.sin(n * 2.1 + f.t * 0.5) * r * 0.35 * q, rr = r * (0.2 + q * 0.55);
+          pshadow(c, s => { c.fillStyle = s || (n % 2 ? main : col); c.beginPath(); c.arc(px, py, rr, 0, Math.PI * 2); c.fill(); });
+        }
+        break;
+      }
       case 'spin': { // a full circle around the body
         const rr = Math.max(r, d);
         pshadow(c, s => { c.strokeStyle = s || col; c.lineWidth = 6; c.beginPath(); c.arc(cx, cy, rr, k * 6, k * 6 + 4.2); c.stroke(); });

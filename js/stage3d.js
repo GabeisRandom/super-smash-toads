@@ -25,6 +25,27 @@ const S3D = (() => {
     B.box([x, y + 0.4 * s, z], [0.12 * s, 0.4 * s, 0.12 * s], { col: '#8a5a34' });
     B.cone([x, y + 0.6 * s, z], 0.9 * s, 2.2 * s, 5, { col, jit: 0.05 * s, seed: x + z });
   }
+  // a paper flower on a stem (Yoshi's Island)
+  function flower(x, y, z, s, col) {
+    B.capsule([x, y, z], [x, y + 0.9 * s, z], 0.06 * s, 4, { col: '#3fae3a' });
+    for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2; B.ellipsoid([x + Math.cos(a) * 0.22 * s, y + 0.95 * s + Math.sin(a) * 0.22 * s, z], [0.16 * s, 0.16 * s, 0.05 * s], 2, 6, { col }); }
+    B.ellipsoid([x, y + 0.95 * s, z + 0.04 * s], [0.12 * s, 0.12 * s, 0.07 * s], 2, 6, { col: '#ffd23a' });
+  }
+  // a floating grassy islet whose top is at (X, Y)
+  function islet(X, Y, hw, depth) { B.lathe([[0, 0], [1, 0], [1.02, -0.12], [0.9, -0.5], [0.5, -1.0], [0, -1.25]], 16, { c: [X, Y, 0], sx: hw, sz: depth, jit: 0.04, seed: 9, center: [X, Y - 0.4, 0], mat: (m, i) => (i === 0 ? '#8fe070' : i === 1 ? '#6fcf55' : '#d8a868') }); }
+  // a rainbow-striped slab with its top at (X, Y): one stripe per colour, front to back
+  const RB = ['#ff4b4b', '#ff9a1f', '#ffd23a', '#4fd36b', '#3f8cff', '#7a5ae0', '#d05ae0'];
+  function rainbowSlab(X, Y, hw, depth, t) {
+    RB.forEach((col, k) => B.box([X, Y - t / 2, -depth + (k + 0.5) * ((2 * depth) / 7)], [hw, t / 2, depth / 7], { col }));
+    // the front face shows the rainbow too, in bands from top to bottom
+    RB.forEach((col, k) => B.box([X, Y - (k + 0.5) * (t / 7), depth + 0.02], [hw + 0.01, t / 14, 0.03], { col }));
+    for (const sz of [-1, 1]) B.box([X, Y + 0.02, sz * (depth + 0.04)], [hw, 0.07, 0.05], { col: '#ffffff' });
+  }
+  // stone bricks filling a box from x0..x1, y0 (top) down to y1, depth z
+  function bricks(x0, x1, y0, y1, z, cols, rows) {
+    const bw = (x1 - x0) / cols, bh = (y0 - y1) / rows;
+    for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) B.box([x0 + bw * (i + 0.5), y0 - bh * (j + 0.5), 0], [bw / 2 - 0.03, bh / 2 - 0.03, z], { col: (i + j) % 2 ? '#7a7a88' : '#686876' });
+  }
 
   // ---------- 2D paper backdrops (drawn on the canvas behind the 3D layer) ----------
   function sky(c, stops) { const g = c.createLinearGradient(0, 0, 0, 720); for (const s of stops) g.addColorStop(s[0], s[1]); c.fillStyle = g; c.fillRect(0, 0, 1280, 720); }
@@ -200,6 +221,137 @@ const S3D = (() => {
       return S;
     },
   };
+  // ---------- v1.9 stages ----------
+  const ellZ = (x, half, depth) => depth * Math.sqrt(Math.max(0, 1 - (x / half) ** 2)); // how deep an oval stage is at x
+  Object.assign(BUILD, {
+    // Yoshi's Island: a round grassy island in a pastel crayon world, with bobbing islets
+    island() {
+      const st = STG.island, so = st.solids[0], half = (so.w / 2) * PX, S = { statics: [], movers: [] };
+      S.statics.push(mesh(() => {
+        B.lathe([[0, 0], [0.975, 0], [0.99, -0.06], [1, -0.18], [1, -1.3], [0.96, -1.7]], 28, { sx: half, sz: 2.6, center: [0, -0.8, 0], mat: (m, i) => (i === 0 ? '#8fe070' : i === 1 ? '#6fcf55' : '#e8b878') });
+        B.lathe([[0.96, -1.7], [0.78, -2.8], [0.5, -3.9], [0.22, -4.7], [0, -5.0]], 22, { sx: half, sz: 2.6, jit: 0.25, seed: 51, center: [0, -3, 0], mat: m => (m[1] > -3 ? '#d8a868' : '#c08a50') });
+        const r = B.prng(5);
+        for (let k = 0; k < 16; k++) { const x = (r() - 0.5) * 1.2 * half, z = ellZ(x, half, 2.6) + 0.02; B.decalAt([x, -0.45 - r() * 0.9, z], [x / half * 0.3, 0, 1], [0.13, 0.13, 0.02], ['#ff8ab0', '#ffe066', '#8ad0ff', '#ffffff'][k % 4]); }
+        // flowers along the back of the island, behind the fighters
+        for (let k = 0; k < 8; k++) { const x = -0.7 * half + k * ((1.4 * half) / 7); flower(x, 0, -0.75 * ellZ(x, half, 2.6), 0.55 + (k % 3) * 0.12, ['#ff6fae', '#ffd23a', '#ffffff', '#ff8a1f'][k % 4]); }
+      }));
+      S.statics.push(mesh(() => { for (const p of st.plats) if (!p.move) { const [X, Y] = toW(p.x + p.w / 2, p.y); islet(X, Y, (p.w / 2) * PX, 1.4); flower(X + 1.1, Y, -0.7, 0.45, '#ff6fae'); } }));
+      st.plats.forEach((p, idx) => { if (p.move) S.movers.push({ idx: st.solids.length + idx, mesh: mesh(() => { islet(0, 0, (p.w / 2) * PX, 1.4); flower(-1.1, 0, -0.7, 0.45, '#ffd23a'); }) }); });
+      S.statics.push(mesh(() => {
+        B.lathe([[0, 0], [1, 0]], 12, { c: [0, -4, -60], sx: 160, sz: 58, center: [0, -20, -60], col: '#c8f0a8' });
+        for (const [x, z, rr, h, col] of [[-40, -40, 14, 12, '#ffb8d8'], [-12, -55, 20, 16, '#b8e8a0'], [22, -46, 16, 13, '#fff0a0'], [48, -60, 22, 15, '#a8d8ff'], [-58, -70, 24, 18, '#d8c0ff'], [5, -82, 30, 22, '#c0f0b0']])
+          B.lathe([[0, h], [rr * 0.5, h * 0.9], [rr * 0.85, h * 0.5], [rr, 0]], 12, { c: [x, -4, z], col });
+        for (const [x, z, s, col] of [[-30, -22, 3.2, '#ff6fae'], [-8, -27, 2.6, '#ffd23a'], [18, -24, 3.0, '#ffffff'], [36, -31, 3.4, '#ff8a1f']]) flower(x, -4, z, s, col);
+      }, { ink: false }));
+      S.env = { fog: [1, 0.96, 0.86], f0: 6, f1: 85, fa: 0.7, amb: 0.62, dif: 0.48, cool: 0.4 };
+      S.backdrop = (c, cam) => {
+        sky(c, [[0, '#bfe8ff'], [0.6, '#eaf8ff'], [1, '#fffbe8']]);
+        foldSun(c, 1100 + par(cam, 0.02), 110, 50, '#ffe066', '#ffcf3a');
+        foldCloud(c, 300 + par(cam, 0.03), 110, 1.5, '#ffffff', '#e3eef8'); foldCloud(c, 700 + par(cam, 0.03), 170, 1.1, '#ffffff', '#e3eef8');
+        crane(c, 520 + par(cam, 0.04), 200, 1.0, '#8fe070', '#5fbf5a');
+      };
+      return S;
+    },
+    // Rainbow Road: a glowing rainbow road through space, with rainbow platforms drifting around it
+    rainbow() {
+      const st = STG.rainbow, so = st.solids[0], half = (so.w / 2) * PX, th = so.h * PX, S = { statics: [], movers: [] };
+      S.statics.push({ mesh: mesh(() => rainbowSlab(0, 0, half, 2.4, th)), o: { self: 0.35 } });
+      st.plats.forEach((p, idx) => S.movers.push({ idx: st.solids.length + idx, o: { self: 0.35 }, mesh: mesh(() => rainbowSlab(0, 0, (p.w / 2) * PX, 1.0, 0.45)) }));
+      S.statics.push(mesh(() => {
+        B.ellipsoid([-42, 16, -120], [22, 22, 22], 6, 16, { col: '#7a5ae0', seed: 21 });
+        B.ellipsoid([46, 22, -100], [7, 7, 7], 4, 10, { col: '#e8e0c8', seed: 22 });
+        const r = B.prng(8);
+        for (let k = 0; k < 40; k++) B.ellipsoid([(r() - 0.5) * 120, -14 + r() * 40, -20 - r() * 50], [0.35, 0.35, 0.35], 2, 5, { col: ['#ffe066', '#ff8ab0', '#8ad0ff', '#ffffff'][k % 4] });
+      }, { ink: false }));
+      S.statics.push({ mesh: mesh(() => B.lathe([[26, 0.4], [40, 0.2], [40, -0.2], [26, -0.4]], 32, { c: [-42, 16, -120], col: '#d8b0ff' }), { ink: false }), o: { self: 0.3 } });
+      S.env = { fog: [0.12, 0.08, 0.28], f0: 10, f1: 110, fa: 0.75, amb: 0.62, dif: 0.5, cool: 0.6 };
+      S.backdrop = (c, cam, fr) => {
+        sky(c, [[0, '#05051a'], [0.6, '#1a1048'], [1, '#3a1a6a']]);
+        stars(c, 140, 23, 720);
+        const nx = 900 + par(cam, 0.02), g = c.createRadialGradient(nx, 260, 20, nx, 260, 380);
+        g.addColorStop(0, 'rgba(255,120,220,0.35)'); g.addColorStop(1, 'rgba(255,120,220,0)'); c.fillStyle = g; c.fillRect(0, 0, 1280, 720);
+        c.lineWidth = 2;
+        for (let k = 0; k < 2; k++) { const q = ((fr || 0) * 0.004 + k * 0.5) % 1, x = 1300 - q * 1500, y = 80 + k * 140 + q * 200; c.strokeStyle = 'rgba(255,255,220,0.8)'; c.beginPath(); c.moveTo(x, y); c.lineTo(x + 80, y - 12); c.stroke(); }
+      };
+      return S;
+    },
+    // Boo Mansion: a creaky haunted hall with bookshelf balconies and a swinging chandelier
+    mansion() {
+      const st = STG.mansion, so = st.solids[0], half = (so.w / 2) * PX, hh = so.h * PX, S = { statics: [], movers: [] };
+      S.statics.push(mesh(() => {
+        const n = 14, pw = (2 * half) / n;
+        for (let k = 0; k < n; k++) B.box([-half + pw * (k + 0.5), -0.16, 0], [pw / 2 - 0.02, 0.16, 2.5], { col: k % 2 ? '#8a5a3a' : '#7a4a2e' });
+        B.box([0, 0.0, 0.6], [half - 1.4, 0.025, 0.6], { col: '#a8263a' });
+        B.box([0, -0.32 - (hh - 0.32) / 2, 0], [half, (hh - 0.32) / 2, 2.4], { col: '#3e2632' });
+        for (const x of [-half + 0.3, half - 0.3]) B.box([x, -hh / 2, 2.45], [0.22, hh / 2, 0.08], { col: '#c8a060' });
+      }));
+      S.statics.push(mesh(() => {
+        for (const p of st.plats) {
+          if (p.move) continue;
+          const [X, Y] = toW(p.x + p.w / 2, p.y), hw = (p.w / 2) * PX;
+          B.box([X, Y - 0.14, 0], [hw, 0.14, 1.1], { col: '#6a3e26' });
+          B.box([X, Y - 1.75, -0.7], [hw - 0.15, 1.45, 0.42], { col: '#4a2a1a' });
+          for (let row = 0; row < 3; row++) for (let b = 0; b < 8; b++) B.box([X - hw + 0.5 + b * ((2 * hw - 1.0) / 7), Y - 0.75 - row * 0.9, -0.26], [0.1, 0.32, 0.05], { col: ['#c03a3a', '#3a6ac0', '#3aa060', '#d8a040', '#8a3ab0'][(b + row * 2) % 5] });
+        }
+      }));
+      st.plats.forEach((p, idx) => {
+        if (!p.move) return;
+        const hw = (p.w / 2) * PX;
+        S.movers.push({ idx: st.solids.length + idx, mesh: mesh(() => {
+          B.lathe([[0, 0], [1, 0], [1.02, -0.12], [0.9, -0.3], [0, -0.32]], 18, { sx: hw, sz: 1.2, col: '#d8b040' });
+          for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; B.ellipsoid([Math.cos(a) * hw * 0.85, -0.6, Math.sin(a) * 1.0], [0.08, 0.22, 0.08], 2, 5, { col: '#cfe8ff' }); }
+          for (const sx of [-1, 1]) B.capsule([sx * hw * 0.9, 0, -0.4], [sx * hw * 0.5, 9, -0.6], 0.05, 4, { col: '#8a7a50' });
+        }) });
+      });
+      S.statics.push(mesh(() => {
+        B.box([0, 6, -16], [70, 26, 0.5], { col: '#4a2e5a' });
+        for (let k = -4; k <= 4; k++) B.box([k * 9, 4, -15.4], [1.0, 26, 0.6], { col: '#3a2248' });
+        for (const x of [-22, 0, 22]) { B.box([x, 9, -15.3], [3.2, 6, 0.1], { col: '#1a2a5a' }); B.box([x, 9, -15.25], [3.4, 0.25, 0.1], { col: '#8a6a40' }); B.box([x, 9, -15.25], [0.2, 6, 0.1], { col: '#8a6a40' }); }
+        for (const x of [-11, 11]) { B.box([x, 7, -15.3], [2.0, 2.6, 0.1], { col: '#c8a040' }); B.box([x, 7, -15.25], [1.6, 2.2, 0.1], { col: '#5a4a6a' }); B.ellipsoid([x, 7.4, -15.1], [0.7, 0.75, 0.2], 2, 8, { col: '#e8eef8' }); }
+      }, { ink: false }));
+      S.env = { fog: [0.2, 0.12, 0.28], f0: 8, f1: 70, fa: 0.75, amb: 0.5, dif: 0.55, cool: 0.6 };
+      S.backdrop = (c, cam, fr) => {
+        sky(c, [[0, '#120a22'], [0.6, '#2a1a40'], [1, '#3a2450']]);
+        c.fillStyle = '#f0f0d8'; c.beginPath(); c.arc(1000 + par(cam, 0.015), 120, 44, 0, Math.PI * 2); c.fill();
+        for (let k = 0; k < 4; k++) {
+          const x = ((k * 300 + (fr || 0) * 0.6) % 1400) - 60, y = 90 + (k % 2) * 70 + Math.sin((fr || 0) * 0.1 + k) * 10;
+          c.fillStyle = '#0a0612'; c.beginPath(); c.moveTo(x, y); c.lineTo(x - 14, y - 6); c.lineTo(x - 8, y + 2); c.lineTo(x, y + 6); c.lineTo(x + 8, y + 2); c.lineTo(x + 14, y - 6); c.closePath(); c.fill();
+        }
+      };
+      return S;
+    },
+    // Bowser's Castle: stone bricks over a sea of lava, with torches and banners
+    castle() {
+      const st = STG.castle, so = st.solids[0], half = (so.w / 2) * PX, hh = so.h * PX, S = { statics: [], movers: [] };
+      S.statics.push(mesh(() => {
+        bricks(-half, half, 0, -hh, 2.5, 12, 5);
+        B.box([0, 0.03, 0], [half + 0.06, 0.07, 2.56], { col: '#8a8a98' });
+        for (const sx of [-1, 1]) { B.box([sx * (half - 0.4), 1.2, -2.0], [0.4, 1.2, 0.4], { col: '#5a5a66' }); B.cone([sx * (half - 0.4), 2.4, -2.0], 0.4, 0.9, 4, { col: '#8a8a98' }); }
+      }));
+      S.statics.push(mesh(() => {
+        for (const p of st.plats) {
+          const [X, Y] = toW(p.x + p.w / 2, p.y), hw = (p.w / 2) * PX;
+          bricks(X - hw, X + hw, Y, Y - 0.9, 1.1, 5, 1);
+          for (const sx of [-1, 1]) B.capsule([X + sx * (hw - 0.4), Y, -0.6], [X + sx * (hw - 0.4), Y + 12, -0.6], 0.06, 4, { col: '#4a4a52' });
+        }
+      }));
+      S.statics.push({ mesh: mesh(() => {
+        for (const sx of [-1, 1]) B.cone([sx * (half - 0.4), 3.3, -2.0], 0.3, 0.9, 6, { col: '#ff8a1f' });
+        for (const x of [-24, -8, 8, 24]) B.box([x, 8, -19.4], [2.2, 4.0, 0.1], { col: '#ff7a2a' });
+      }, { ink: false }), o: { self: 0.9 } });
+      S.statics.push(mesh(() => {
+        B.box([0, 4, -20], [70, 24, 0.5], { col: '#3a2a2e' });
+        for (let k = -5; k <= 5; k++) B.box([k * 8, 4, -19.3], [0.9, 24, 0.6], { col: '#2a1e22' });
+        for (const x of [-16, 0, 16]) { B.box([x, 11, -19.2], [1.6, 4.5, 0.08], { col: '#b8202a' }); B.box([x, 7.2, -19.1], [1.6, 0.3, 0.08], { col: '#ffd23a' }); }
+      }, { ink: false }));
+      S.env = { fog: [0.32, 0.12, 0.1], f0: 8, f1: 80, fa: 0.75, amb: 0.52, dif: 0.55, cool: 0.5 };
+      S.backdrop = (c, cam, fr) => {
+        sky(c, [[0, '#1a0a0a'], [0.6, '#4a1410'], [1, '#a03a10']]);
+        for (let k = 0; k < 24; k++) { const x = (k * 137 + (fr || 0) * 0.3) % 1280, y = 720 - (((fr || 0) * 1.2 + k * 61) % 720); c.fillStyle = k % 2 ? 'rgba(255,160,60,0.7)' : 'rgba(255,220,120,0.6)'; c.fillRect(x, y, 3, 3); }
+      };
+      return S;
+    },
+  });
   function get(id) { return cache[id] || (cache[id] = (BUILD[id] || BUILD.town)()); }
   return { get };
 })();

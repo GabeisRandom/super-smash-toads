@@ -960,6 +960,12 @@ const M3D = (() => {
       for (let k = 0; k < 4; k++) B.ellipsoid([Math.sin(k * 1.3) * 0.05, -0.56 - k * 0.12, 0], [0.04, 0.04, 0.012], 2, 5, { col: cols[k] });
     });
     PROPS.string = mesh(() => B.capsule([0, 0, 0], [0, 1, 0], 0.014, 3, { col: '#f6f1e6' }), { ink: false });
+    // a seltzer siphon: blue glass with a silver head and spout (along +y out of the fist)
+    PROPS.siphon = mesh(() => {
+      B.lathe([[0, -0.3], [0.1, -0.29], [0.11, -0.05], [0.1, 0.02], [0, 0.02]], 10, { col: '#5aa8e8' });
+      B.lathe([[0, 0.14], [0.06, 0.13], [0.075, 0.06], [0.07, 0.02], [0, 0.02]], 8, { col: '#c8d0dc' });
+      B.capsule([0, 0.1, 0], [0, 0.12, 0.12], 0.02, 4, { col: '#c8d0dc' });
+    });
     PROPS.pichkari = mesh(() => { B.capsule([0, -0.04, 0], [0, 0.3, 0], 0.055, 7, { col: '#d8a040' }); B.cone([0, 0.3, 0], 0.03, 0.1, 6, { col: '#c8902a' }); B.capsule([0, -0.12, 0], [0, -0.04, 0], 0.02, 4, { col: '#8a5a2b' }); B.lathe([[0.04, -0.12], [0.06, -0.14], [0.04, -0.16]], 6, { col: '#c8902a' }); });
     // ---- shots (centred on the origin; the view spins or flips them) ----
     PROJ.gift = mesh(() => {
@@ -1000,6 +1006,7 @@ const M3D = (() => {
     PROJ.pepper = mesh(() => { B.capsule([-0.16, -0.03, 0], [0.04, 0.02, 0], 0.07, 6, { col: '#e8262b', r2: 0.075 }); B.capsule([0.04, 0.02, 0], [0.16, 0.08, 0], 0.075, 6, { col: '#e8262b', r2: 0.02 }); B.capsule([-0.2, -0.04, 0], [-0.26, 0.02, 0], 0.02, 4, { col: '#3fae3a' }); });
     PROJ.plasma = mesh(() => { B.capsule([-0.34, 0, 0], [0.34, 0, 0], 0.08, 6, { col: '#7dff9a' }); B.ellipsoid([0.3, 0, 0], [0.12, 0.12, 0.12], 2, 6, { col: '#e8fff0' }); }, { ink: false, crease: false });
     PROJ.crystal = mesh(() => { B.cone([0, 0, 0], 0.1, 0.3, 4, { col: '#c8a0ff' }); B.cone([0, 0, 0], 0.1, -0.16, 4, { col: '#9a6ae8' }); B.xformTris(B.take(), p => [p[1], -p[0], p[2]], n => [n[1], -n[0], n[2]]).forEach(t => B.push([t])); });
+    PROJ.dbomb = PROJ.bomb; // the Hasidic Toad's down air drops a Bob-omb
     PROJ.mbomb = mesh(() => { B.ellipsoid([0, 0, 0], [0.2, 0.2, 0.2], 4, 9, { col: '#8a93a3', seed: 136 }); B.lathe([[0.2, 0.04], [0.205, 0], [0.2, -0.04]], 12, { col: '#2f6bd8' }); B.ellipsoid([0, 0.2, 0], [0.05, 0.04, 0.05], 2, 6, { col: '#ff4a4a' }); });
     // ---- traps (on the ground, y = 0 at the surface) ----
     TRAP.net = mesh(() => {
@@ -1161,6 +1168,40 @@ const M3D = (() => {
     stomp(P, F, c) { P.slY = -0.14; P.srY = -0.14; P.slZ = 0.05; ARMS_UP(P, 2.4); P.sy = 1 + 0.06 * c.kp; },
     drilldown(P, F, c) { const on = c.t >= 8 && c.t <= 28; P.spin = on ? c.t * 1.1 : 0; P.slY = -0.16; P.srY = -0.16; ARMS_UP(P, 2.6); P.sy = on ? 1.08 : 1; },
     plunge(P, F, c) { P.af = [-0.2, 0.15, 0, 0]; P.grip = 0; P.an = [-0.25, -0.15, 0, 0]; P.slY = -0.12; P.srY = -0.12; P.sy = 1.04; },
+    // ---- the Yoshi clan's own moves (v1.9) ----
+    // lift an egg overhead, then smash it down in front
+    eggshell(P, F, c) { if (c.k < 0) { ARMS_UP(P, 2.7); P.lean = -0.2; P.sy = 1.05; F.eggHold = 1; } else { P.an = [-1.5 + 0.4 * c.q, -0.3, 0, 0]; P.af = [-1.5 + 0.4 * c.q, 0.3, 0, 0]; P.lean = 0.5 * c.kp; P.hx = 0.3 * c.kp; F.mouthO = c.on; } c.profile(0.4 * c.kp); },
+    eggdrop(P, F, c) { P.sy = 0.86; P.slY = 0.26; P.srY = 0.26; P.hx = 0.35; P.an = [0.6, -0.5, -0.3, 0]; P.af = [0.6, 0.5, -0.3, 0]; F.mouthO = c.t > 6 && c.t < 12; },
+    firebreath(P, F, c) { const on = c.t >= 6 && c.t <= 22; P.hx = 0.22; P.lean = 0.2; F.mouthO = on; P.side = on ? Math.sin(c.t * 2) * 0.03 : 0; P.an = [0.3, -0.4, -0.5, 0]; P.af = [0.3, 0.4, -0.5, 0]; c.profile(0.35); },
+    wingslap(P, F, c) { P.af = [lerp(0.6, -1.4, c.kp), 0.9, 0, 0]; P.an = [lerp(0.6, -1.2, c.kp), -0.9, 0, 0]; P.lean = 0.25 * c.kp; F.wingFlap = c.on ? 1 : 0; c.profile(0.4 * c.kp); },
+    bootstomp(P, F, c) { if (c.k < 0) { P.srY = 0.36; P.srZ = 0.22; P.lean = -0.1; } else { P.srY = -0.04; P.srZ = 0.32; P.sy = 0.92; P.lean = 0.12; } ARMS_UP(P, 1.0); c.profile(0.3); },
+    bootkick(P, F, c) { if (c.k < 0) { P.srZ = -0.35; P.srY = 0.1; P.lean = 0.15; } else { P.srZ = 0.55 * c.kp; P.srY = 0.35 * c.kp; P.srR = -0.9 * c.kp; P.lean = -0.18 * c.kp; } P.an = [0.7, -0.5, -0.3, 0]; P.af = [0.7, 0.5, -0.3, 0]; c.profile(0.5 * c.kp); F.mouthO = c.on; },
+    heartslap(P, F, c) { P.af = [lerp(0.05, -1.5, c.kp) + Math.min(0, c.k) * -1.2, 0.45, lerp(-0.4, 0, c.kp), 0]; P.an = [0.4, -0.3, -0.5, 0]; P.lean = 0.14 * c.kp; c.profile(0.3 * c.kp); F.mouthO = c.on; },
+    cartkick(P, F, c) { P.tumble = -(c.fc || 1) * c.q * Math.PI * 2; ARMS_UP(P, 2.6); P.slY = 0.22 * c.kp; P.srY = 0.22 * c.kp; P.slZ = -0.25; P.srZ = 0.25; },
+    skatekick(P, F, c) { P.lean = -0.55 * c.kp; P.sy = 0.86; P.slZ = 0.5 * c.kp; P.slY = 0.16 * c.kp; P.slR = -0.6 * c.kp; P.srZ = -0.2; P.an = [0.9, -0.6, 0, 0]; P.af = [0.9, 0.6, 0, 0]; c.profile(0.45 * c.kp); },
+    airkick(P, F, c) { P.srZ = 0.55 * c.kp; P.srY = 0.3 * c.kp; P.srR = -0.9 * c.kp; P.slY = 0.25; P.lean = -0.25 * c.kp; P.tumble = (c.fc || 1) * 0.3 * c.kp; ARMS_UP(P, 1.0); c.profile(0.4 * c.kp); },
+    tonguewhip(P, F, c) { P.lean = 0.3 * c.kp - 0.15 * Math.max(0, -c.k); F.mouthO = true; P.tongue = 1.75 * c.kp; P.hx = 0.1 * c.kp; c.profile(0.55 * c.kp); },
+    clawswipe(P, F, c) { P.af = [lerp(-2.5, -0.4, c.q), lerp(0.6, -0.1, c.q), 0, 0]; P.an = [0.4, -0.4, -0.5, 0]; P.lean = 0.22 * c.kp; c.profile(0.35 * c.kp); F.mouthO = c.on; },
+    bigbite(P, F, c) { P.lean = 0.45 * c.kp - 0.2 * Math.max(0, -c.k); P.hx = 0.4 * c.kp - 0.25 * Math.max(0, -c.k); F.mouthO = c.k < 0 || c.on; P.an = [0.4, -0.4, -0.6, 0]; P.af = [0.4, 0.4, -0.6, 0]; c.profile(0.45 * c.kp); },
+    gulp(P, F, c) { TPOSE.bigbite(P, F, c); P.sy = 1 + 0.08 * c.kp; P.slZ = 0.2 * c.kp; P.srZ = -0.24 * c.kp; },
+    bellyflop(P, F, c) { P.tumble = (c.fc || 1) * 1.35 * clamp01(c.t / 8); ARMS_UP(P, 1.7); P.slZ = -0.2; P.srZ = -0.2; P.slY = 0.1; P.srY = 0.1; F.mouthO = c.on; },
+    tantrumsmash(P, F, c) {
+      if (c.t < 14) { P.sy = 0.84; P.hx = 0.2; P.an = [0.5, -0.6, -0.4, 0]; P.af = [0.5, 0.6, -0.4, 0]; return; }
+      const w = Math.sin(c.t * 2.2); P.an = [-1.6 + w * 0.9, -0.5, -0.4, 0]; P.af = [-1.6 - w * 0.9, 0.5, -0.4, 0]; P.side = w * 0.06; P.lean = 0.2; F.mouthO = true; P.slZ = w * 0.15; P.srZ = -w * 0.15;
+    },
+    rapidkick(P, F, c) { const on = c.t >= 3 && c.t <= 20, w = Math.sin(c.t * 2.4); P.srZ = on ? 0.3 + w * 0.3 : 0.1; P.srY = on ? 0.25 : 0.05; P.slZ = on ? 0.2 - w * 0.3 : 0; P.slY = on ? 0.15 : 0.05; P.lean = -0.15; ARMS_UP(P, 0.9); c.profile(0.4); },
+    blitzkick(P, F, c) { TPOSE.dropkick(P, F, c); },
+    jetkick(P, F, c) { TPOSE.dropkick(P, F, c); P.lean = -1.05 * c.kp; F.elemGlow = c.on ? 0.5 : 0; },
+    cyclone(P, F, c) { P.spin = c.t >= 6 ? (c.t - 6) * 0.9 : 0; ARMS_UP(P, 1.4); P.sy = 1 + 0.06 * c.kp; },
+    // Hasidic Toad: dig in, tunnel along with just his hat showing, then burst out of the ground
+    burrow(P, F, c) {
+      const D = c.A.dig || { a: 8, b: 34 }, t = c.t;
+      if (t < D.a) { P.sy = 0.8; P.sx = 1.1; P.hx = 0.3; P.an = [0.9, -0.5, -0.6, 0]; P.af = [0.9, 0.5, -0.6, 0]; P.bob = -0.25 * (t / D.a); }
+      else if (t <= D.b) { P.bob = -2.05; P.side = Math.sin(t * 1.4) * 0.05; F.digging = 1; }
+      else { const k = clamp01((t - D.b) / 6); P.bob = lerp(-2.05, 0.25, k); ARMS_UP(P, 2.7); P.sy = 1.12; F.mouthO = true; }
+    },
+    seltzer(P, F, c) { if (c.k < 0) { P.sy = 0.84; P.sx = 1.08; P.af = [0.5, 0.3, -0.3, 0]; P.an = [-0.4, -0.6, -0.4, 0]; } else { P.af = [0.2, 0.25, -0.1, 0]; P.an = [0, -2.3, 0, 0]; P.sy = 1.1; P.slY = 0.12; P.srY = 0.12; F.mouthO = c.on; } F.siphon = 1; },
+    bombdrop(P, F, c) { P.hx = 0.4; P.af = [lerp(-1.2, 0.4, clamp01(c.t / 9)), 0.2, 0, 0]; P.an = [0.3, -0.5, -0.3, 0]; P.slY = 0.22; P.srY = 0.22; F.bombHand = c.t < 9; },
     pick(P, F, c) { P.af = [lerp(-2.9, -0.6, c.q), 0.1, 0, 0]; P.an = [0.2, -0.3, -0.3, 0]; P.lean = 0.25 * c.q; c.profile(0.35 * c.q); },
     getup(P, F, c) { TPOSE.punch(P, F, c); },
     throw(P, F, c) { P.af = [lerp(-2.8, -1.1, clamp01(c.t / 6)), 0.2, 0, 0]; P.lean = 0.1; },
@@ -1453,11 +1494,14 @@ const M3D = (() => {
       case 'shamac': P.an = [-1.5, -0.3, -0.3, 0]; P.af = [-1.5, 0.3, -0.3, 0]; P.lean = 0.12; P.yaw = fc * 1.3; F.mouthO = t > 8 && t < 18; break;
       case 'murak': ARMS_UP(P, 1.3); P.slY = 0.08; P.srY = 0.08; F.bkCast = 1; break;
       case 'unseenhand': P.af = [t < 10 ? lerp(0.3, -1.55, t / 10) : -1.55, 0.1, 0, 0]; P.an = [-1.2, -0.1, -1.7, 0]; P.hx = 0.15; P.lean = 0.12; P.yaw = fc * 1.3; F.hurt = t > 6 && t < 26; break;
-      // --- Dash Yoshi ---
-      case 'pepper': spit(7); break;
-      case 'pepperdash': dash(0.8); P.hx = 0.25; F.tint = [1, 0.45, 0.1, 0.32]; F.mouthO = true; P.slZ = Math.sin(t * 2) * 0.35; P.srZ = -Math.sin(t * 2) * 0.35; break;
-      case 'speedspiral': P.spin = t * 0.9; ARMS_UP(P, 1.6); F.tint = [1, 0.5, 0.1, 0.25]; break;
-      case 'burnout': P.lean = -0.3; P.sy = 0.9; P.slZ = 0.3; P.srZ = 0.35; P.an = [0.6, -0.5, 0, 0]; P.af = [0.6, 0.5, 0, 0]; P.yaw = fc * 1.4; break;
+      // --- Dash Yoshi: speed ---
+      case 'boomkick': if (t < 6) { P.srZ = -0.3; P.lean = 0.15; } else { P.srZ = 0.62; P.srY = 0.36; P.srR = -0.95; P.lean = -0.25; } P.an = [0.6, -0.5, -0.3, 0]; P.af = [0.6, 0.5, -0.3, 0]; P.yaw = fc * 1.3; break;
+      case 'blitzdash': dash(0.85); P.hx = 0.25; F.alpha = t >= 2 && t < 12 ? 0.55 : 1; P.slZ = Math.sin(t * 2.4) * 0.4; P.srZ = -Math.sin(t * 2.4) * 0.4; break;
+      case 'cycloneclimb': P.spin = t * 0.95; ARMS_UP(P, 1.6); P.slY = 0.12; P.srY = 0.12; break;
+      case 'afterimage':
+        F.alpha = t < 6 ? 1 - t / 6 : clamp01((t - 6) / 3);
+        if (t >= 8) { P.srZ = 0.6; P.srY = 0.34; P.srR = -0.9; P.lean = -0.2; P.yaw = fc * 1.3; }
+        break;
       // --- Mech Yoshi ---
       case 'blaster': P.af = [-1.55, 0.12, 0, 0]; P.an = [0.3, -0.35, -0.4, 0]; P.yaw = fc * 1.3; P.lean = t === 7 || t === 12 || t === 17 ? -0.12 : 0.05; break;
       case 'airdash': dash(0.75); F.jetBack = 1; break;
@@ -1659,6 +1703,8 @@ const M3D = (() => {
         G3.draw(PROPS.flame, M4.chain(Mb, M4.T(0, -0.1, -0.84), M4.RX(Math.PI / 2 + 0.2), M4.S(0.4, 0.55 * jitter(), 0.4)), { self: 1, alpha: al < 0.99 ? al : undefined });
       }
       if (L.mech && F.jetBack) for (const sx of [-1, 1]) G3.draw(PROPS.flame, M4.chain(Mb, M4.T(0.15 * sx, 0.2, -0.42), M4.S(0.5, 0.75 * jitter(), 0.5)), { self: 1 });
+      // Yoshi's Egg Smash: the egg held up overhead before it comes down
+      if (F.eggHold) G3.draw(PROJ.egg, M4.chain(Mh, M4.T(0, 0.78, 0.12), M4.S(2.2, 2.2, 2.2)), d);
     }
     if (F.props.turnip) { const tp = rig.kind === 'toad' ? CAP_TOP : [0, 0.98, 0.02]; G3.draw(PROPS.turnip, M4.chain(Mh, M4.T(tp[0], tp[1] - 0.04, tp[2]), M4.S(1.5, 1.5, 1.5)), d); }
     if (P.tongue > 0.02) G3.draw(PROPS.tongue, M4.chain(Mh, M4.T(0, 0.2, 0.55), M4.S(1, 1, P.tongue * 2.6)), d);
@@ -1684,6 +1730,8 @@ const M3D = (() => {
         if (F.lanternHand) G3.draw(PROJ.lantern, M4.chain(Mhand, M4.T(0, -0.2, 0), M4.S(1.3, 1.3, 1.3)), { self: 0.6, tint: d.tint, alpha: d.alpha });
         if (F.dishHand) G3.draw(TRAP.casserole, M4.chain(Mhand, M4.T(0, 0.06, 0.1), M4.S(0.32, 0.32, 0.32)), d);
         if (F.giftHand) G3.draw(PROJ.gift, M4.chain(Mhand, M4.T(0, 0.12, 0), M4.S(1.3, 1.3, 1.3)), d);
+        if (F.siphon) G3.draw(PROPS.siphon, M4.chain(Mhand, M4.S(1.6, 1.6, 1.6)), d);
+        if (F.bombHand) G3.draw(PROJ.bomb, M4.chain(Mhand, M4.T(0, 0.12, 0), M4.S(1.15, 1.15, 1.15)), d);
         if (F.bellHand) G3.draw(PROPS.handbell, M4.chain(Mhand, M4.RX(P.grip), M4.S(1.5, 1.5, 1.5)), d);
         if (F.gulalHand) G3.draw(PROJ.haze, M4.chain(Mhand, M4.T(0, 0.08, 0), M4.S(0.18, 0.18, 0.18)), { tint: [1, 0.3, 0.65, 0.9], alpha: 0.85 });
         if (F.dandiya) G3.draw(PROPS.dandiya, M4.chain(Mhand, M4.S(1.4, 1.4, 1.4)), d);

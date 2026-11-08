@@ -1,6 +1,6 @@
 # Super Smash Toads
 
-A free, fan-made **platform fighter** you play right in your web browser. Forty-four fighters, thirty-one Toads (one riding a cow, one carrying a tiny spirit in his backpack) and thirteen Yoshis, brawl across four Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
+A free, fan-made **platform fighter** you play right in your web browser. Forty-four fighters, thirty-one Toads (one riding a cow, one carrying a tiny spirit in his backpack) and thirteen Yoshis, brawl across eight Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
 
 ### ▶ [Play now in your browser](https://gabeisrandom.github.io/super-smash-toads/)
 
@@ -41,7 +41,7 @@ These are the default keys. Change them in **Settings** on the main menu (saved 
 
 ## Every fighter fights differently
 
-- **Their own moves:** each fighter has their own set of normal attacks, built from about 60 different moves: punches, flurries, drop kicks, sword slashes and thrusts, tail whips, tongue lashes, head bonks, energy palms, drills, geysers and more. Every move has its own animation and its own swoosh.
+- **Their own moves:** each fighter has their own set of normal attacks, built from about 85 different moves (every Yoshi has its own too: Red Yoshi breathes fire, Yellow Yoshi kicks with its boots, Purple Yoshi whips its tongue, Yoshi smashes eggs, Baby Yoshi throws a tantrum): punches, flurries, drop kicks, sword slashes and thrusts, tail whips, tongue lashes, head bonks, energy palms, drills, geysers and more. Every move has its own animation and its own swoosh.
 - **Elements:** every fighter's hits carry an element you can see (and sometimes feel). Fire hits hit harder, Ice smash attacks freeze, Poison smashes and combo finishers poison, Electric hits shock, Wind sends foes flying flatter and farther, Rock smash attacks are heavier, Music gives longer reach, Shadow and Light hit a little harder, and Steel hits are tough and solid. The lobby shows each fighter's element.
 - **Voices:** every Toad yelps "hup!", "hyah!" and "WAAAH!", and every Yoshi chirps and cheers "Yo-shi!", each in their own pitch (Toadsworth is old and wobbly, Baby Yoshi squeaks, Robo Toad and Mech Yoshi beep). They shout on big attacks, grunt when hit, cheer on taunts and wins, and say hi when you pick them.
 - **Animated:** fighters breathe, blink and look around, and each has their own way of standing (Toad bounces like a boxer, Toadsworth leans on his cane, Ninja Toad crouches low, Rocker Toad nods to the beat) and running (Captain Toad and Robo Toad stomp, Ninja Toad sprints with his arms back, Yoshis scamper). They squash when they land, stretch when they jump, flip on double jumps, and flail when they fall.
@@ -72,6 +72,10 @@ Win match after match in a row and the results screen and lobby show your streak
 - **Captain Toad Diorama:** spike traps flash a warning, then pop up. Blocks move around, and turnip sprouts grow.
 - **Toad's Turnpike:** karts race across the road, and dash panels fling you along it.
 - **Mushroom Gorge:** bouncy mushrooms on both sides, and strong gusts of wind push everyone sideways.
+- **Yoshi's Island:** a wide grassy island with floating islets. Now and then a giant boulder rolls across: jump over it!
+- **Rainbow Road:** a glowing road through space with dash panels and rainbow platforms drifting around it. Nothing below but stars.
+- **Boo Mansion:** a haunted hall with bookshelf balconies and a swinging chandelier. The lights flicker, then go out, and Boos swoop through the dark.
+- **Bowser's Castle:** stone and chains over a sea of lava. When the lava rises over the floor, get up on the platforms!
 
 ## Music
 
@@ -129,7 +133,7 @@ The title screen, lobby and results screen each have their own music too.
 | **White Yoshi** | Light | Light Bolt | Angel Dash | Halo Rise | Holy Shine | Sacred Light |
 | **Orange Yoshi** | Fruit | Melon Seeds | Fruit Roll | Melon Bounce | Fruit Bomb | Fruit Frenzy |
 | **Baby Yoshi** (triple jump) | None | Gobble Up | Tumble Roll | Baby Flutter | Tantrum | Yoshi Stampede |
-| **Dash Yoshi** (fastest runner) | Pepper speed | Hot Pepper | Pepper Dash | Speed Spiral | Burnout | Supersonic Lap |
+| **Dash Yoshi** (fastest fighter, quickest attacks) | Speed | Boom Kick | Blitz Dash | Cyclone Climb | Afterimage | Supersonic Lap (three laps) |
 | **Mech Yoshi** (styled after Ray MK III) | Robo energy | Ray Blaster | Air Dash | Booster Jump | Bomb Lob | Full Burst |
 
 **Subaru Toad** works a little like the Ice Climbers: Beatrice rides in a carrier on his back, casts his Minya and Murak spells, and follows every one of his attacks that lands with a small spark of her own. He hits softly himself, so he isn't a powerhouse. The Toads of different faiths were made with the players who asked for them: their moves come from celebrations, food and music (lanterns and sweets for Eid, a wedding dance, a choir, a kung fu monk's calm, Christmas and Three Kings Day, Holi colors and the dandiya dance), never from prayers or sacred objects.

@@ -19,6 +19,25 @@ function fit() {
 }
 addEventListener('resize', fit);
 fit();
+// Keep every menu inside the 1280x720 frame: a screen or an overlay box that grows taller than the frame
+// (a long results table, a font that loads bigger) is scaled down to fit instead of getting cut off at the bottom.
+function autoFit() {
+  for (const id of ['start', 'title', 'lobby']) {
+    const s = $(id);
+    if (!s || s.classList.contains('hidden')) continue;
+    s.style.transform = ''; s.style.height = ''; s.classList.remove('fitScaled');
+    const need = s.scrollHeight;
+    if (need > H + 1) { const k = H / need; s.classList.add('fitScaled'); s.style.height = need + 'px'; s.style.transform = `scale(${k})`; }
+  }
+  for (const id of ['help', 'settings', 'pause', 'results']) {
+    const o = $(id), b = o && o.querySelector('.box');
+    if (!b || o.classList.contains('hidden')) continue;
+    b.style.transform = '';
+    const need = b.offsetHeight, room = H - 16;
+    if (need > room) b.style.transform = `scale(${room / need})`;
+  }
+}
+setInterval(autoFit, 400);
 
 function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } return null; }
 function cleanName(s) { return String(s || '').replace(/[<>&"'`]/g, '').trim().slice(0, 12); }
@@ -124,7 +143,7 @@ const MUSIC_OPTS = [['shuffle', 'Shuffle'], ['stage', 'Stage theme'], ['funk', '
 const musicName = id => (MUSIC_OPTS.find(m => m[0] === id) || MUSIC_OPTS[0])[1];
 function battleOrder(stage) {
   const m = Lobby.music || 'shuffle';
-  if (m === 'stage') return [stage];
+  if (m === 'stage') return [STAGE_SONG[stage] || stage];
   if (m !== 'shuffle') return [m];
   const list = BATTLE_SONGS.slice();
   for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
@@ -321,7 +340,10 @@ for (const b of document.querySelectorAll('[data-opt]')) {
 function showScreen(id) {
   for (const s of ['start', 'title', 'lobby']) if ($(s)) $(s).classList.toggle('hidden', s !== id);
   for (const s of ['pause', 'results']) $(s).classList.add('hidden');
+  setTimeout(autoFit, 0);
 }
+// all the way back to the main page (where you host, join with a code, or start local play), leaving any online room
+function toMainMenu() { leaveOnline(); toTitle(''); }
 // the start menu: the first press also wakes up the sound, so the boot-up sting plays right as you start
 function pressStart() {
   if (mode !== 'start') return;
@@ -438,14 +460,17 @@ function showResults(res, winner) {
   const rowB = el('div'); rowB.style.cssText = 'display:flex;gap:14px';
   if (role === 'client') {
     rowB.appendChild(el('div', '', 'Waiting for the host…'));
-    rowB.appendChild(btn('Leave room', 'gray', () => { leaveOnline(); toTitle(''); }));
+    rowB.appendChild(btn('Leave room (main menu)', 'gray', toMainMenu));
   } else {
     const a = el('button', 'btn green', 'Rematch!'); a.onclick = () => startMatch();
-    const b = el('button', 'btn', 'Back to lobby'); b.onclick = () => backToLobby();
-    rowB.append(a, b);
+    const b = el('button', 'btn', 'Character select'); b.onclick = () => backToLobby();
+    // the host closes the room for everyone; local play just goes back to the main page
+    const c = el('button', 'btn gray', role === 'host' ? 'Close room (main menu)' : 'Main menu'); c.onclick = toMainMenu;
+    rowB.append(a, b, c);
   }
   box.appendChild(rowB);
   $('results').classList.remove('hidden');
+  setTimeout(autoFit, 0);
 }
 
 function onEsc() {
@@ -455,7 +480,10 @@ function onEsc() {
   const p = $('pause');
   if (!p.classList.contains('hidden')) { p.classList.add('hidden'); paused = false; Snd.duck(false); return; }
   $('pauseTitle').textContent = role === 'local' ? 'Paused' : role === 'host' ? 'End the match?' : 'Leave the room?';
-  $('pQuit').textContent = role === 'client' ? 'Leave room' : 'Quit to lobby';
+  $('pQuit').textContent = role === 'client' ? 'Leave room (main menu)' : 'Character select';
+  // the host and local players can also go all the way back to the main page
+  $('pMenu').classList.toggle('hidden', role === 'client');
+  $('pMenu').textContent = role === 'host' ? 'Close room (main menu)' : 'Main menu';
   p.classList.remove('hidden');
   Snd.duck(true);
   if (role === 'local') paused = true;
@@ -464,8 +492,9 @@ $('pResume').onclick = () => { $('pause').classList.add('hidden'); paused = fals
 $('pQuit').onclick = () => {
   $('pause').classList.add('hidden');
   Snd.duck(false);
-  if (role === 'client') { leaveOnline(); toTitle(''); } else backToLobby();
+  if (role === 'client') toMainMenu(); else backToLobby();
 };
+$('pMenu').onclick = () => { $('pause').classList.add('hidden'); Snd.duck(false); toMainMenu(); };
 
 function toggleMute() { const m = Snd.toggleMute(); $('muteBtn').textContent = m ? '✕♪' : '♪'; toast(m ? 'Sound off (M)' : 'Sound on (M)'); }
 $('muteBtn').onclick = () => { Snd.init(); toggleMute(); };
@@ -855,7 +884,15 @@ function handleEvents(evs) {
         break;
       case 'taunt': Snd.play(['booty', 'laugh', 'yawn', 'flip'][e.n - 1]); if (e.n === 1) for (let k = 0; k < 3; k++) say('♪', e.x + (k - 1) * 22, e.y - 10 - k * 8, 20, '#ffe866'); if (e.n === 1 || e.n === 4) voiceLine(e.i, e.ch, 'taunt'); break;
       case 'grab': Snd.play('grab'); addP({ type: 'ring', x: e.x, y: e.y, size: 26, color: '#ffe0a8', life: 12 }); break;
-      case 'poof': Snd.play('poof'); for (let k = 0; k < 7; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 40, y: e.y + (Math.random() - 0.5) * 40, vy: -0.6, size: 9, color: e.k === 'magic' ? 'rgba(220,190,255,0.9)' : e.k === 'ghost' ? 'rgba(210,225,255,0.8)' : 'rgba(150,150,170,0.85)', life: 26 }); if (e.k === 'magic') burst(e.x, e.y, 8, '#e2c8ff', 4, 'star', 5, 26); break;
+      case 'poof':
+        if (e.k === 'speed') { Snd.play('dodge'); for (let k = 0; k < 6; k++) addP({ type: 'spark', x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 10, vy: 0, size: 4, color: k % 2 ? '#ffe066' : '#ff8a1f', life: 14 }); break; }
+        Snd.play('poof'); for (let k = 0; k < 7; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 40, y: e.y + (Math.random() - 0.5) * 40, vy: -0.6, size: 9, color: e.k === 'magic' ? 'rgba(220,190,255,0.9)' : e.k === 'ghost' ? 'rgba(210,225,255,0.8)' : 'rgba(150,150,170,0.85)', life: 26 }); if (e.k === 'magic') burst(e.x, e.y, 8, '#e2c8ff', 4, 'star', 5, 26); break;
+      // Dash Yoshi's sonic booms and speed lines
+      case 'boomfx': Snd.play('slash'); addP({ type: 'ring', x: e.x, y: e.y, size: 46, color: '#ffe066', life: 12 }); addP({ type: 'ring', x: e.x, y: e.y, size: 28, color: '#ffffff', life: 10 }); break;
+      case 'speedfx': addP({ type: 'spark', x: e.x, y: e.y + (Math.random() - 0.5) * 30, vx: -(e.dir || 0) * 6 - (Math.random() - 0.5) * 2, vy: 0, size: 4, color: Math.random() < 0.5 ? '#ffe066' : '#ff8a1f', life: 14 }); break;
+      // Hasidic Toad: a seltzer blast and a burrow
+      case 'seltzerfx': Snd.play('squirt'); Snd.play('jelly'); for (let k = 0; k < 14; k++) addP({ type: 'bubble', x: e.x + (Math.random() - 0.5) * 34, y: e.y - Math.random() * 20, vx: (Math.random() - 0.5) * 3, vy: 1 + Math.random() * 4, size: 3 + Math.random() * 4, color: '#bfe6ff', life: 34 }); say('Fizz!', e.x, e.y - 40, 20, '#bfe6ff'); break;
+      case 'digfx': Snd.play('poof2'); for (let k = 0; k < 8; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 40, y: e.y - 4, vx: (Math.random() - 0.5) * 5, vy: -2 - Math.random() * 3, g: 0.25, size: 5, color: Math.random() < 0.5 ? '#8a5a2b' : '#b08050', life: 26 }); break;
       case 'log': say('*log*', e.x, e.y - 20, 18, '#d8a060'); burst(e.x, e.y, 8, '#a8743c', 4, 'dot', 6, 30); break;
       case 'heal': if (frameCount % 2 === 0) Snd.play('heal'); addP({ type: 'text', text: '+', x: e.x + (Math.random() - 0.5) * 30, y: e.y, vy: -1.4, size: 22, color: '#7dff8a', life: 30, drag: 0.98 }); break;
       case 'rune': Snd.play('magic'); addP({ type: 'ring', x: e.x, y: e.y - 10, size: 80, color: '#c8a0ff', life: 18 }); burst(e.x, e.y - 10, 12, '#e2c8ff', 7, 'star', 6, 30); break;

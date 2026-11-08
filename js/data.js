@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611061859';
+const GAME_BUILD = '202611080014';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -201,9 +201,9 @@ const CHARS = [
     blurb: 'Tiny, speedy and always hungry. Gobbles foes up, rolls around and throws real tantrums.',
     quote: 'Yoshi! Yoshi! (Snack time!)' }),
   defChar({ id: 'dashyoshi', name: 'Dash Yoshi', yoshi: true, look: { body: '#ff5a26', saddle: '#ffd23a', shoe: '#ffe066', spines: '#ffe066', belly: '#ffe2b8', dash: true },
-    weight: 1.0, run: 9.2, air: 5.8, jump: 15, djump: 15.5, h: 66, pow: 1.02, sp: { n: 'pepper', s: 'pepperdash', u: 'speedspiral', d: 'burnout' },
-    blurb: 'Ate a hot pepper and can\'t stop running! The fastest fighter, with fiery dashes, flying peppers and burning skid marks.',
-    quote: 'Yoshi! (Too slow! Gotta go!)' }),
+    weight: 1.05, run: 11.5, air: 7.2, jump: 16, djump: 16.5, h: 66, pow: 1.12, fall: 1.12, sp: { n: 'boomkick', s: 'blitzdash', u: 'cycloneclimb', d: 'afterimage' },
+    blurb: 'The fastest fighter there is. Blurring kicks, a sonic-boom kick, a blitz dash, a cyclone climb and an afterimage that strikes from behind.',
+    quote: 'Yoshi! (Blink and you\'ll miss me!)' }),
   // a Yoshi in a battle-robot suit, styled after Ray MK III: white armour, blue parts, a gold V-fin, green energy shots
   defChar({ id: 'mechyoshi', name: 'Mech Yoshi', yoshi: true, look: { body: '#eef2f8', saddle: '#2f6bd8', shoe: '#2f6bd8', spines: '#ffd23a', belly: '#c8d0dc', mech: true },
     weight: 1.25, run: 6.6, air: 5.6, jump: 14.5, djump: 15, h: 66, pow: 1.06, sp: { n: 'blaster', s: 'airdash', u: 'booster', d: 'bomblob' },
@@ -254,7 +254,7 @@ const SPNAME = {
   jelly: 'Green Jelly', bikeride: 'Bike Ride', highnote: 'High Note', potluck: 'Potluck Potatoes',
   latke: 'Latke Toss', dreidel: 'Dreidel Spin', chairlift: 'Chair Lift', klezmer: 'Klezmer Tune',
   minya: 'Minya', shamac: 'Shamac', murak: 'Murak', unseenhand: 'Unseen Hand',
-  pepper: 'Hot Pepper', pepperdash: 'Pepper Dash', speedspiral: 'Speed Spiral', burnout: 'Burnout',
+  boomkick: 'Boom Kick', blitzdash: 'Blitz Dash', cycloneclimb: 'Cyclone Climb', afterimage: 'Afterimage',
   blaster: 'Ray Blaster', airdash: 'Air Dash', booster: 'Booster Jump', bomblob: 'Bomb Lob',
   kingsgift: "Three Kings' Gift", bellring: 'Bell Ring', partypopper: 'Party Popper', pinata: 'Piñata',
   colorthrow: 'Color Throw', dandiya: 'Dandiya Dance', kitefly: 'Kite Flight', pichkari: 'Pichkari Splash',
@@ -364,6 +364,33 @@ const MOVE_T = {
   stomp:      { dur: 34, fx: 'stomp', hb: [{ a: 10, b: 15, x: 0, y: 4, r: 26, d: 12, k: 4, g: 0.12, ang: -80 }] },
   drilldown:  { dur: 36, fx: 'stomp', hb: [{ a: 8, b: 24, x: 0, y: 2, r: 26, d: 1.6, k: 1, g: 0, ang: -70, every: 4 }, { a: 26, b: 28, x: 0, y: 0, r: 30, d: 4, k: 6, g: 0.08, ang: 60, sep: 1 }] },
   plunge:     { dur: 36, fx: 'stomp', hb: [{ a: 10, b: 16, x: 4, y: 8, r: 24, d: 13, k: 4, g: 0.12, ang: -85 }] },
+  // ---- the Yoshi clan's own moves (v1.9): each Yoshi mixes these into its set ----
+  eggshell:   { dur: 46, lunge: 3, fx: 'burst', hb: [{ a: 16, b: 21, x: 46, y: -36, r: 34, d: 16, k: 8, g: 0.2, ang: 38 }] },
+  // `drop` throws a projectile at frame `at` (an egg, a Bob-omb)
+  eggdrop:    { dur: 30, drop: { at: 8, p: { k: 'egg', vy: 3, grav: 0.5, d: 6, kb: 5, gr: 0.08, ang: -60, r: 14, life: 90 } }, fx: 'stomp', hb: [{ a: 4, b: 8, x: 0, y: 2, r: 22, d: 4, k: 3, g: 0.04, ang: -70 }] },
+  firebreath: { dur: 32, fx: 'breath', hb: [{ a: 7, b: 18, x: 46, y: -40, r: 26, d: 2.2, k: 1.5, g: 0, ang: 40, every: 4 }, { a: 20, b: 22, x: 52, y: -40, r: 30, d: 5, k: 7, g: 0.1, ang: 38, sep: 1 }] },
+  wingslap:   { dur: 28, hb: [{ a: 7, b: 11, x: 38, y: -34, r: 32, d: 10, k: 7, g: 0.12, ang: 40 }] },
+  bootstomp:  { dur: 26, fx: 'stomp', hb: [{ a: 7, b: 10, x: 30, y: -6, r: 30, d: 8, k: 5, g: 0.1, ang: 75 }] },
+  bootkick:   { dur: 48, lunge: 4, fx: 'kick', hb: [{ a: 17, b: 22, x: 42, y: -20, r: 34, d: 18, k: 8, g: 0.21, ang: 36 }] },
+  heartslap:  { dur: 13, hb: [{ a: 3, b: 5, x: 28, y: -34, r: 21, d: 3, k: 3, g: 0.02, ang: 45 }] },
+  cartkick:   { dur: 30, lunge: 4, fx: 'spin', hb: [{ a: 8, b: 13, x: 34, y: -30, r: 30, d: 10, k: 7, g: 0.12, ang: 42 }] },
+  skatekick:  { dur: 30, lunge: 8, fx: 'kick', hb: [{ a: 8, b: 14, x: 36, y: -14, r: 26, d: 9, k: 6, g: 0.11, ang: 28 }] },
+  airkick:    { dur: 24, fx: 'kick', hb: [{ a: 4, b: 9, x: 32, y: -26, r: 26, d: 9, k: 6, g: 0.12, ang: 40 }] },
+  tonguewhip: { dur: 46, fx: 'tongue', hb: [{ a: 16, b: 22, x: 96, y: -40, r: 24, d: 15, k: 8, g: 0.2, ang: 35 }] },
+  clawswipe:  { dur: 26, hb: [{ a: 6, b: 9, x: 36, y: -34, r: 28, d: 7, k: 7, g: 0.09, ang: 40 }] },
+  bigbite:    { dur: 30, lunge: 3, fx: 'chomp', hb: [{ a: 8, b: 11, x: 36, y: -40, r: 30, d: 8, k: 7, g: 0.1, ang: 40 }] },
+  gulp:       { dur: 44, lunge: 5, fx: 'chomp', hb: [{ a: 15, b: 20, x: 44, y: -40, r: 34, d: 16, k: 8, g: 0.2, ang: 38 }] },
+  bellyflop:  { dur: 34, fx: 'stomp', hb: [{ a: 8, b: 16, x: 0, y: 0, r: 34, d: 11, k: 6, g: 0.12, ang: -70 }] },
+  tantrumsmash: { dur: 44, fx: 'flurry', hb: [{ a: 14, b: 26, x: 26, y: -26, r: 30, d: 2.5, k: 2, g: 0.01, ang: 60, every: 4 }, { a: 28, b: 30, x: 30, y: -26, r: 34, d: 7, k: 8, g: 0.17, ang: 40, sep: 1 }] },
+  // Dash Yoshi: kicks so fast they blur
+  rapidkick:  { dur: 30, fx: 'kick', hb: [{ a: 3, b: 16, x: 30, y: -24, r: 24, d: 1.4, k: 1, g: 0, ang: 60, every: 3 }, { a: 18, b: 20, x: 34, y: -26, r: 28, d: 4, k: 6, g: 0.09, ang: 40, sep: 1 }] },
+  blitzkick:  { dur: 26, lunge: 9, fx: 'kick', hb: [{ a: 5, b: 10, x: 38, y: -22, r: 26, d: 10, k: 7, g: 0.12, ang: 35 }] },
+  jetkick:    { dur: 38, lunge: 12, fx: 'kick', hb: [{ a: 12, b: 17, x: 42, y: -24, r: 30, d: 16, k: 8, g: 0.2, ang: 34 }] },
+  cyclone:    { dur: 40, fx: 'spin', hb: [{ a: 8, b: 20, x: 0, y: -40, r: 40, d: 2, k: 2, g: 0.01, ang: 88, every: 4 }, { a: 22, b: 24, x: 0, y: -60, r: 44, d: 6, k: 8, g: 0.17, ang: 88, sep: 1 }] },
+  // Hasidic Toad: `dig` burrows forward underground (can't be hit) and pops up under foes; `rise` blasts the user upward
+  burrow:     { dur: 52, dig: { a: 8, b: 34, speed: 6.5 }, fx: 'stomp', hb: [{ a: 36, b: 41, x: 0, y: -24, r: 46, d: 15, k: 8, g: 0.19, ang: 85 }] },
+  seltzer:    { dur: 46, rise: { at: 13, vy: 15 }, fx: 'ring', hb: [{ a: 13, b: 22, x: 0, y: -60, r: 40, d: 14, k: 8, g: 0.19, ang: 88 }, { a: 13, b: 18, x: 0, y: 10, r: 36, d: 6, k: 6, g: 0.1, ang: 80, sep: 1 }] },
+  bombdrop:   { dur: 32, drop: { at: 9, p: { k: 'dbomb', vy: 4, grav: 0.55, d: 4, kb: 4, gr: 0.05, ang: -70, r: 14, life: 90, explode: { r: 56, d: 10, k: 7, g: 0.12 } } }, fx: 'stomp', hb: [] },
   // the same for everyone
   pick:       { dur: 24, fx: 'pick', hb: [{ a: 7, b: 11, x: 44, y: -40, r: 34, d: 11, k: 6, g: 0.13, ang: 55 }] },
   getup:      { dur: 24, hb: [{ a: 6, b: 12, x: 30, y: -24, r: 32, d: 7, k: 6, g: 0.05, ang: 30 }] },
@@ -404,17 +431,18 @@ const FIGHT = {
   cowboy:      { style: 'toad', elem: 'dust', idle: 'proud', moves: { side: 'roundhouse', up: 'flipup', fsmash: 'haymaker', nair: 'sexkick' } },
   ghost:       { style: 'mage', elem: 'spirit', idle: 'float', gait: 'float', moves: { jab: 'punch', side: 'shove', fair: 'drill', dair: 'drilldown' } },
   robo:        { style: 'toad', elem: 'spark', idle: 'robot', gait: 'heavy', moves: { jab3: 'flurry', side: 'thrust', up: 'antiair', fsmash: 'haymaker', usmash: 'rising', dsmash: 'groundslam', fair: 'drill' } },
-  yoshi:       { style: 'yoshi', elem: 'egg' },
-  redyoshi:    { style: 'yoshi', elem: 'fire', moves: { usmash: 'geyser' } },
-  blueyoshi:   { style: 'yoshi', elem: 'wind', moves: { nair: 'spin', fair: 'drill' } },
-  yellowyoshi: { style: 'yoshi', elem: 'rock', gait: 'heavy', moves: { dsmash: 'groundslam', dair: 'stomp' } },
-  pinkyoshi:   { style: 'yoshi', elem: 'heart', moves: { jab3: 'flurry', nair: 'sexkick' } },
-  iceyoshi:    { style: 'yoshi', elem: 'ice', moves: { side: 'dropkick', usmash: 'geyser' } },
-  purpleyoshi: { style: 'yoshi', elem: 'poison', moves: { jab3: 'flurry' } },
-  blackyoshi:  { style: 'yoshi', elem: 'shadow', moves: { dsmash: 'groundslam' } },
-  whiteyoshi:  { style: 'yoshi', elem: 'light', moves: { usmash: 'geyser', nair: 'aura' } },
-  orangeyoshi: { style: 'yoshi', elem: 'fruit', moves: { fair: 'drill' } },
-  babyyoshi:   { style: 'yoshi', elem: 'none', moves: { jab3: 'flurry', dair: 'stomp' } },
+  // every Yoshi fights its own way (v1.9): the classic egg-layer, a fire-breather, a winged kicker, a heavy stomper...
+  yoshi:       { style: 'yoshi', elem: 'egg', moves: { fsmash: 'eggshell', dair: 'eggdrop' } },
+  redyoshi:    { style: 'yoshi', elem: 'fire', moves: { jab3: 'uppercut3', side: 'firebreath', up: 'flipup', usmash: 'geyser', dsmash: 'groundslam', nair: 'spin', fair: 'meteoraxe', dair: 'stomp' } },
+  blueyoshi:   { style: 'yoshi', elem: 'wind', moves: { jab: 'tailjab', jab3: 'kick3', side: 'wingslap', up: 'flipup', fsmash: 'energypalm', nair: 'spin', fair: 'drill', bair: 'backkick', uair: 'scissor' } },
+  yellowyoshi: { style: 'yoshi', elem: 'rock', gait: 'heavy', moves: { jab3: 'kick3', side: 'shove', down: 'bootstomp', fsmash: 'bootkick', usmash: 'rising', dsmash: 'groundslam', nair: 'sexkick', fair: 'meteoraxe', dair: 'stomp' } },
+  pinkyoshi:   { style: 'yoshi', elem: 'heart', idle: 'cheer', moves: { jab: 'heartslap', jab2: 'heartslap', jab3: 'flurry', side: 'cartkick', up: 'flipup', nair: 'sexkick', uair: 'flipkick' } },
+  iceyoshi:    { style: 'yoshi', elem: 'ice', moves: { jab3: 'kick3', side: 'skatekick', down: 'sweep', usmash: 'geyser', dsmash: 'splitkick', nair: 'spin', fair: 'airkick', dair: 'stomp' } },
+  purpleyoshi: { style: 'yoshi', elem: 'poison', moves: { jab3: 'flurry', fsmash: 'tonguewhip', usmash: 'geyser', nair: 'aura', bair: 'backkick' } },
+  blackyoshi:  { style: 'yoshi', elem: 'shadow', moves: { jab3: 'clawswipe', side: 'shove', fsmash: 'haymaker', usmash: 'rising', dsmash: 'groundslam', nair: 'sexkick', fair: 'meteoraxe', bair: 'backkick', dair: 'stomp' } },
+  whiteyoshi:  { style: 'yoshi', elem: 'light', moves: { jab3: 'palm3', side: 'zapside', up: 'antiair', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'splitkick', nair: 'aura', fair: 'drill', uair: 'scissor' } },
+  orangeyoshi: { style: 'yoshi', elem: 'fruit', moves: { jab2: 'bite', jab3: 'bigbite', fsmash: 'gulp', nair: 'flutterkick', fair: 'drill', dair: 'bellyflop' } },
+  babyyoshi:   { style: 'yoshi', elem: 'none', idle: 'cheer', moves: { jab3: 'flurry', side: 'tailwhip', up: 'headbutt', fsmash: 'tantrumsmash', usmash: 'capbounce', dsmash: 'spinsweep', nair: 'spin', dair: 'stomp' } },
   cowtoad:     { style: 'toad', elem: 'milk', moves: { jab3: 'kick3', side: 'shove', dsmash: 'splitkick', dair: 'stomp' } },
   samurai:     { style: 'blade', elem: 'sakura', idle: 'blade', moves: { side: 'thrust', fsmash: 'bigslash', dsmash: 'spinsweep' } },
   viking:      { style: 'blade', elem: 'storm', idle: 'blade', gait: 'heavy', moves: { jab3: 'slash3', fsmash: 'capslam', dsmash: 'groundslam', dair: 'stomp' } },
@@ -423,12 +451,13 @@ const FIGHT = {
   buddhist:    { style: 'toad', elem: 'chi', idle: 'fight', moves: { jab: 'chop', jab3: 'palm3', side: 'roundhouse', up: 'flipup', fsmash: 'energypalm', usmash: 'rising', dsmash: 'spinsweep', nair: 'sexkick', uair: 'scissor' } },
   muslim:      { style: 'toad', elem: 'lantern', idle: 'cheer', moves: { side: 'roundhouse', usmash: 'geyser', nair: 'aura' } },
   mormon:      { style: 'toad', elem: 'hymn', idle: 'cheer', moves: { jab3: 'palm3', side: 'dropkick', usmash: 'geyser' } },
-  hasidic:     { style: 'toad', elem: 'joy', idle: 'groove', moves: { jab3: 'kick3', side: 'roundhouse', up: 'flipup', dsmash: 'spinsweep', nair: 'sexkick' } },
+  hasidic:     { style: 'toad', elem: 'joy', idle: 'groove', moves: { jab3: 'kick3', side: 'roundhouse', up: 'flipup', usmash: 'seltzer', dsmash: 'burrow', nair: 'sexkick', dair: 'bombdrop' } },
   catholic:    { style: 'toad', elem: 'fiesta', idle: 'cheer', moves: { jab3: 'palm3', side: 'shove', usmash: 'geyser', nair: 'aura' } },
   hindu:       { style: 'toad', elem: 'holi', idle: 'groove', moves: { jab3: 'flurry', side: 'roundhouse', usmash: 'geyser', nair: 'spin', fair: 'drill' } },
   subaru:      { style: 'toad', elem: 'yin', moves: { jab3: 'kick3', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura' } },
-  dashyoshi:   { style: 'yoshi', elem: 'speed', moves: { side: 'dropkick', nair: 'sexkick', dair: 'stomp' } },
-  mechyoshi:   { style: 'yoshi', elem: 'plasma', idle: 'robot', gait: 'heavy', moves: { jab: 'punch', jab2: 'punch2', jab3: 'flurry', side: 'zapside', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura', fair: 'drill' } },
+  // Dash Yoshi: all speed. Blurring kicks, and every attack plays out a quarter faster (aspd)
+  dashyoshi:   { style: 'yoshi', elem: 'speed', gait: 'ninja', aspd: 1.25, moves: { jab3: 'rapidkick', side: 'blitzkick', up: 'flipup', fsmash: 'jetkick', usmash: 'cyclone', dsmash: 'spinsweep', nair: 'spin', fair: 'airkick', bair: 'backkick', dair: 'stomp' } },
+  mechyoshi:   { style: 'yoshi', elem: 'plasma', idle: 'robot', gait: 'heavy', moves: { jab: 'punch', jab2: 'punch2', jab3: 'flurry', side: 'zapside', up: 'antiair', fsmash: 'haymaker', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura', fair: 'drill', bair: 'backkick', uair: 'scissor', dair: 'stomp' } },
 };
 for (const c of CHARS) Object.assign(c, { style: c.yoshi ? 'yoshi' : 'toad', elem: 'none', idle: c.yoshi ? 'dino' : 'calm', gait: c.yoshi ? 'dino' : 'normal' }, FIGHT[c.id] || {});
 // what an element does to normal attacks (the rest only change the look of the hits)
@@ -494,7 +523,28 @@ const STAGES = [
     solids: [{ x: -290, y: 0, w: 580, h: 140 }],
     plats: [{ x: -580, y: -40, w: 170, bounce: true }, { x: 410, y: -40, w: 170, bounce: true }, { x: -110, y: -210, w: 220 }],
     spawn: [[-200, -1], [200, -1], [-60, -1], [60, -1]] },
+  // ---- v1.9 stages ----
+  { id: 'island', name: "Yoshi's Island", haz: ['rock'], hazName: 'A giant boulder rolls across the island now and then: jump over it!',
+    solids: [{ x: -520, y: 0, w: 1040, h: 150 }],
+    plats: [{ x: -400, y: -140, w: 180 }, { x: 220, y: -140, w: 180 }, { x: -90, y: -270, w: 180, move: { ax: 0, ay: 50, per: 300, ph: 0 } }],
+    spawn: [[-320, -1], [320, -1], [-110, -1], [110, -1]] },
+  { id: 'rainbow', name: 'Rainbow Road', haz: ['boost'], hazName: 'A road through space: dash panels and drifting rainbow platforms',
+    solids: [{ x: -380, y: 0, w: 760, h: 36 }],
+    plats: [{ x: -600, y: -110, w: 170, move: { ax: 0, ay: 70, per: 400, ph: 0 } }, { x: 430, y: -110, w: 170, move: { ax: 0, ay: 70, per: 400, ph: Math.PI } },
+      { x: -100, y: -250, w: 200, move: { ax: 170, ay: 0, per: 520, ph: 0 } }],
+    boost: [{ x: -330, w: 90, dir: 1 }, { x: 240, w: 90, dir: -1 }],
+    spawn: [[-280, -1], [280, -1], [-90, -1], [90, -1]] },
+  { id: 'mansion', name: 'Boo Mansion', haz: ['dark'], hazName: 'The lights go out and Boos swoop through the dark',
+    solids: [{ x: -460, y: 0, w: 920, h: 170 }],
+    plats: [{ x: -360, y: -150, w: 180 }, { x: 180, y: -150, w: 180 }, { x: -100, y: -285, w: 200, move: { ax: 90, ay: 0, per: 420, ph: 0 } }],
+    spawn: [[-300, -1], [300, -1], [-100, -1], [100, -1]] },
+  { id: 'castle', name: "Bowser's Castle", haz: ['lava'], hazName: 'The lava rises over the floor: get up on the platforms!',
+    solids: [{ x: -480, y: 0, w: 960, h: 210 }],
+    plats: [{ x: -380, y: -150, w: 190 }, { x: 190, y: -150, w: 190 }, { x: -95, y: -290, w: 190 }],
+    spawn: [[-300, -1], [300, -1], [-110, -1], [110, -1]] },
 ];
+// the stage theme each newer stage plays when the music is set to "Stage theme"
+const STAGE_SONG = { island: 'hop', rainbow: 'turbo', mansion: 'jazz', castle: 'funk' };
 
 const ITEMS = {
   mush: { name: 'Super Mushroom!', w: 3 }, mini: { name: 'Mini Mushroom!', w: 2 }, poison: { name: 'Poison Mushroom!', w: 2 },

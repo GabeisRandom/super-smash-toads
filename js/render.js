@@ -529,7 +529,11 @@ function drawBG(c, id, cam, fr) {
           if (hash(wx * 3 + wy) > 0.55) { c.fillStyle = 'rgba(255,220,120,0.75)'; c.fillRect(wx, wy, 7, 9); }
       }
     }
-  } else {
+  } else if (id === 'island') skyGrad(c, '#bfe8ff', '#fffbe8');
+  else if (id === 'rainbow') { skyGrad(c, '#05051a', '#3a1a6a'); for (let k = 0; k < 80; k++) E(c, hash(k) * W, hash(k + 80) * H, 1.3, 1.3, 'rgba(255,255,230,0.8)'); }
+  else if (id === 'mansion') skyGrad(c, '#120a22', '#3a2450');
+  else if (id === 'castle') skyGrad(c, '#1a0a0a', '#a03a10');
+  else {
     skyGrad(c, '#ff9e5e', '#ffe6b0');
     E(c, 640 - cam.x * 0.03, 300, 120, 120, 'rgba(255,240,190,0.6)');
     c.fillStyle = '#c0703e';
@@ -545,8 +549,19 @@ function drawBG(c, id, cam, fr) {
 }
 
 // ---------- Stage foreground (world space) ----------
+// the newer stages in the 2D fallback renderer (no WebGL): simple paper slabs in each stage's colours
+const FG2D = { island: ['#8fe070', '#d8a868', '#6fcf55'], rainbow: ['#ffd23a', '#7a5ae0', '#ff4b4b'], mansion: ['#8a5a3a', '#3e2632', '#c8a060'], castle: ['#8a8a98', '#5a5a66', '#4a4a52'] };
 function drawStageFG(c, id, surf, fr) {
   const st = STG[id];
+  if (FG2D[id]) {
+    const [top, side, plat] = FG2D[id];
+    for (const s of surf) {
+      if (s.cloud) continue;
+      if (s.solid) { RR(c, s.x, s.y, s.w, s.h, 12, side, OUT, 2.5); RR(c, s.x - 4, s.y - 4, s.w + 8, 16, 8, top, OUT, 2.5); }
+      else RR(c, s.x, s.y, s.w, 22, 8, plat, OUT, 2);
+    }
+    return;
+  }
   if (id === 'diorama') {
     c.save(); c.setLineDash([6, 10]); c.strokeStyle = 'rgba(255,255,255,0.25)'; c.lineWidth = 3;
     for (const p of st.plats) if (p.move) { c.beginPath(); c.moveTo(p.x + p.w / 2 - p.move.ax, p.y - p.move.ay + 15); c.lineTo(p.x + p.w / 2 + p.move.ax, p.y + p.move.ay + 15); c.stroke(); }

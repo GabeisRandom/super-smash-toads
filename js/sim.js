@@ -72,12 +72,16 @@ function makeGame(cfg) {
   return g;
 }
 
+const LAVA_LOW = 640; // where Bowser's Castle lava sits between rises (far below the stage, just for show)
 function initHaz(st) {
   return {
     chestT: 900, sproutT: 500, kartT: 650,
     wig: { on: false, next: 900 + RND() * 500, warn: 0, x: 0, dir: 1, hp: 3, angry: 0, hits: {} },
     spk: (st.spikes || []).map((s, i) => ({ ph: 'idle', t: 260 + i * 210, hits: {} })),
     wind: { ph: 'idle', t: 700 + RND() * 400, dir: 1 },
+    rock: { on: false, t: 700 + RND() * 400, x: 0, dir: 1, warn: 0, hits: {} },
+    dark: { ph: 'idle', t: 800 + RND() * 400, t0: 0, hits: {} },
+    lava: { ph: 'idle', t: 900 + RND() * 400, lv: LAVA_LOW, hits: {} },
   };
 }
 
@@ -336,13 +340,34 @@ function offStage(g, f) {
 }
 
 function updAttack(g, f, c) {
-  const A = ATK[f.ch][f.at], C = c.C;
-  f.t++;
+  const A = ATK[f.ch][f.at], C = c.C, t0 = f.t;
+  // Dash Yoshi's attacks play out faster (aspd); `crossed(n)` is true on the frame the move reaches frame n
+  f.t += C.aspd || 1;
+  const crossed = n => t0 < n && f.t >= n;
   // tap attack again during a jab for the second and third hits
   if ((f.at === 'jab' || f.at === 'jab2') && c.pressed & B_A && f.t >= 4 && !(c.bits & (B_L | B_R | B_U | B_D))) { startAttack(g, f, f.at === 'jab' ? 'jab2' : 'jab3'); return; }
   if (c.onG) f.vx *= 0.82;
   else if (c.dirX) f.vx = clamp(f.vx + c.dirX * 0.35, -C.air, C.air);
-  if (A.lunge && c.onG && A.hb.length && f.t === A.hb[0].a) f.vx += f.fc * A.lunge;
+  if (A.lunge && c.onG && A.hb.length && crossed(A.hb[0].a)) f.vx += f.fc * A.lunge;
+  // Hasidic Toad's seltzer blast shoots him upward
+  if (A.rise && crossed(A.rise.at)) { f.vy = -A.rise.vy; f.gi = -1; g.ev.push({ t: 'seltzerfx', x: f.x, y: f.y }); }
+  // a thrown projectile: Yoshi's egg drop, the Bob-omb
+  if (A.drop && crossed(A.drop.at)) {
+    spawnProj(g, f, Object.assign({ grav: 0.5, life: 90 }, JSON.parse(JSON.stringify(A.drop.p)), { x: f.x + f.fc * 6, y: f.y + 4, vx: f.vx * 0.3, fc: f.fc }));
+    g.ev.push({ t: 'throw', x: f.x, y: f.y });
+  }
+  // burrowing: under the ground nobody can touch you; you tunnel forward (never past the edge) and pop up at the end
+  if (A.dig && f.t >= A.dig.a && f.t <= A.dig.b) {
+    const s = g.surf[f.gi];
+    if (!c.onG || !s) f.t = Math.max(f.t, A.dig.b);
+    else {
+      f.ig = Math.max(f.ig, 2);
+      f.vx = f.fc * A.dig.speed * (f.sc || 1);
+      if (f.x + f.vx < s.x + 14 || f.x + f.vx > s.x + s.w - 14) f.vx = 0;
+      if (Math.floor(f.t) % 3 === 0) g.ev.push({ t: 'dust', x: f.x, y: f.y - 20 });
+    }
+    if (crossed(A.dig.a)) g.ev.push({ t: 'digfx', x: f.x, y: f.y });
+  }
   const mul = A.smash ? f.chgMul : 1;
   A.hb.forEach((hb, n) => {
     if (f.t < hb.a || f.t > hb.b) return;
@@ -1120,6 +1145,80 @@ function hazards(g) {
     else if (hz === 'spikes') updSpikes(g, Hz, st);
     else if (hz === 'boost') updBoost(g, st);
     else if (hz === 'wind') updWind(g, Hz.wind);
+    else if (hz === 'rock') updRock(g, Hz.rock, st);
+    else if (hz === 'dark') updDark(g, Hz.dark);
+    else if (hz === 'lava') updLava(g, Hz.lava, st);
+  }
+}
+
+// Yoshi's Island: a giant boulder comes rolling across the island (a warning first); jump over it!
+function updRock(g, R, st) {
+  const s = st.solids[0];
+  if (!R.on) {
+    if (--R.t === 120) { R.dir = RND() < 0.5 ? 1 : -1; R.warn = 120; g.ev.push({ t: 'say', x: 0, y: -340, s: R.dir > 0 ? 'Boulder! >>>' : '<<< Boulder!', snd: 'wind' }); }
+    if (R.warn > 0) R.warn--;
+    if (R.t <= 0) { R.on = true; R.x = R.dir > 0 ? s.x - 120 : s.x + s.w + 120; R.hits = {}; }
+    return;
+  }
+  R.x += R.dir * 9;
+  for (const f of g.fighters) {
+    if (!hittable(f) || R.hits[f.i]) continue;
+    if (Math.abs(f.x - R.x) < 66 && f.y > s.y - 118 && f.y <= s.y + 6) {
+      R.hits[f.i] = 1;
+      applyHit(g, f, null, 14, 9, 0.12, 50, R.dir, { proj: true });
+      g.ev.push({ t: 'boom', x: f.x, y: f.y - 30, s: 0.6, k: 'quake' });
+    }
+  }
+  if ((R.dir > 0 && R.x > s.x + s.w + 160) || (R.dir < 0 && R.x < s.x - 160)) { R.on = false; R.t = 1100 + RND() * 600; }
+}
+
+// Boo Mansion: the lights flicker, then go out for six seconds while Boos swoop across in the dark
+function updDark(g, D) {
+  if (--D.t <= 0) {
+    if (D.ph === 'idle') { D.ph = 'warn'; D.t = 90; g.ev.push({ t: 'say', x: 0, y: -340, s: 'The lights are flickering...', snd: 'boo' }); }
+    else if (D.ph === 'warn') { D.ph = 'dark'; D.t = 360; D.t0 = g.frame; }
+    else { D.ph = 'idle'; D.t = 1000 + RND() * 500; }
+  }
+  if (D.ph !== 'dark') return;
+  for (const b of booPath(g.frame - D.t0)) {
+    for (const f of g.fighters) {
+      if (!hittable(f) || Math.hypot(f.x - b.x, f.y - f.h / 2 - b.y) > 36) continue;
+      if (D.hits[f.i] && g.frame - D.hits[f.i] < 50) continue;
+      D.hits[f.i] = g.frame;
+      applyHit(g, f, null, 7, 6, 0.06, 60, b.vx >= 0 ? 1 : -1, { proj: true });
+    }
+  }
+}
+// where the three Boos are at frame t of the darkness (it depends only on t, so online guests see them in the same spots)
+function booPath(t) {
+  const out = [];
+  for (let k = 0; k < 3; k++) {
+    const dir = k % 2 ? -1 : 1, u = t - k * 70;
+    if (u < 0 || u > 300) continue;
+    out.push({ x: dir * (-700 + u * 4.6), y: -60 - k * 90 + Math.sin(u * 0.05) * 50, vx: dir * 4.6 });
+  }
+  return out;
+}
+
+// Bowser's Castle: the lava below rises over the floor for four seconds (with a warning), then sinks back down
+function updLava(g, L, st) {
+  const top = st.solids[0].y - 34;
+  if (--L.t <= 0) {
+    if (L.ph === 'idle') { L.ph = 'warn'; L.t = 120; g.ev.push({ t: 'say', x: 0, y: -340, s: 'The lava is rising! Get up high!', snd: 'angry' }); }
+    else if (L.ph === 'warn') { L.ph = 'rise'; L.t = 60; }
+    else if (L.ph === 'rise') { L.ph = 'up'; L.t = 240; }
+    else if (L.ph === 'up') { L.ph = 'fall'; L.t = 90; }
+    else { L.ph = 'idle'; L.t = 1200 + RND() * 600; }
+  }
+  const k = L.ph === 'rise' ? 1 - L.t / 60 : L.ph === 'up' ? 1 : L.ph === 'fall' ? L.t / 90 : 0;
+  L.lv = LAVA_LOW + (top - LAVA_LOW) * k;
+  if (L.ph === 'idle' || L.ph === 'warn') return;
+  for (const f of g.fighters) {
+    if (!hittable(f) || f.y < L.lv) continue;
+    if (L.hits[f.i] && g.frame - L.hits[f.i] < 45) continue;
+    L.hits[f.i] = g.frame;
+    applyHit(g, f, null, 10, 10, 0.08, 88, f.x >= 0 ? 1 : -1, { proj: true });
+    g.ev.push({ t: 'flame', x: f.x, y: f.y - 10 });
   }
 }
 
@@ -1237,7 +1336,7 @@ const FSDEF = {
   samurai: { k: 'sweep', sub: 'petals' }, viking: { k: 'rush', sub: 'ship' }, pharaoh: { k: 'meteor', sub: 'pyramid', r: 240, d: 32 },
   gladiator: { k: 'wave', sub: 'legion' }, buddhist: { k: 'burst', sub: 'lotus' }, muslim: { k: 'rain', sub: 'lantern', n: 16, cols: 1 },
   mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 18 },
-  dashyoshi: { k: 'rush', sub: 'dash', spd: 24 }, mechyoshi: { k: 'beam', sub: 'mech' },
+  dashyoshi: { k: 'rush', sub: 'dash', spd: 26, laps: 3 }, mechyoshi: { k: 'beam', sub: 'mech' },
   catholic: { k: 'wave', sub: 'parranda' }, hindu: { k: 'vortex', sub: 'color', move: 2.6, life: 210, r: 240 },
 };
 // finales that keep their user busy until they finish
@@ -1253,7 +1352,7 @@ function fsLaunch(g, f) {
     case 'vortex': e.life = D.life; e.r = D.r; e.move = D.move; e.y = s.y - 130; if (!D.move) e.x = s.x + s.w / 2; break;
     case 'flood': e.life = 250; e.lv = s.y + 260; break;
     case 'burst': e.life = 84; e.crown = D.crown || 0; break;
-    case 'rush': e.life = 130; e.spd = D.spd || 17; break;
+    case 'rush': e.laps = D.laps || 1; e.life = 130 * e.laps; e.spd = D.spd || 17; break;
     case 'rain': e.life = 240; e.n = D.n; e.cnt = 0; e.side = D.side || 0; e.cols = D.cols || 0; break;
     case 'clone': e.life = 400; break;
     case 'beam': e.life = 80; break;
@@ -1391,7 +1490,9 @@ const FXU = {
       if (!e.hits[v.i] || g.frame - e.hits[v.i] >= 6) { e.hits[v.i] = g.frame; v.dm = Math.min(999, v.dm + 3); g.ev.push({ t: 'hit', x: v.x, y: v.y - 30, p: 4, c: e.o }); }
     }
     const edge = e.dir > 0 ? s.x + s.w - 40 : s.x + 40;
-    if (e.dir * (own.x - edge) < 0 && e.t < 110) return false;
+    if (e.dir * (own.x - edge) < 0 && e.t < e.life - 20) return false;
+    // Supersonic Lap: turn round at the edge and go again, carrying everyone along
+    if (e.laps > 1) { e.laps--; e.dir = -e.dir; own.fc = e.dir; g.ev.push({ t: 'boomfx', x: own.x, y: own.y - 30, dir: e.dir }); return false; }
     own.vx = -e.dir * 3; own.vy = -8; own.gi = -1;
     g.ev.push({ t: 'boom', x: own.x + e.dir * 40, y: own.y - 30, s: 2.2 });
     for (const i of e.vic) { const v = fighterBy(g, i); if (v && alive(v)) fsHit(g, e, v, 18, 13, 0.18, 42, e.dir); }
@@ -1764,6 +1865,17 @@ function spCounter(o) {
       return f.t >= (o.win || 30) + 14 ? 1 : 0;
     },
   };
+}
+// Beatrice's Minya: three crystal shards (the special itself, and a mid-Murak cast)
+const MINYA = { cd: 30, vys: [-1.2, 0, 1.2], p: { k: 'crystal', vx: 16.5, d: 3.5, kb: 3.5, gr: 0.04, ang: 35, r: 10, life: 54, ghost: 1, oy: 0.75 } };
+function fireMinya(g, f, c) {
+  f.cd.n = MINYA.cd;
+  if (c.dirX) f.fc = c.dirX;
+  for (const vy of MINYA.vys) {
+    const P = MINYA.p;
+    spawnProj(g, f, Object.assign({ grav: 0 }, P, { x: f.x + f.fc * 22 * f.sc, y: f.y - f.h * P.oy, vx: f.fc * P.vx, vy, fc: f.fc }));
+  }
+  g.ev.push({ t: 'beako', x: f.x, y: f.y - f.h - 34, s: 'Minya!', i: f.i });
 }
 // announce a special as it starts (Beatrice calling out her spell, Subaru's Unseen Hand)
 function spCast(sp, ev, say) {
@@ -2237,15 +2349,43 @@ const SP = {
   pichkari: spPulse({ slot: 'd', cd: 40, ev: 'squirt', at: [{ t: 8, x: 46, r: 30, d: 3, k: 3, g: 0.02, ang: 40, fwd: 1, ev: 'splashfx' }, { t: 14, x: 60, r: 32, d: 3, k: 3, g: 0.02, ang: 40, fwd: 1, ev: 'splashfx' },
     { t: 20, x: 74, r: 34, d: 5, k: 7, g: 0.09, ang: 35, fwd: 1, ev: 'splashfx' }], end: 30 }),
   // --- Subaru Toad: Beatrice casts from the backpack (the Unseen Hand is his own) ---
-  minya: spCast(spShot({ cd: 40, at: 10, end: 24, shots: [-1.2, 0, 1.2].map(vy => ({ k: 'crystal', vx: 11, vy, d: 3.5, kb: 3.5, gr: 0.04, ang: 35, r: 10, life: 40, ghost: 1, oy: 0.75 })) }), 'beako', 'Minya!'),
-  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 2.2, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 40, ghost: 1 } }), 'beako', 'Shamac!'),
-  murak: spCast(spFloat({ frames: 70, rise: 4.4, drift: 5.5, ev: 'yinfx' }), 'beako', 'Murak!'),
+  // Minya flies twice as far and half again as fast as it first did, with a quarter less cooldown
+  minya: spCast(spShot({ cd: MINYA.cd, at: 10, end: 24, shots: MINYA.vys.map(vy => Object.assign({ vy }, MINYA.p)) }), 'beako', 'Minya!'),
+  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 2.53, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 40, ghost: 1 } }), 'beako', 'Shamac!'),
+  // Murak floats them up (15% longer than before), and Beatrice can still fire Minya on the way: press Special again
+  murak: (() => {
+    const base = spFloat({ frames: 81, rise: 4.4, drift: 5.5, ev: 'yinfx' });
+    return spCast(Object.assign({}, base, {
+      upd(g, f, c) {
+        if (f.t > 2 && c.pressed & B_B && !(c.bits & (B_U | B_D)) && f.cd.n <= 0) fireMinya(g, f, c);
+        return base.upd(g, f, c);
+      },
+    }), 'beako', 'Murak!');
+  })(),
   unseenhand: spCast(spTether({ slot: 'd', cd: 70, range: 150, a: 10, b: 18, fin: { d: 7, k: 8, g: 0.11, ang: 70 } }), 'unseen', ''),
-  // --- Dash Yoshi ---
-  pepper: spShot({ cd: 30, at: 7, end: 18, ev: 'flame', p: { k: 'pepper', vx: 9, vy: -2.5, grav: 0.25, d: 6, kb: 5, gr: 0.07, ang: 45, r: 12, life: 80, explode: { r: 40, d: 4, k: 5, g: 0.05 } } }),
-  pepperdash: spDash({ cd: 44, speed: 16, startup: 5, frames: 16, hb: { x: 18, y: 0.5, r: 30, d: 3, k: 2, g: 0.01, ang: 50, every: 5 }, fin: { x: 28, d: 7, k: 8, g: 0.12, ang: 40 }, lag: 12, trail: 'flame' }),
-  speedspiral: spRise({ vy: 18, hold: 6, end: 26, drift: 6.5, trail: 'flame', hb: { a: 0, b: 14, y: 0.5, r: 36, d: 2.5, k: 2.5, g: 0.01, ang: 85, every: 5 }, fin: { at: 16, r: 40, d: 5, k: 7, g: 0.11, ang: 80 } }),
-  burnout: spTrap({ sub: 'flames', life: 200, r: 44, cd: 160, at: 8, ox: 0 }),
+  // --- Dash Yoshi: pure speed ---
+  // a kick so fast it sends a sonic boom across the stage
+  boomkick: spShot({ cd: 28, at: 6, end: 16, ev: 'boomfx', p: { k: 'gust', vx: 15, d: 7, kb: 7, gr: 0.09, ang: 32, r: 22, life: 36, pierce: 1, ghost: 1 } }),
+  // straight through everyone in a blur
+  blitzdash: spDash({ cd: 26, speed: 22, startup: 2, frames: 10, intang: true, hb: { x: 10, y: 0.5, r: 32, d: 9, k: 8, g: 0.12, ang: 40 }, lag: 8, trail: 'speedfx', ev: 'boomfx' }),
+  cycloneclimb: spRise({ vy: 19, hold: 8, end: 26, drift: 7.5, trail: 'speedfx', hb: { a: 0, b: 16, y: 0.5, r: 38, d: 2.5, k: 2.5, g: 0.01, ang: 85, every: 4 }, fin: { at: 18, r: 42, d: 6, k: 8, g: 0.12, ang: 80 } }),
+  // vanish, leaving an afterimage, and strike the nearest foe from behind
+  afterimage: {
+    start(g, f) { if (!useCd(f, 'd', 70)) return false; f.vx *= 0.3; g.ev.push({ t: 'poof', x: f.x, y: f.y - f.h / 2, k: 'speed' }); },
+    upd(g, f, c) {
+      f.ig = Math.max(f.ig, 2);
+      if (!c.onG) f.vy = Math.min(f.vy, 1);
+      if (f.t === 6) {
+        const tg = nearestFoe(g, f.i, f.x, f.y - f.h / 2);
+        if (tg && Math.abs(tg.x - f.x) < 320 && Math.abs(tg.y - f.y) < 170) { f.x = tg.x - (tg.fc || 1) * 46; f.y = tg.y; f.fc = tg.x >= f.x ? 1 : -1; f.gi = -1; f.vy = 0; }
+        else f.x += f.fc * 140;
+        f.x = clamp(f.x, BLAST.l + 140, BLAST.r - 140);
+        g.ev.push({ t: 'poof', x: f.x, y: f.y - f.h / 2, k: 'speed' });
+      }
+      if (f.t === 9) { f.hits = {}; hitArea(g, f, 30 * f.sc, -f.h * 0.5, 36 * f.sc, 11, 8, 0.13, 40); g.ev.push({ t: 'slash', x: f.x + f.fc * 30, y: f.y - f.h / 2 }); }
+      return f.t >= 22 ? 1 : 0;
+    },
+  },
   // --- Mech Yoshi: a three-shot blaster, an air dash, boosters and bombs ---
   blaster: {
     start(g, f, c) { if (!useCd(f, 'n', 40)) return false; if (c.onG) f.vx *= 0.4; },
@@ -2298,7 +2438,8 @@ function snapshot(g, ev) {
     fx: g.fx.map(e => ({ id: e.id, k: e.k, sub: e.sub, o: e.o, t: e.t, life: e.life, x: Math.round(e.x), y: Math.round(e.y), x2: e.x2 !== undefined ? Math.round(e.x2) : undefined,
       dir: e.dir, r: e.r, lv: e.lv !== undefined ? Math.round(e.lv) : undefined, vic: e.vic, b: e.b ? e.b.map(b => [Math.round(b[0]), Math.round(b[1])]) : undefined,
       both: e.both || undefined, side: e.side || undefined })),
-    haz: { wig: { on: Hz.wig.on, x: Math.round(Hz.wig.x), dir: Hz.wig.dir, angry: Hz.wig.angry, warn: Hz.wig.warn }, spk: Hz.spk.map(k => ({ ph: k.ph, t: k.t })), wind: { ph: Hz.wind.ph, dir: Hz.wind.dir, t: Hz.wind.t } },
+    haz: { wig: { on: Hz.wig.on, x: Math.round(Hz.wig.x), dir: Hz.wig.dir, angry: Hz.wig.angry, warn: Hz.wig.warn }, spk: Hz.spk.map(k => ({ ph: k.ph, t: k.t })), wind: { ph: Hz.wind.ph, dir: Hz.wind.dir, t: Hz.wind.t },
+      rock: { on: Hz.rock.on, x: Math.round(Hz.rock.x), dir: Hz.rock.dir, warn: Hz.rock.warn }, dark: { ph: Hz.dark.ph, t0: Hz.dark.t0 }, lava: { ph: Hz.lava.ph, lv: Math.round(Hz.lava.lv) } },
     ev,
   };
 }
