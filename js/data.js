@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611081133';
+const GAME_BUILD = '202611091927';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -155,6 +155,14 @@ const CHARS = [
     weight: 0.96, run: 6.6, air: 5.4, jump: 15, djump: 13.5, pow: 1.0, duo: true, swoosh: '#e8d8ff', sp: { n: 'minya', s: 'shamac', u: 'murak', d: 'unseenhand' },
     blurb: 'A stubborn kid in a tracksuit, with the tiny spirit Beatrice riding on his back. He hits softly; her magic does the rest.',
     quote: 'Starting from zero... and winning! Right, Beako? ("Obviously, I suppose.")' }),
+  // an ice mage with the great spirit Puck floating behind her. Her Attack button fires a homing volley of ice
+  // pellets instead of normal attacks (`volley`), and Puck shoots ice of his own every 7 seconds (`puck`)
+  defChar({ id: 'emilia', name: 'Emilia Toad', look: { cap: '#fbfaff', spot: '#cdb8f4', vest: '#8a5ad0', trim: '#c9aaf4', shirt: '#8a5ad0', pants: '#7a4ac4', sleeves: '#f7f5fc', cuff: '#ff9cc8',
+    hat: 'hood', braid: '#ebe6f6', eyes: 'violet', bigEyes: 1.15, cape: '#f7f5fc', capeIn: '#d9cdf3', brooch: true, shoe: '#f7f5fc', sole: '#a477e0', puck: true },
+    weight: 0.9, run: 6.3, air: 5.3, jump: 15, djump: 13.5, pow: 1.0, volley: true, puck: true, swoosh: '#dff4ff', sp: { n: 'icesoldiers', s: 'icebrand', u: 'icepillar', d: 'icebarrier' },
+    elemInfo: 'Ice: her weapons chill foes, her spear can freeze them',
+    blurb: 'An ice mage with the great spirit Puck floating behind her. Homing ice pellets, ice weapons made on the spot, ice soldiers, and pillars and walls of ice.',
+    quote: 'I\'m Emilia. Just Emilia! (Puck: "That\'s my girl!")' }),
   // ---- the Yoshi clan ----
   defChar({ id: 'yoshi', name: 'Yoshi', yoshi: true, look: { body: '#3dbb3d', saddle: '#e8262b', shoe: '#ff8a1f' },
     weight: 1.05, run: 7.0, air: 5.4, jump: 15.5, djump: 16.5, h: 66, sp: { n: 'egg', s: 'eggroll', u: 'flutter', d: 'yoshipound' },
@@ -254,6 +262,7 @@ const SPNAME = {
   jelly: 'Green Jelly', bikeride: 'Bike Ride', highnote: 'High Note', potluck: 'Potluck Potatoes',
   latke: 'Latke Toss', dreidel: 'Dreidel Spin', chairlift: 'Chair Lift', klezmer: 'Klezmer Tune',
   minya: 'Minya', shamac: 'Shamac', murak: 'Murak', unseenhand: 'Unseen Hand',
+  icesoldiers: 'Ice Soldiers', icebrand: 'Ice Brand Arts', icepillar: 'Ice Pillar', icebarrier: 'Ice Barrier',
   boomkick: 'Boom Kick', blitzdash: 'Blitz Dash', cycloneclimb: 'Cyclone Climb', afterimage: 'Afterimage',
   blaster: 'Ray Blaster', airdash: 'Air Dash', booster: 'Booster Jump', bomblob: 'Bomb Lob',
   kingsgift: "Three Kings' Gift", bellring: 'Bell Ring', partypopper: 'Party Popper', pinata: 'Piñata',
@@ -270,7 +279,7 @@ const FSNAME = {
   iceyoshi: 'Blizzard', purpleyoshi: 'Bubble Flood', blackyoshi: 'Shadow Pack', whiteyoshi: 'Sacred Light',
   orangeyoshi: 'Fruit Frenzy', babyyoshi: 'Yoshi Stampede', cowtoad: 'Cattle Stampede',
   samurai: 'Cherry Blossom Storm', viking: 'Longship Raid', pharaoh: 'Great Pyramid', gladiator: 'Legion March',
-  buddhist: 'Lotus Bloom', muslim: 'Lantern Night', mormon: 'Grand Choir', hasidic: 'Mazel Tov!', subaru: 'El Minya',
+  buddhist: 'Lotus Bloom', muslim: 'Lantern Night', mormon: 'Grand Choir', hasidic: 'Mazel Tov!', subaru: 'El Minya', emilia: 'Absolute Zero',
   catholic: 'Christmas Parranda', hindu: 'Festival of Colors',
   dashyoshi: 'Supersonic Lap', mechyoshi: 'Full Burst',
 };
@@ -280,7 +289,7 @@ const VOICE = {
   pirate: { p: 0.9 }, ninja: { p: 0.95 }, knight: { p: 0.84 }, chef: { p: 0.88 }, wizard: { p: 0.96 }, doctor: { p: 0.96 }, rocker: { p: 0.9 },
   cowboy: { p: 0.88 }, ghost: { k: 'ghost' }, robo: { k: 'robot', p: 0.8 }, cowtoad: { p: 0.92 },
   samurai: { p: 0.86 }, viking: { p: 0.72 }, pharaoh: { p: 0.95 }, gladiator: { p: 0.8 }, buddhist: { p: 0.9 }, muslim: { p: 0.96 },
-  mormon: { p: 1.02 }, hasidic: { p: 0.84 }, catholic: { p: 0.98 }, hindu: { p: 1.04 }, subaru: { p: 0.92 },
+  mormon: { p: 1.02 }, hasidic: { p: 0.84 }, catholic: { p: 0.98 }, hindu: { p: 1.04 }, subaru: { p: 0.92 }, emilia: { k: 'girl', p: 1.06 },
   redyoshi: { p: 0.95 }, blueyoshi: { p: 1.05 }, yellowyoshi: { p: 0.85 }, pinkyoshi: { p: 1.12 }, blackyoshi: { p: 0.8 }, whiteyoshi: { p: 1.08 },
   orangeyoshi: { p: 1.02 }, babyyoshi: { p: 1.35 }, dashyoshi: { p: 1.06 }, mechyoshi: { k: 'robot', p: 0.95 },
 };
@@ -395,6 +404,8 @@ const MOVE_T = {
   pick:       { dur: 24, fx: 'pick', hb: [{ a: 7, b: 11, x: 44, y: -40, r: 34, d: 11, k: 6, g: 0.13, ang: 55 }] },
   getup:      { dur: 24, hb: [{ a: 6, b: 12, x: 30, y: -24, r: 32, d: 7, k: 6, g: 0.05, ang: 30 }] },
   throw:      { dur: 14, hb: [] },
+  // Emilia Toad's Attack: she throws out her hands and nine homing ice pellets fly (on frame `volley`)
+  icevolley:  { dur: 18, volley: 6, hb: [] },
 };
 const SLOTS = ['jab', 'jab2', 'jab3', 'side', 'up', 'down', 'fsmash', 'usmash', 'dsmash', 'nair', 'fair', 'bair', 'uair', 'dair'];
 // base movesets; each fighter swaps in a few signature moves (FIGHT below)
@@ -455,6 +466,7 @@ const FIGHT = {
   catholic:    { style: 'toad', elem: 'fiesta', idle: 'cheer', moves: { jab3: 'palm3', side: 'shove', usmash: 'geyser', nair: 'aura' } },
   hindu:       { style: 'toad', elem: 'holi', idle: 'groove', moves: { jab3: 'flurry', side: 'roundhouse', usmash: 'geyser', nair: 'spin', fair: 'drill' } },
   subaru:      { style: 'toad', elem: 'yin', moves: { jab3: 'kick3', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura' } },
+  emilia:      { style: 'toad', elem: 'ice', idle: 'grace' },
   // Dash Yoshi: all speed. Blurring kicks, and every attack plays out a quarter faster (aspd)
   dashyoshi:   { style: 'yoshi', elem: 'speed', gait: 'ninja', aspd: 1.25, moves: { jab3: 'rapidkick', side: 'blitzkick', up: 'flipup', fsmash: 'jetkick', usmash: 'cyclone', dsmash: 'spinsweep', nair: 'spin', fair: 'airkick', bair: 'backkick', dair: 'stomp' } },
   mechyoshi:   { style: 'yoshi', elem: 'plasma', idle: 'robot', gait: 'heavy', moves: { jab: 'punch', jab2: 'punch2', jab3: 'flurry', side: 'zapside', up: 'antiair', fsmash: 'haymaker', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura', fair: 'drill', bair: 'backkick', uair: 'scissor', dair: 'stomp' } },
@@ -498,6 +510,8 @@ for (const c of CHARS) {
     }
     ATK[c.id][slot] = a;
   }
+  // a fighter whose Attack button fires a volley (Emilia Toad) uses this one move for every attack
+  if (c.volley) ATK[c.id].volley = Object.assign(JSON.parse(JSON.stringify(MOVE_T.icevolley)), { tpl: 'icevolley', fx: 'none' });
 }
 
 // haz lists each stage's challenges (see hazards() in sim.js)

@@ -304,9 +304,11 @@ function showCharInfo(id) {
   box.innerHTML = '';
   box.appendChild(el('h3', '', C.name));
   box.appendChild(el('div', '', C.blurb));
-  box.appendChild(el('div', 'moves', `Special: ${SPNAME[C.sp.n]}  ·  Side: ${SPNAME[C.sp.s]}  ·  Up: ${SPNAME[C.sp.u]}  ·  Down: ${SPNAME[C.sp.d]}`));
+  // (Emilia Toad's Attack button is her ice volley, and Puck fights on his own)
+  const atk = C.volley ? 'Attack: Ice Volley (homing pellets)  ·  ' : '', passive = C.puck ? '  ·  Puck fires on his own' : '';
+  box.appendChild(el('div', 'moves', `${atk}Special: ${SPNAME[C.sp.n]}  ·  Side: ${SPNAME[C.sp.s]}  ·  Up: ${SPNAME[C.sp.u]}  ·  Down: ${SPNAME[C.sp.d]}${passive}`));
   const fsl = el('div', 'fsname', `Smash Mushroom finale: ${FSNAME[C.id]}`);
-  const E = ELEM_INFO[C.elem];
+  const E = C.elemInfo || ELEM_INFO[C.elem];
   if (E) { const sp = el('span', 'elem', `   ·   ${E}`); sp.style.color = (ELEM_COL[C.elem] || ['#fff'])[0]; fsl.appendChild(sp); }
   box.appendChild(fsl);
 }
@@ -1063,15 +1065,52 @@ function handleEvents(evs) {
       case 'fsready': Snd.play('fsready'); burst(e.x, e.y, 26, '#ffe066', 10, 'star', 8, 40); say('SMASH POWER!', e.x, e.y - 40, 28, '#ff7ad9'); break;
       case 'fs': Snd.play('fs'); cam.shake = Math.max(cam.shake, 16); fsBanner = { ch: e.ch, i: e.i, t: 0 }; burst(e.x, e.y, 20, '#ffe066', 9, 'star', 8, 36); break;
       case 'fsgo':
-        Snd.play({ petals: 'wind', ship: 'hornblast', legion: 'roar', lotus: 'chime', lantern: 'chime', choir: 'choir', hora: 'mazeltov', crystal: 'magic', dash: 'boostpad', mech: 'laser', parranda: 'parranda', color: 'candy' }[e.sub] ||
+        Snd.play({ petals: 'wind', ship: 'hornblast', legion: 'roar', lotus: 'chime', lantern: 'chime', choir: 'choir', hora: 'mazeltov', crystal: 'magic', dash: 'boostpad', mech: 'laser', parranda: 'parranda', color: 'candy', absolute: 'blizzard' }[e.sub] ||
           { wave: 'stampede', rain: 'cannon', beam: 'laser', sweep: 'laser', pulses: 'amp', freeze: 'frost', meteor: 'boom', vortex: 'wind', flood: 'steam', burst: 'crown', rush: 'horn', clone: 'poof', lasso: 'spin', swarm: 'boo', fist: 'rocket' }[e.k] || 'fs');
         if (e.sub === 'hora') say('Mazel Tov!', e.x, e.y - 120, 34, '#ffe066');
         if (e.sub === 'parranda') say('¡Feliz Navidad!', e.x, e.y - 120, 30, '#ffe066');
         if (e.sub === 'color') say('Happy Holi!', e.x, e.y - 120, 32, '#ff9cd0');
         if (e.sub === 'crystal') { say('El Minya!', e.x, e.y - 120, 30, '#d8b0ff'); Snd.talk(BEAKO_VOICE, 'spc'); }
+        if (e.sub === 'absolute') { say('Absolute Zero!!', e.x, e.y - 120, 34, '#dff4ff'); cam.shake = Math.max(cam.shake, 12); }
         break;
       case 'frost': Snd.play('frost'); break;
       case 'shatter': Snd.play('break'); burst(e.x, e.y, 16, '#bff0ff', 9, 'dot', 7, 30); break;
+      // ---- Emilia Toad and Puck ----
+      case 'volley': Snd.play('icevolley'); burst(e.x, e.y, 10, '#dff8ff', 5, 'star', 5, 20); addP({ type: 'ring', x: e.x, y: e.y, size: 34, color: '#bfeaff', life: 12 }); break;
+      case 'fizzle': Snd.play('fizzle'); for (let k = 0; k < 4; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 18, y: e.y, vy: -0.6, size: 4, tint: 'rgba(210,236,255,0.75)', life: 16 }); if (e.s) say(e.s, e.x, e.y - 26, 16, '#bfeaff'); break;
+      case 'chip': if (frameCount % 2 === 0) Snd.play('sparkle'); burst(e.x, e.y, 3, '#dff8ff', 3, 'spark', 3, 10); break;
+      case 'puck': Snd.play('puck'); burst(e.x, e.y, 8, '#ffffff', 4, 'star', 4, 22); say('Puck!', e.x, e.y - 24, 16, '#dff4ff'); break;
+      case 'puckshot': Snd.play('sparkle'); addP({ type: 'ring', x: e.x, y: e.y, size: 18, color: '#ffffff', life: 10 }); break;
+      case 'icebrand':
+        Snd.play('iceform'); burst(e.x, e.y, 8, '#dff8ff', 4, 'star', 4, 20);
+        say(['Ice Long Sword!', 'Ice Great Axe!', 'Ice Great Hammer!', 'Ice Spear!'][e.w] || '', e.x, e.y - 40, 17, '#bfeaff');
+        break;
+      case 'hammersmash': Snd.play('boom'); cam.shake = Math.max(cam.shake, 10); burst(e.x, e.y, 16, '#dff8ff', 8, 'dot', 6, 26); addP({ type: 'ring', x: e.x, y: e.y, size: 70, color: '#bfeaff', life: 16 }); break;
+      case 'spearthrow': Snd.play('throwfx'); break;
+      case 'skewer': Snd.play('hit', 8); burst(e.x, e.y, 8, '#dff8ff', 5, 'spark', 4, 14); break;
+      case 'spearburst': Snd.play('shatter'); burst(e.x, e.y, 14, '#dff8ff', 7, 'dot', 6, 24); burst(e.x, e.y, 6, '#ffffff', 6, 'star', 5, 22); break;
+      case 'frozen': Snd.play('frost'); say('Frozen!', e.x, e.y - 40, 20, '#bfeaff'); break;
+      case 'icecast': Snd.play('iceform'); for (let k = 0; k < 6; k++) addP({ type: 'star', x: e.x + (Math.random() - 0.5) * 50, y: e.y + 10, vy: -1, size: 5, color: k % 2 ? '#ffffff' : '#bfeaff', life: 24 }); break;
+      case 'icesummon': Snd.play('crystal'); say('Ice Soldiers!', e.x, e.y - 90, 20, '#bfeaff'); break;
+      case 'soldierswing': Snd.play(e.w === 'axe' ? 'swing' : 'slash'); break;
+      case 'soldierhop': addP({ type: 'ring', x: e.x, y: e.y, size: 20, color: '#dff8ff', life: 10 }); break;
+      case 'soldierhit': Snd.play('clack'); burst(e.x, e.y, 6, '#bfeaff', 4, 'dot', 4, 16); break;
+      case 'soldierbreak':
+        // the soldier shatters into tiny ice particles
+        Snd.play('shatter'); if (USE3D) V3D.shatter({ x: e.x, y: e.y + 26, w: 34, h: 50, ice: 1, small: 1 });
+        for (let k = 0; k < 18; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 40, vx: (Math.random() - 0.5) * 6, vy: -1 - Math.random() * 4, g: 0.25, size: 2 + Math.random() * 3, color: k % 3 ? '#dff8ff' : '#8fd4f6', life: 34 });
+        break;
+      case 'pillar': Snd.play('iceform'); Snd.play('crystal'); cam.shake = Math.max(cam.shake, 5); for (let k = 0; k < 8; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 60, y: e.y - 4, vy: -0.8, size: 7, tint: 'rgba(225,245,255,0.85)', life: 22 }); break;
+      case 'iceblast': Snd.play('frost'); addP({ type: 'ring', x: e.x, y: e.y, size: 40, color: '#bfeaff', life: 14 }); burst(e.x, e.y + 4, 10, '#dff8ff', 5, 'star', 5, 20); break;
+      case 'icetrail': addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 14, y: e.y + 4, vy: 1.2, size: 6, tint: 'rgba(210,240,255,0.8)', life: 18 }); break;
+      case 'barrier': Snd.play('iceform'); burst(e.x, e.y, 10, '#dff8ff', 5, 'star', 5, 22); break;
+      case 'icehit': Snd.play('clack'); burst(e.x, e.y, 5, '#dff8ff', 4, 'dot', 4, 16); break;
+      case 'iceshatter':
+        Snd.play('shatter'); cam.shake = Math.max(cam.shake, 8);
+        if (USE3D) V3D.shatter({ x: e.x, y: e.y, w: e.k === 'pillar' ? e.w + 20 : 90, h: e.h, ice: 1 });
+        burst(e.x, e.y, 14, '#dff8ff', 8, 'star', 6, 30); say('Shattered!', e.x, e.y - 20, 20, '#bfeaff');
+        break;
+      case 'stormgust': Snd.play('blizzard'); cam.shake = Math.max(cam.shake, 6); break;
       // --- stage hazards ---
       case 'spikewarn': Snd.play('ledge'); burst(e.x, e.y - 6, 6, '#ffffff', 3, 'spark', 4, 16); break;
       case 'spike': Snd.play('spike'); break;

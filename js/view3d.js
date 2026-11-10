@@ -85,6 +85,10 @@ const V3D = (() => {
       G3.draw(P.haze, M4.chain(M4.T(X, Y, 0.35), M4.RZ(t * 0.02), M4.S(s, s * (0.9 + 0.1 * Math.sin(t * 0.2)), s)), { alpha: (dark ? 0.72 : 0.5) * clamp01(((p.life || 200) - t) / 30), self: 0.2, tint: dark ? [0.1, 0.07, 0.16, 0.93] : undefined });
       return;
     }
+    // Emilia Toad's icicle pellets point the way they fly; Puck's snowflakes spin; her ice spear flies flat
+    if (p.k === 'icepel') { G3.draw(P.icepel, M4.chain(M4.T(X, Y, 0.3), M4.RZ(Math.atan2(-(p.vy || 0), p.vx || 1e-6)), M4.RX(t * 0.3), M4.S(2.3, 2.3, 2.3)), ink(2.3, { self: 0.5 })); return; }
+    if (p.k === 'puckpel') { G3.draw(P.puckpel, M4.chain(M4.T(X, Y, 0.3), M4.RZ(t * 0.35), M4.S(2.1, 2.1, 2.1)), ink(2.1, { self: 0.7 })); return; }
+    if (p.k === 'icespear') { const fd = p.fc || dir; G3.draw(M3D.PROPS.ice_spear, M4.chain(M4.T(X - fd * 0.9, Y, 0.3), M4.RZ(fd > 0 ? -Math.PI / 2 : Math.PI / 2), M4.S(1.7, 1.7, 1.7)), ink(1.7, { self: 0.4 })); return; }
     const m = P[p.k]; if (!m) return;
     let s = PSCALE[p.k] || 2, R = I, dy = 0, o = null;
     switch (p.k) {
@@ -255,6 +259,7 @@ const V3D = (() => {
         G3.draw(M3D.PROPS.flame, M4.chain(M4.T(X - e.dir * 0.3 * s, Y, 0.3), M4.RZ(e.dir > 0 ? -Math.PI / 2 : Math.PI / 2), M4.S(s * 0.9, s * (0.8 + Math.random() * 0.5), s * 0.9)), { self: 1 });
         break;
       }
+      case 'storm': drawStorm(e); break;
       case 'rain': if (e.side) {
         // Pirate Toad's airship lobs cannonballs from offstage
         const sx = (e.dir > 0 ? s0.x - 620 : s0.x + s0.w + 620) * PX, sy = 270 * PX + Math.sin(fr * 0.05) * 0.3, Ms = M4.chain(M4.T(sx, sy, -2), M4.RY(e.dir > 0 ? 0 : Math.PI), M4.S(2.2, 2.2, 2.2));
@@ -348,16 +353,19 @@ const V3D = (() => {
       G3.draw(list[c.m % list.length], M4.chain(M4.T(X + c.x, Y + c.y, c.z), M4.RY(c.ry), M4.S(k, k, k)), ink(Math.max(0.3, k), { self: 0.4 + 0.12 * Math.sin(now * 0.12 + c.ry) }));
     }
   }
-  // the third hit: the platform flashes pink-white and bursts into glowing crystal shards (called on 'platbreak')
+  // the third hit: the platform flashes pink-white and bursts into glowing crystal shards (called on 'platbreak').
+  // With e.ice it's ice instead (Emilia Toad's pillar, barrier or an ice soldier breaking): blue-white shards,
+  // up to a height e.h, smaller ones for e.small
   function shatter(e) {
     const R = G3.B.prng((e.x * 13 + e.y * 7 + (e.pi || 0)) % 9973 + 1), n = 14 + Math.min(12, Math.round((e.w || 160) / 22)), half = ((e.w || 160) / 2) * PX, list = [];
+    const tall = e.ice ? ((e.h || 40) * PX) / 2 : 0, sz = e.small ? 0.45 : 1;
     for (let k = 0; k < n; k++) {
       const ox = (R() - 0.5) * 2 * half * 0.92;
-      list.push({ ox, oy: -R() * 0.35, oz: (R() - 0.5) * 0.9, vx: ox * 0.03 + (R() - 0.5) * 0.05, vy: 0.06 + R() * 0.13, vz: (R() - 0.3) * 0.06,
-        r0: [R() * 6, R() * 6, R() * 6], w: [(R() - 0.5) * 0.45, (R() - 0.5) * 0.35, (R() - 0.5) * 0.45], m: k % 4, s: 0.8 + R() * 0.8, life: 55 + Math.floor(R() * 30) });
+      list.push({ ox, oy: e.ice ? (R() - 0.5) * 2 * tall : -R() * 0.35, oz: (R() - 0.5) * 0.9, vx: ox * 0.03 + (R() - 0.5) * 0.05, vy: 0.06 + R() * 0.13, vz: (R() - 0.3) * 0.06,
+        r0: [R() * 6, R() * 6, R() * 6], w: [(R() - 0.5) * 0.45, (R() - 0.5) * 0.35, (R() - 0.5) * 0.45], m: k % (e.ice ? 3 : 4), s: (0.8 + R() * 0.8) * sz, life: 55 + Math.floor(R() * 30) });
     }
-    SHARDS.push({ x: e.x, y: e.y, pi: e.pi, f0: null, st: null, list });
-    if (SHARDS.length > 8) SHARDS.shift();
+    SHARDS.push({ x: e.x, y: e.y, pi: e.ice ? null : e.pi, ice: !!e.ice, f0: null, st: null, list });
+    if (SHARDS.length > 10) SHARDS.shift();
   }
   function drawShards(view, S) {
     const now = view.frame || 0;
@@ -374,8 +382,33 @@ const V3D = (() => {
         if (t > p.life) continue;
         const fade = clamp01((p.life - t) / 18), k = p.s * (0.5 + 0.5 * fade);
         const M = M4.chain(M4.T(X + p.ox + p.vx * t, Y + p.oy + p.vy * t - 0.0045 * t * t, p.oz + p.vz * t), M4.RX(p.r0[0] + p.w[0] * t), M4.RY(p.r0[1] + p.w[1] * t), M4.RZ(p.r0[2] + p.w[2] * t), M4.S(k, k, k));
-        G3.draw(K.shard[p.m], M, ink(k, { self: 0.5, alpha: fade < 1 ? fade : undefined }));
+        G3.draw(B.ice ? M3D.FXM['iceShard' + p.m] : K.shard[p.m], M, ink(k, { self: 0.5, alpha: fade < 1 ? fade : undefined }));
       }
+    }
+  }
+  // Emilia Toad's ice: a pillar (with crystals round its top) or a barrier curving over where she stood. Both get
+  // whiter as they take damage (the cracks and HP bar are drawn on the overlay, in paperFx)
+  function drawIce(s, fr) {
+    const X = s.x * PX, Y = -s.y * PX, dmg = 1 - clamp01((s.hp || 0) / (s.max || 1));
+    const o = { self: 0.3 + 0.08 * Math.sin(fr * 0.05 + s.id), tint: dmg > 0.05 ? [0.92, 0.98, 1, dmg * 0.4] : undefined };
+    if (s.k === 'pillar') {
+      const w = s.w * PX, h = Math.max(0.02, s.h * PX);
+      G3.draw(M3D.FXM.icePillar, M4.chain(M4.T(X, Y, 0), M4.S(w, h, 1.15)), o);
+      for (const [dx, dz, a, k] of [[-0.42, 0.45, 0.4, 1], [0.44, -0.3, -0.5, 0.85], [0.1, 0.55, 0.1, 0.7]]) G3.draw(M3D.FXM.iceCrys, M4.chain(M4.T(X + dx * w, Y + h - 0.05, dz), M4.RZ(a), M4.S(k * 1.5, k * 1.5, k * 1.5)), ink(1.5 * k, { self: 0.35 }));
+    } else G3.draw(M3D.FXM.iceShell, M4.chain(M4.T(X, Y, 0), M4.RY(s.fc > 0 ? 0 : Math.PI), M4.S(1, Math.max(0.02, s.h / 124), 1)), o);
+  }
+  // Absolute Zero's storm: big ice pellets roaring in from upwind, across the whole stage (worked out from the
+  // finale's clock, so it looks the same on every screen)
+  const hash01 = j => { const s = Math.sin(j * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  function drawStorm(e) {
+    const t = e.t || 0, dir = e.dir || 1, rate = 1.15;
+    if (t > 304) return;
+    for (let j = Math.max(0, Math.floor((t - 95) * rate)); j < Math.floor(Math.min(t, 290) * rate); j++) {
+      const h1 = hash01(j * 3 + 1), h2 = hash01(j * 3 + 2), h3 = hash01(j * 3 + 3), age = t - j / rate, vx = 24 + h1 * 9, vy = 5 + h3 * 4;
+      const x = -dir * 1450 + dir * age * vx, y = -760 + h2 * 820 + age * vy;
+      if (Math.abs(x) > 1350 || y > 700) continue;
+      const s = 2.8 + h3 * 2.4;
+      G3.draw(M3D.PROJ.icepel, M4.chain(M4.T(x * PX, -y * PX, -1.2 + h1 * 3.4), M4.RZ(Math.atan2(-vy, dir * vx)), M4.RX(age * 0.3), M4.S(s, s, s)), { self: 0.55, ink: false });
     }
   }
   function drawWorld(view, fr) {
@@ -394,8 +427,10 @@ const V3D = (() => {
         const C = view.php ? corrOf(view, pi) : null;
         if (C && C.n) drawCorrupt(view, mv, s, C, M); else G3.draw(mv.mesh, M, mv.o);
       }
-      if (SHARDS.length) drawShards(view, S);
     }
+    if (SHARDS.length) drawShards(view, S);
+    // Emilia Toad's ice pillars and barriers
+    for (const s of view.ice || []) drawIce(s, fr);
     for (const cl of view.clouds || []) G3.draw(M3D.PROJ.cloud, M4.chain(M4.T((cl.x + cl.w / 2) * PX, -(cl.y + 8) * PX, 0), M4.S(cl.w / 120, 0.8, 0.8)), cl.life < 60 ? { alpha: cl.life / 60 } : null);
     const k = view.kart;
     // karts burst onto the road at its ends rather than floating in from the sky beyond it
@@ -484,6 +519,23 @@ const V3D = (() => {
       const g = c.createRadialGradient(640, 360, 220, 640, 360, 760); g.addColorStop(0, 'rgba(190,240,255,0)'); g.addColorStop(1, 'rgba(190,240,255,0.55)');
       c.fillStyle = g; c.fillRect(0, 0, 1280, 720);
     }
+    // Absolute Zero: a cold blue haze, frost round the edges, and snow streaking across with the wind
+    const ST = (view.fx || []).find(e => e.k === 'storm');
+    if (ST) {
+      const k = clamp01((ST.t || 0) / 20) * clamp01((306 - (ST.t || 0)) / 14), dir = ST.dir || 1;
+      if (k > 0) {
+        c.fillStyle = `rgba(140,190,255,${0.14 * k})`; c.fillRect(0, 0, 1280, 720);
+        const g = c.createRadialGradient(640, 360, 240, 640, 360, 760); g.addColorStop(0, 'rgba(225,246,255,0)'); g.addColorStop(1, `rgba(225,246,255,${0.62 * k})`);
+        c.fillStyle = g; c.fillRect(0, 0, 1280, 720);
+        c.save(); c.lineCap = 'round';
+        for (let q = 0; q < 70; q++) {
+          const sp = 26 + (q % 6) * 7, len = 40 + (q % 5) * 26, x = (((fr * sp + q * 197) % 1560) + 1560) % 1560, xx = dir > 0 ? x - 140 : 1420 - x, y = ((q * 83 + fr * (3 + (q % 4))) % 800) - 40;
+          c.globalAlpha = k * (0.35 + (q % 3) * 0.2); c.strokeStyle = q % 3 ? '#ffffff' : '#d8f2ff'; c.lineWidth = 1.5 + (q % 3);
+          c.beginPath(); c.moveTo(xx, y); c.lineTo(xx - dir * len, y - len * 0.22); c.stroke();
+        }
+        c.restore();
+      }
+    }
   }
 
   // ---------- paper effects on the overlay (world coordinates, sim pixels) ----------
@@ -524,9 +576,44 @@ const V3D = (() => {
         c.restore();
       }
     }
+    // Emilia Toad's ice: cracks that spread as it takes damage, and a little health bar with the HP left
+    for (const s of view.ice || []) {
+      const frac = clamp01((s.hp || 0) / (s.max || 1)), n = Math.round((1 - frac) * 7), fc = s.fc || 1;
+      const L = s.k === 'pillar' ? s.x - s.w / 2 + 8 : s.x + fc * 39 - 7, W = s.k === 'pillar' ? s.w - 16 : 14, T = s.y - s.h + 10, Hh = s.h - 16;
+      c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
+      for (let k = 0; k < n && Hh > 10; k++) {
+        const x0 = L + W * hash01(s.id * 7 + k), y0 = T + Hh * hash01(s.id * 13 + k * 3), d = k % 2 ? 1 : -1;
+        const vein = () => { c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + d * 7, y0 + 9); c.lineTo(x0 - d * 3, y0 + 17); c.lineTo(x0 + d * 6, y0 + 26); };
+        c.strokeStyle = 'rgba(40,90,140,0.55)'; c.lineWidth = 4; vein(); c.stroke();
+        c.strokeStyle = '#ffffff'; c.lineWidth = 1.6; vein(); c.stroke();
+      }
+      const bw = 44, bx = (s.k === 'pillar' ? s.x : s.x + fc * 39) - bw / 2, by = s.k === 'pillar' ? s.y - s.h + 26 : s.y - s.h * 0.55;
+      if (s.h > 30) {
+        c.fillStyle = 'rgba(20,32,56,0.78)'; c.fillRect(bx - 2, by - 2, bw + 4, 10);
+        c.fillStyle = frac > 0.5 ? '#8fe6ff' : frac > 0.25 ? '#ffd23a' : '#ff6a5a'; c.fillRect(bx, by, bw * frac, 6);
+        inkText(c, String(Math.ceil(s.hp || 0)), bx + bw / 2, by - 4, 14, '#e8f8ff');
+      }
+      c.restore();
+    }
     for (const f of view.fighters || []) {
       if (f.st === 'dead' || f.out) continue;
       const sc = f.sc || 1, cx = f.x, cy = f.y - f.h * 0.5, top = f.y - f.h;
+      // chilled by Emilia Toad's ice weapons: frost sparkles swirl round them
+      if (f.slow > 0) for (let k = 0; k < 4; k++) {
+        const a = fr * 0.09 + k * 1.57, x = cx + Math.cos(a) * 22 * sc, y = cy + Math.sin(a * 1.4) * 26 * sc;
+        c.save(); c.globalAlpha = 0.85; c.strokeStyle = k % 2 ? '#ffffff' : '#bfeaff'; c.lineWidth = 1.6; c.lineCap = 'round';
+        for (let q = 0; q < 3; q++) { const b = a + (q * Math.PI) / 3; c.beginPath(); c.moveTo(x - Math.cos(b) * 4.5, y - Math.sin(b) * 4.5); c.lineTo(x + Math.cos(b) * 4.5, y + Math.sin(b) * 4.5); c.stroke(); }
+        c.restore();
+      }
+      // Emilia Toad's ice volley recharging: a ring at her feet fills up (and glints when it's ready)
+      if (CH[f.ch] && CH[f.ch].volley && f.cd && f.rp <= 0) {
+        const q = 1 - clamp01((f.cd.a || 0) / EMI.volleyCd);
+        c.save(); c.lineWidth = 2.5; c.lineCap = 'round';
+        c.globalAlpha = 0.35; c.strokeStyle = '#2a4a70'; c.beginPath(); c.ellipse(f.x, f.y + 3, 22 * sc, 6 * sc, 0, 0, Math.PI * 2); c.stroke();
+        c.globalAlpha = q >= 1 ? 0.55 + 0.25 * Math.sin(fr * 0.15) : 0.8; c.strokeStyle = q >= 1 ? '#dff8ff' : '#8fe6ff';
+        c.beginPath(); c.ellipse(f.x, f.y + 3, 22 * sc, 6 * sc, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * q); c.stroke();
+        c.restore();
+      }
       if (f.sp === 'scream' && f.t >= 6 && f.t <= 42) {
         const r = Math.min(150, 40 + (f.t - 6) * 4) * sc, a = 1 - (f.t - 6) / 40;
         c.save(); c.globalAlpha = 0.75 * a; paperRing(c, cx, cy, r, '#fff6c8', 6); paperRing(c, cx, cy, r * 0.7, '#ffffff', 3); c.restore();

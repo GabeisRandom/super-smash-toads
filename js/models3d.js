@@ -138,6 +138,14 @@ const M3D = (() => {
         band(trim, T - 0.33, T - 0.25, 0.69);
         for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; B.decalAt([Math.cos(a) * 0.62, T - 0.17, Math.sin(a) * 0.62], [Math.cos(a), 0.6, Math.sin(a)], [0.04, 0.04, 0.015], L.vest); }
         break;
+      // Emilia Toad's white hood: two pointed cat ears on top, lavender with a white band near the tip
+      case 'hood':
+        for (const sx of [-1, 1]) sub(() => {
+          B.cone([0, 0, 0], 0.2, 0.5, 5, { col: '#9a6ad8' });
+          B.lathe([[0.075, 0.34], [0.085, 0.31], [0.1, 0.27], [0.112, 0.24]], 5, { col: '#fbfaff' });
+        }, p => { const c = Math.cos(sx * 0.42), s = Math.sin(sx * 0.42); return [0.42 * sx + p[0] * c + p[1] * s, T - 0.17 + -p[0] * s + p[1] * c, -0.08 + p[2]]; },
+        n => { const c = Math.cos(sx * 0.42), s = Math.sin(sx * 0.42); return [n[0] * c + n[1] * s, -n[0] * s + n[1] * c, n[2]]; });
+        break;
       // Hasidic Toad's wide-brimmed black hat
       case 'blackhat':
         B.lathe([[0, T - 0.04], [0.92, T - 0.1], [1.02, T - 0.04], [1.0, T - 0.14], [0, T - 0.16]], 18, { col: '#141418' });
@@ -218,6 +226,15 @@ const M3D = (() => {
       if (L.holi) for (const [a, y, c] of [[2.2, 0.36, '#ff4fa0'], [0.9, 0.3, '#3fbf4a'], [3.6, 0.32, '#2f7cf6'], [4.9, 0.4, '#ffd23a'], [1.5, 0.42, '#a05ad8']]) dab([Math.cos(a) * 0.5 * wd, y, Math.sin(a) * 0.5 * wd], [Math.cos(a), 0, Math.sin(a)], 0.11, c);
       // Subaru Toad: a zipped tracksuit with a stand-up collar
       if (L.zip) { B.lathe([[0.19, 1.02], [0.23, 1.0], [0.25, 0.93], [0.21, 0.92]], 12, { col: vest }); B.lathe([[0.19, 1.035], [0.235, 1.02], [0.23, 1.0], [0.19, 1.015]], 12, { col: trim }); for (let k = 0; k < 5; k++) onShirt(0, 0.88 - k * 0.09, [0.012, 0.05, 0.01], '#5a5a64'); }
+      // Emilia Toad: a fluffy white capelet and a gold brooch (her long cape is a part of its own, below)
+      if (L.cape) {
+        B.lathe([[0.2, 1.01], [0.36, 0.96], [0.45, 0.87], [0.41, 0.82], [0.22, 0.9]], 14, { sx: wd, sz: wd, jit: 0.025, seed: 31, col: L.cape });
+        for (const [x, z] of [[-0.2, 0.36], [0, 0.42], [0.2, 0.36]]) B.ellipsoid([x * wd, 0.85, z * wd], [0.12, 0.08, 0.06], 2, 7, { col: L.cape, seed: 32 + x * 10 });
+      }
+      if (L.brooch) {
+        B.ellipsoid([0, 0.9, 0.45 * wd], [0.075, 0.075, 0.03], 2, 9, { col: '#ffd23a' });
+        B.ellipsoid([0, 0.9, 0.475 * wd], [0.04, 0.04, 0.02], 2, 7, { col: '#ff9a1f' });
+      }
       // ...and Beatrice's backpack carrier with its straps
       if (L.beako) {
         B.box([0, 0.37, -0.72], [0.25, 0.1, 0.32], { col: '#ff8cc6' });
@@ -252,6 +269,15 @@ const M3D = (() => {
         [-1, 0, 1].forEach(k => B.decalAt([0.075 * k, 0.72, 0.445], [0, 0, 1], [0.026, 0.026, 0.01], ['#ff5a5a', '#ffd23a', '#7dff8a'][k + 1]));
       }
     });
+    // Emilia Toad's long cape, white outside and lavender inside, hanging from her shoulders. It's two thin
+    // layers, which the ink outline can't handle (the inner layer's outline pokes through), so it has none
+    if (L.cape) part(rig, 'cape', BODY_PIV, () => {
+      const ang = [];
+      for (let q = 0; q <= 14; q++) ang.push(Math.PI - 0.3 + ((Math.PI + 0.6) * q) / 14);
+      const prof = [[0.31, 1.0], [0.47, 0.86], [0.57, 0.6], [0.65, 0.34], [0.73, 0.08]];
+      B.lathe(prof, 0, { angles: ang, sx: wd, sz: wd, center: [0, 0.5, 0], col: L.cape });
+      sub(() => B.lathe(prof.map(([r, y]) => [r - 0.025, y]), 0, { angles: ang, sx: wd, sz: wd, center: [0, 0.5, 0], col: L.capeIn || L.cape }), p => p, n => [-n[0], -n[1], -n[2]]);
+    }, { ink: false });
     part(rig, 'head', HEAD_PIV, () => {
       B.ellipsoid(HC, HR, 6, 12, { col: skin, jit: 0.01, seed: 9 });
       if (!rig.robo && !L.mask) for (const sx of [-1, 1]) headDecal([0.6 * sx, -0.42, 0.7], [0.05, 0.028, 0.01], PAPER.blush);
@@ -300,6 +326,11 @@ const M3D = (() => {
         B.ellipsoid([0.62 * sx, 0.94, -0.06], [0.2, 0.23, 0.2], 4, 9, { col: capCol, seed: 40 + sx, jit: 0.01 });
         B.ellipsoid([0.63 * sx, 0.75, -0.06], [0.13, 0.055, 0.13], 2, 8, { col: PAPER.white, seed: 44 + sx });
       }
+      // Emilia Toad's long silver braid hangs down her back from under the hood, tied with a lavender band
+      if (L.braid) {
+        curl([0, 1.2, -0.6], 1.02, 0.13, L.braid, '#d6cbee');
+        B.lathe([[0.075, 0.43], [0.09, 0.41], [0.09, 0.37], [0.075, 0.35]], 8, { c: [0, 0, -0.6], col: '#9a6ad8' });
+      }
     });
     const er = rig.old ? [0.046, 0.075, 0.025] : [0.058 * (L.bigEyes || 1), 0.105 * (L.bigEyes || 1), 0.03];
     part(rig, 'eyes', HEAD_PIV, () => {
@@ -317,6 +348,14 @@ const M3D = (() => {
           headDecal([0.32 * sx, -0.02, 0.95], [0.074, 0.1, 0.028], PAPER.eye);
           headDecal([0.32 * sx, -0.02, 0.95], [0.062, 0.088, 0.03], '#ffffff', { off: [0, 0, 0.004] });
           headDecal([0.32 * sx, -0.02, 0.95], [0.026, 0.038, 0.014], PAPER.eye, { off: [-0.008 * sx, -0.004, 0.026] });
+        } else if (L.eyes === 'violet') {
+          // Emilia's big violet eyes, darker at the bottom, with a bright highlight
+          const c = [0.32 * sx, -0.02, 0.95];
+          headDecal(c, [er[0] * 1.12, er[1] * 1.06, 0.03], '#34245e');
+          headDecal(c, [er[0] * 0.94, er[1] * 0.9, 0.032], '#a274e6', { off: [0, 0, 0.004] });
+          headDecal(c, [er[0] * 0.6, er[1] * 0.42, 0.012], '#6a44b0', { off: [0, -er[1] * 0.36, 0.03] });
+          headDecal(c, [er[0] * 0.32, er[1] * 0.26, 0.01], '#ffffff', { off: [-0.026, er[1] * 0.42, 0.04] });
+          headDecal(c, [er[0] * 0.14, er[1] * 0.11, 0.01], '#ffffff', { off: [0.022, -er[1] * 0.1, 0.04] });
         } else if (L.eyes === 'butterfly') {
           // Beatrice's blue eyes with pink butterflies in them
           const c = [0.32 * sx, -0.02, 0.95];
@@ -353,18 +392,21 @@ const M3D = (() => {
     if (rig.captain) part(rig, 'lamp', HEAD_PIV, () => { const d = v.norm([0, 0.28, 1]), n = [d[0] / CAP_R[0], d[1] / CAP_R[1], d[2] / CAP_R[2]]; const p = [CAP_C[0] + d[0] * CAP_R[0], CAP_C[1] + d[1] * CAP_R[1], CAP_C[2] + d[2] * CAP_R[2]]; B.decalAt(v.add(p, v.mul(v.norm(n), 0.05)), n, [0.1, 0.1, 0.03], '#fff2a0'); B.xformTris(B.take(), tiltP, tiltN).forEach(t => B.push([t])); }, { ink: false, crease: false });
     // Astro Toad's glass bubble helmet (drawn see-through)
     if (L.hat === 'dome') part(rig, 'dome', HEAD_PIV, () => B.ellipsoid([0, 1.56, -0.02], [1.0, 0.98, 1.0], 6, 14, { col: '#dff6ff' }), { ink: false, crease: false });
+    // (Emilia Toad wears white boots with lavender soles)
+    const shoeC = L.shoe || PAPER.shoe, soleC = L.sole || PAPER.sole;
     for (const [nm, x, z, seed] of [['shoeL', -0.22, 0.08, 12], ['shoeR', 0.22, 0.03, 13]]) {
       const c = [x * wd, 0.115, z];
-      part(rig, nm, c, () => B.ellipsoid(c, [0.17, 0.115, 0.28], 4, 9, { seed, jit: 0.01, mat: m => (rig.robo ? (m[1] < 0.05 ? '#4a525e' : metal) : m[1] < 0.05 ? PAPER.sole : PAPER.shoe) }));
+      part(rig, nm, c, () => B.ellipsoid(c, [0.17, 0.115, 0.28], 4, 9, { seed, jit: 0.01, mat: m => (rig.robo ? (m[1] < 0.05 ? '#4a525e' : metal) : m[1] < 0.05 ? soleC : shoeC) }));
     }
     for (const [k, sx] of [['N', -1], ['F', 1]]) {
       const s = [0.36 * sx * wd, 0.84, 0.02], e = [s[0], s[1] - rig.LU, s[2]], h = [e[0], e[1] - 0.27, e[2]];
-      // tracksuit sleeves (Subaru Toad): dark, with an orange line down the outside and orange cuffs
-      const slv = L.sleeves, side = (a, b) => B.capsule([a[0] + sx * 0.068, a[1], a[2]], [b[0] + sx * 0.068, b[1], b[2]], 0.016, 4, { col: trim });
+      // tracksuit sleeves (Subaru Toad): dark, with an orange line down the outside and orange cuffs.
+      // Emilia Toad's long white sleeves have no line, just pink cuffs (`cuff`)
+      const slv = L.sleeves, side = (a, b) => { if (!L.cuff) B.capsule([a[0] + sx * 0.068, a[1], a[2]], [b[0] + sx * 0.068, b[1], b[2]], 0.016, 4, { col: trim }); };
       part(rig, 'uarm' + k, s, () => { B.capsule(s, e, slv ? 0.085 : 0.075, 6, { col: slv || skin }); if (slv) side(s, e); });
       part(rig, 'farm' + k, e, () => {
         B.capsule(e, [e[0], e[1] - 0.22, e[2]], slv ? 0.082 : 0.072, 6, { col: slv || skin });
-        if (slv) { side(e, [e[0], e[1] - 0.16, e[2]]); B.lathe([[0.075, e[1] - 0.16], [0.092, e[1] - 0.17], [0.092, e[1] - 0.22], [0.075, e[1] - 0.23]], 8, { c: [e[0], 0, e[2]], col: trim }); }
+        if (slv) { side(e, [e[0], e[1] - 0.16, e[2]]); B.lathe([[0.075, e[1] - 0.16], [0.092, e[1] - 0.17], [0.092, e[1] - 0.22], [0.075, e[1] - 0.23]], 8, { c: [e[0], 0, e[2]], col: L.cuff || trim }); }
         if (rig.robo) B.ellipsoid(h, [0.135, 0.125, 0.135], 3, 7, { col: metal, seed: 21 + sx });
         else {
           B.ellipsoid(h, [0.1, 0.095, 0.1], 3, 7, { col: skin, seed: 21 + sx });
@@ -1056,11 +1098,114 @@ const M3D = (() => {
   }
   const KARTS = [];
 
+  // ---------- Emilia Toad's ice (weapons, pellets, pillar, barrier) and Puck ----------
+  // ice colours: pale, light, mid, deep; faces alternate so the facets catch the light
+  const ICEC = ['#f2fcff', '#c4ecff', '#92d4f6', '#62b2e2'];
+  // Ice Brand Arts' weapons in turn (as in sim.js)
+  const BRAND_W = ['sword', 'axe', 'hammer', 'spear'];
+  const iceMat = (m, i, j) => ICEC[(i + j) % 2 ? 1 : i === 0 ? 0 : 2];
+  // a faceted ice blade running up +y from the fist: flat (sz), pointed at the tip
+  function iceBladeGeo(len, w, flat) {
+    B.capsule([0, -0.1, 0], [0, 0.06, 0], 0.04, 5, { col: ICEC[2] });
+    B.box([0, 0.08, 0], [w * 1.7, 0.03, 0.05], { col: ICEC[1] });
+    B.lathe([[0, len], [w * 0.9, len * 0.86], [w, len * 0.3], [w * 0.8, 0.1], [0, 0.1]], 4, { sz: flat, center: [0, len * 0.5, 0], mat: iceMat });
+  }
+  // a pellet of ice: a small faceted icicle along +x
+  function icicleGeo(r, len, back) {
+    sub(() => { B.cone([0, 0, 0], r, len, 5, { col: ICEC[0] }); B.cone([0, 0, 0], r, -back, 5, { col: ICEC[2] }); }, p => [p[1], -p[0], p[2]], n => [n[1], -n[0], n[2]]);
+  }
+  // a slab of ice from (x0,y0) to (x1,y1) (world units), th thick and dz deep, with a little crystal on top
+  function iceSlab(x0, y0, x1, y1, th, dz, col) {
+    const L = Math.hypot(x1 - x0, y1 - y0), a = Math.atan2(y1 - y0, x1 - x0), c = Math.cos(a), s = Math.sin(a), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    sub(() => B.box([0, 0, 0], [L / 2 + th * 0.3, th / 2, dz], { faceCol: k => (k === 2 ? ICEC[0] : k % 2 ? col : ICEC[1]) }), p => [mx + p[0] * c - p[1] * s, my + p[0] * s + p[1] * c, p[2]], n => [n[0] * c - n[1] * s, n[0] * s + n[1] * c, n[2]]);
+  }
+  const PUCK = {};
+  function buildIce() {
+    PROPS.ice_sword = mesh(() => iceBladeGeo(1.6, 0.15, 0.55));
+    PROPS.ice_blade = mesh(() => iceBladeGeo(0.66, 0.085, 0.55));
+    PROPS.ice_axe = mesh(() => {
+      B.capsule([0, -0.15, 0], [0, 1.15, 0], 0.045, 5, { col: ICEC[2] });
+      for (const sx of [-1, 1]) B.lathe([[0, 0.3], [0.2, 0.26], [0.3, 0.05], [0.28, -0.22], [0, -0.3]], 4, { c: [0.24 * sx, 0.98, 0], sx: 1, sz: 0.18, center: [0.24 * sx, 0.98, 0], mat: iceMat });
+      B.cone([0, 1.15, 0], 0.07, 0.25, 4, { col: ICEC[0] });
+    });
+    PROPS.ice_hammer = mesh(() => {
+      B.capsule([0, -0.15, 0], [0, 1.05, 0], 0.05, 5, { col: ICEC[2] });
+      B.box([0, 1.12, 0], [0.34, 0.2, 0.2], { faceCol: k => ICEC[k % 3] });
+      for (const [x, z] of [[-0.18, 0.1], [0.18, 0.1], [-0.18, -0.1], [0.18, -0.1]]) B.cone([x, 1.3, z], 0.06, 0.16, 4, { col: ICEC[0] });
+    });
+    PROPS.ice_spear = mesh(() => {
+      B.capsule([0, -0.45, 0], [0, 1.15, 0], 0.035, 5, { col: ICEC[2] });
+      B.lathe([[0, 1.62], [0.09, 1.3], [0.11, 1.18], [0.05, 1.12], [0, 1.12]], 4, { sz: 0.5, center: [0, 1.35, 0], mat: iceMat });
+      B.lathe([[0, -0.45], [0.06, -0.5], [0, -0.62]], 4, { col: ICEC[1] });
+    });
+    // a little ice spike, for the soldiers' icy shoulders
+    PROPS.ice_spike = mesh(() => { B.cone([0, 0, 0], 0.07, 0.24, 4, { col: ICEC[1] }); });
+    // Emilia's pellets are icicles; Puck's are snowflakes
+    PROJ.icepel = mesh(() => icicleGeo(0.07, 0.3, 0.12));
+    PROJ.puckpel = mesh(() => {
+      B.ellipsoid([0, 0, 0], [0.07, 0.07, 0.05], 2, 6, { col: '#ffffff' });
+      for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2, e = [Math.cos(a) * 0.22, Math.sin(a) * 0.22, 0]; B.capsule([0, 0, 0], e, 0.026, 4, { col: k % 2 ? '#bff2ff' : '#ffffff' }); B.capsule([e[0] * 0.6, e[1] * 0.6, 0], [e[0] * 0.6 + Math.cos(a + 0.8) * 0.08, e[1] * 0.6 + Math.sin(a + 0.8) * 0.08, 0], 0.018, 3, { col: '#ffffff' }); }
+    });
+    // the ice pillar: a unit column (1 wide, 1 tall from its base), and a little cluster of crystals for its edges
+    FXM.icePillar = mesh(() => B.lathe([[0, 1.0], [0.3, 0.98], [0.5, 0.95], [0.52, 0.5], [0.5, 0.04], [0.46, 0], [0, 0]], 6, { center: [0, 0.5, 0], mat: iceMat }));
+    FXM.iceCrys = mesh(() => {
+      for (const [a, tl, len] of [[0, 0.1, 0.5], [2.1, 0.55, 0.34], [4.2, 0.5, 0.3]]) sub(() => B.lathe([[0, len], [0.07, len * 0.75], [0.08, 0], [0, -0.05]], 5, { center: [0, len * 0.4, 0], mat: iceMat }),
+        p => { const c = Math.cos(tl), s = Math.sin(tl), x = p[0] * c + p[1] * s, y = -p[0] * s + p[1] * c; return [x * Math.cos(a) - p[2] * Math.sin(a), y, x * Math.sin(a) + p[2] * Math.cos(a)]; },
+        n => { const c = Math.cos(tl), s = Math.sin(tl), x = n[0] * c + n[1] * s, y = -n[0] * s + n[1] * c; return [x * Math.cos(a) - n[2] * Math.sin(a), y, x * Math.sin(a) + n[2] * Math.cos(a)]; });
+    });
+    // the ice barrier, in sim pixels round Emilia's feet (facing +x): a wall in front that curves over her head
+    FXM.iceShell = mesh(() => {
+      const P = PX, pts = [[39, 0], [39, -70]];
+      for (let q = 1; q <= 5; q++) { const a = (q / 5) * (Math.PI / 2); pts.push([9 + 30 * Math.cos(a), -86 - 30 * Math.sin(a)]); }
+      pts.push([-26, -116]);
+      for (let k = 0; k < pts.length - 1; k++) iceSlab(pts[k][0] * P, -pts[k][1] * P, pts[k + 1][0] * P, -pts[k + 1][1] * P, 17 * P, 1.05, k % 2 ? ICEC[2] : ICEC[1]);
+      // icicles along the outside
+      for (const [x, y, a] of [[47, -20, 0], [47, -54, 0.15], [44, -94, 0.7], [24, -118, 1.3], [-6, -124, 1.57], [-22, -124, 1.6]]) sub(() => B.cone([0, 0, 0], 0.14, 0.42, 4, { col: ICEC[0] }), p => { const c = Math.cos(a), s = Math.sin(a); return [x * P + p[1] * c - p[0] * s, -y * P + p[1] * s + p[0] * c, p[2] + 0.4]; }, n => { const c = Math.cos(a), s = Math.sin(a); return [n[1] * c - n[0] * s, n[1] * s + n[0] * c, n[2]]; });
+    });
+    // shards for an ice shatter
+    for (const k of [0, 1, 2]) FXM['iceShard' + k] = mesh(() => { const h = 0.4 + k * 0.12, r = 0.16 + (k % 2) * 0.06; B.lathe([[0, h], [r, 0], [0, -h * 0.55]], 3 + (k % 2), { center: [0, 0, 0], jit: 0.05, seed: 60 + k, mat: (m, i, j) => ICEC[(i + j + k) % 3] }); });
+    // Puck: a little grey cat spirit with a white chest, blue eyes, pink cheeks, a gold earring, a long tail
+    // and a small purple satchel. His paws and tail are separate so he can hold out his paws and swish his tail
+    const grey = '#b9bdc8', pale = '#f4f5fa';
+    PUCK.body = mesh(() => {
+      B.ellipsoid([0, 0.42, 0], [0.25, 0.31, 0.23], 4, 10, { col: grey, seed: 81 });
+      B.ellipsoid([0, 0.46, 0.13], [0.16, 0.24, 0.12], 3, 9, { col: pale, seed: 82, jit: 0.015 });
+      for (const sx of [-1, 1]) B.ellipsoid([0.12 * sx, 0.1, 0.04], [0.09, 0.1, 0.11], 2, 7, { col: pale });
+      // head
+      B.ellipsoid([0, 0.92, 0], [0.33, 0.29, 0.29], 4, 12, { col: grey, seed: 83 });
+      B.decalAt([0, 0.84, 0.27], [0, -0.2, 1], [0.17, 0.12, 0.03], pale);
+      B.decalAt([0, 1.08, 0.25], [0, 0.5, 1], [0.07, 0.05, 0.02], pale);
+      for (const sx of [-1, 1]) {
+        B.decalAt([0.14 * sx, 0.94, 0.26], [0.35 * sx, 0, 1], [0.065, 0.08, 0.03], '#1d2a3a');
+        B.decalAt([0.14 * sx, 0.94, 0.27], [0.35 * sx, 0, 1], [0.05, 0.065, 0.03], '#4ab6e8');
+        B.decalAt([0.13 * sx, 0.965, 0.29], [0.35 * sx, 0, 1], [0.02, 0.022, 0.01], '#ffffff');
+        B.decalAt([0.22 * sx, 0.84, 0.21], [0.6 * sx, -0.2, 0.8], [0.05, 0.03, 0.01], '#ffa0b4');
+        // ears, pink inside
+        sub(() => { B.cone([0, 0, 0], 0.12, 0.26, 4, { col: grey }); B.cone([0, 0.01, 0.04], 0.07, 0.18, 4, { col: '#ffb8c8' }); },
+          p => { const c = Math.cos(sx * 0.5), s = Math.sin(sx * 0.5); return [0.2 * sx + p[0] * c + p[1] * s, 1.08 - p[0] * s + p[1] * c, p[2]]; },
+          n => { const c = Math.cos(sx * 0.5), s = Math.sin(sx * 0.5); return [n[0] * c + n[1] * s, -n[0] * s + n[1] * c, n[2]]; });
+      }
+      B.ellipsoid([0, 0.88, 0.29], [0.025, 0.02, 0.02], 2, 6, { col: '#ff8aa0' });
+      B.ellipsoid([0.27, 1.18, 0.02], [0.035, 0.035, 0.035], 2, 6, { col: '#ffd23a' }); // gold earring
+      // the satchel on a strap
+      B.capsule([-0.2, 0.68, 0.12], [0.22, 0.24, 0.16], 0.025, 4, { col: '#8a5ad0' });
+      B.ellipsoid([0.27, 0.22, 0.1], [0.11, 0.09, 0.07], 2, 8, { col: '#9a6ad8' });
+      B.ellipsoid([0.3, 0.24, 0.17], [0.025, 0.025, 0.012], 2, 5, { col: '#ffd23a' });
+    });
+    for (const sx of [-1, 1]) PUCK['arm' + (sx < 0 ? 'L' : 'R')] = mesh(() => { B.capsule([0, 0, 0], [0, -0.2, 0.02], 0.06, 5, { col: grey }); B.ellipsoid([0, -0.22, 0.03], [0.065, 0.06, 0.065], 2, 6, { col: pale }); });
+    PUCK.tail = mesh(() => {
+      const pts = [[0, 0, 0], [0.08, 0.25, -0.05], [0.12, 0.55, -0.06], [0.1, 0.85, -0.04], [0.04, 1.08, 0]];
+      for (let k = 0; k < pts.length - 1; k++) B.capsule(pts[k], pts[k + 1], 0.05 - k * 0.004, 5, { col: k === 3 ? pale : grey });
+    });
+  }
+
   // ---------- rigs registry ----------
   const RIGS = {}, MINIONS = {};
   const CROWD = [], YCROWD = [], CHOIR = [];
   function build() {
-    buildProps(); buildItems(); buildFx(); buildNew();
+    buildProps(); buildItems(); buildFx(); buildNew(); buildIce();
+    // Emilia Toad's Ice Soldiers: Subaru Toad without Beatrice's backpack (drawn tinted to ice)
+    MINIONS.icesoldier = toadRig('subaru', { beako: false });
     // Beatrice (in Subaru Toad's backpack): a mini Toadette with cream drills, a crown and butterfly eyes
     BEAKO = toadRig('toadette', { cap: '#f5e6b8', spot: '#ff9cc8', vest: '#ff6fae', trim: '#ffffff', drills: true, eyes: 'butterfly', bigEyes: 1.45, tiara: true });
     // Legion March soldiers and the Grand Choir
@@ -1099,6 +1244,13 @@ const M3D = (() => {
   // ---- normal attacks: every move template has its own animation ----
   // c: { k (wind-up < 0 .. strike 1 .. recovery), kp = max(0, k), q (0..1 across the active frames), on, t, fc, A, rig, profile(a) }
   const TPOSE = {
+    // Emilia Toad's ice volley: both hands thrown forward as the pellets fly, glowing ice-blue
+    icevolley(P, F, c) {
+      const k = clamp01(c.t / 6), back = c.t > 12 ? clamp01((c.t - 12) / 6) : 0;
+      P.an = [lerp(0.2, -1.55, k) + back * 0.9, -0.3 - 0.25 * k, -0.15, 0]; P.af = [lerp(0.2, -1.55, k) + back * 0.9, 0.3 + 0.25 * k, -0.15, 0];
+      P.lean = 0.12 * k; c.profile(0.25); F.mouthO = c.t >= 5 && c.t < 12;
+      if (c.t >= 3 && c.t < 12) F.tint = [0.75, 0.93, 1, 0.3];
+    },
     punch(P, F, c) { P.af = [lerp(0.05, -1.7, c.kp) + Math.min(0, c.k) * -1.4, 0.12, lerp(-0.2, 0, c.kp), 0]; P.an = [0.4 + 0.3 * c.kp, -0.3, -0.5, 0]; P.lean = 0.16 * c.kp; P.grip = 0.35; c.profile(0.35 * c.kp); },
     punch2(P, F, c) { P.an = [lerp(0.05, -1.7, c.kp) + Math.min(0, c.k) * -1.4, -0.12, lerp(-0.2, 0, c.kp), 0]; P.af = [0.45 + 0.3 * c.kp, 0.3, -0.5, 0]; P.lean = 0.18 * c.kp; c.profile(0.15 * c.kp); },
     kick3(P, F, c) { P.srZ = 0.45 * c.kp; P.srY = 0.22 * c.kp; P.srR = -0.7 * c.kp; P.lean = -0.12 * c.kp; P.an = [0.6, -0.6, -0.3, 0]; P.af = [0.6, 0.6, -0.3, 0]; c.profile(0.45 * c.kp); },
@@ -1294,6 +1446,8 @@ const M3D = (() => {
         }
         P.af = [-2.95, 0.15, 0, 0]; F.loopUp = 2.2; P.an = [0.2, -0.5, -0.4, 0]; break;
       case 'clone': P.af = [-1.4, 0.4, 0, 0]; P.lean = 0.3; break;
+      // Absolute Zero: locked in place with both arms raised to the storm, calling it in
+      case 'storm': ARMS_UP(P, 2.9 + Math.sin(t * 0.25) * 0.08); P.sy = 1.05; P.hx = -0.25; F.mouthO = t % 40 < 26; F.tint = [0.78, 0.94, 1, 0.3 + 0.1 * Math.sin(t * 0.3)]; return;
       case 'burst':
         if (D.sub === 'lotus') { P.slY = P.srY = 0.3; P.slZ = P.srZ = 0.2; P.an = [-0.9, -0.35, -1.6, 0]; P.af = [-0.9, 0.35, -1.6, 0]; P.bob = 0.4 + Math.sin(t * 0.1) * 0.05; F.noProp = true; break; }
         ARMS_UP(P, 2.5); P.spin = t * 0.2; break;
@@ -1501,6 +1655,22 @@ const M3D = (() => {
       case 'shamac': P.an = [-1.5, -0.3, -0.3, 0]; P.af = [-1.5, 0.3, -0.3, 0]; P.lean = 0.12; P.yaw = fc * 1.3; F.mouthO = t > 8 && t < 18; break;
       case 'murak': ARMS_UP(P, 1.3); P.slY = 0.08; P.srY = 0.08; F.bkCast = 1; break;
       case 'unseenhand': P.af = [t < 10 ? lerp(0.3, -1.55, t / 10) : -1.55, 0.1, 0, 0]; P.an = [-1.2, -0.1, -1.7, 0]; P.hx = 0.15; P.lean = 0.12; P.yaw = fc * 1.3; F.hurt = t > 6 && t < 26; break;
+      // --- Emilia Toad: ice magic ---
+      case 'icesoldiers': { const k = clamp01(t / 10); P.an = [lerp(-0.4, -1.3, k), -0.9 * k, -0.2, 0]; P.af = [lerp(-0.4, -1.3, k), 0.9 * k, -0.2, 0]; P.sy = 1 + 0.04 * k; F.tint = [0.75, 0.93, 1, 0.3 * k]; F.mouthO = t > 8 && t < 16; break; }
+      case 'icebrand': {
+        const w = BRAND_W[f.wpn || 0];
+        F.iceWpn = w;
+        if (w === 'sword') { const k = clamp01((t - 5) / 7); P.af = [lerp(-2.6, -0.45, k), lerp(0.6, 0.15, k), 0, 0]; P.grip = 0.9; P.an = [0.4, -0.35, -0.5, 0]; P.lean = 0.2 * k; P.yaw = fc * (1.0 + 0.4 * k); }
+        else if (w === 'axe') { P.spin = t >= 6 && t <= 22 ? ((t - 6) / 16) * Math.PI * 2 * -fc : 0; P.af = [-1.5, 1.2, 0, 0]; P.an = [-1.5, -1.2, 0, 0]; P.grip = 1.4; P.sy = 0.94; }
+        else if (w === 'hammer') { if (t < 16) { ARMS_UP(P, lerp(1.2, 2.95, clamp01(t / 12))); P.grip = 0.3; P.hx = -0.15; P.lean = -0.12; P.sy = 1.04; } else { const k = clamp01((t - 16) / 5); P.af = [lerp(-2.95, -0.7, k), 0.15, 0, 0]; P.an = [lerp(-2.95, -0.7, k), -0.15, 0, 0]; P.grip = 0.3; P.lean = 0.45 * k; P.hx = 0.2 * k; P.sy = 1 - 0.08 * k; } F.mouthO = t >= 16 && t < 26; }
+        else { if (t < 13) { P.af = [lerp(-0.6, 1.3, clamp01(t / 10)), 0.25, -0.4, 0]; P.grip = 1.6; P.lean = -0.15; P.yaw = fc * 1.25; } else { const k = clamp01((t - 13) / 4); P.af = [lerp(1.3, -1.6, k), 0.15, 0, 0]; P.lean = 0.2 * k; P.yaw = fc * 1.3; F.iceWpn = null; } P.an = [-0.4, -0.4, -0.6, 0]; }
+        break;
+      }
+      case 'icepillar':
+        if (f.t2) { ARMS_UP(P, 2.4 + Math.sin(t * 0.6) * 0.2); P.sy = 1.04; F.mouthO = true; }
+        else { ARMS_UP(P, 0.9); P.slY = 0.16; P.srY = 0.16; P.sy = 1.06; F.tint = t < 12 ? [0.75, 0.93, 1, 0.3] : null; }
+        break;
+      case 'icebarrier': { const k = clamp01(t / 7); P.an = [lerp(0, -1.5, k), -0.3, -0.25, 0]; P.af = [lerp(0, -1.5, k), 0.3, -0.25, 0]; P.lean = 0.1 * k; P.yaw = fc * 1.25; F.tint = [0.75, 0.93, 1, 0.25 * k]; break; }
       // --- Dash Yoshi: speed ---
       case 'boomkick': if (t < 6) { P.srZ = -0.3; P.lean = 0.15; } else { P.srZ = 0.62; P.srY = 0.36; P.srR = -0.95; P.lean = -0.25; } P.an = [0.6, -0.5, -0.3, 0]; P.af = [0.6, 0.5, -0.3, 0]; P.yaw = fc * 1.3; break;
       case 'blitzdash': dash(0.85); P.hx = 0.25; F.alpha = t >= 2 && t < 12 ? 0.55 : 1; P.slZ = Math.sin(t * 2.4) * 0.4; P.srZ = -Math.sin(t * 2.4) * 0.4; break;
@@ -1545,6 +1715,7 @@ const M3D = (() => {
       case 'float': P.an = [-0.5, -0.5, -0.6, 0]; P.af = [-0.5, 0.5, -0.6, 0]; P.side = Math.sin(fr * 0.05) * 0.05; break;
       case 'robot': P.bob = 0; P.sy = 1; P.sx = 1; P.hz = Math.round(Math.sin(fr * 0.02) * 2) * 0.06; P.an = [0, -0.2, -0.3, 0]; P.af = [0, 0.2, -0.3, 0]; break; // stiff, head clicking round
       case 'dino': P.side = Math.sin(fr * 0.1 + f.i) * 0.04; P.bob = Math.abs(Math.sin(fr * 0.1)) * 0.03; P.an = [-0.3, -0.3, -0.8, 0]; P.af = [-0.3, 0.3, -0.8, 0]; P.hx = Math.sin(fr * 0.05) * 0.05; break; // shifting weight
+      case 'grace': P.an = [-0.75, -0.45, -1.45, 0]; P.af = [-0.75, 0.45, -1.45, 0]; P.hz += Math.sin(fr * 0.03 + f.i) * 0.04; break; // hands together at her chest
       default: P.an = [0.08, -0.25, -0.25, 0]; P.af = [0.08, 0.25, -0.25, 0];
     }
   }
@@ -1671,9 +1842,11 @@ const M3D = (() => {
   function drawRig(rig, M0, P, F, fr, o) {
     const p = rig.parts, al = F.alpha != null ? F.alpha : 1;
     if (al <= 0.02) return;
-    const d = al < 0.99 ? { tint: F.tint, alpha: al } : { tint: F.tint };
+    // (F.self makes the whole rig glow a little: Emilia Toad's ice soldiers)
+    const d = al < 0.99 ? { tint: F.tint, alpha: al, self: F.self } : { tint: F.tint, self: F.self };
     const Mb = M4.chain(M0, M4.T(p.body.pivot[0], p.body.pivot[1], p.body.pivot[2]), M4.RX(P.lean), M4.RZ(P.side));
     G3.draw(p.body.mesh, Mb, d);
+    if (p.cape) G3.draw(p.cape.mesh, Mb, d);
     if (F.props.tail) G3.draw(PROPS.tail, M4.chain(Mb, M4.T(0, 0.08, -0.34), M4.RX(Math.sin(fr * 0.5) * 0.4)), d);
     if (F.props.flame) G3.draw(PROPS.flame, M4.chain(Mb, M4.T(0, 0.02, -0.46), M4.RX(0.45), M4.S(1, jitter(), 1)), { self: 1 });
     // Astro Toad's jetpack nozzles
@@ -1751,7 +1924,12 @@ const M3D = (() => {
         }
         if (F.popgun) G3.draw(PROPS.popgun, Mw, d);
         if (F.pillHand) G3.draw(PROPS.pill, M4.chain(Mhand, M4.T(0, 0.02, 0)), d);
+        // Emilia Toad's ice weapons (and an ice soldier's blade or axe) glow a little
+        const ice = { tint: d.tint, alpha: d.alpha, self: 0.35 };
+        if (F.iceWpn) G3.draw(PROPS['ice_' + F.iceWpn], M4.chain(Mhand, M4.RX(P.grip), M4.S(1.45, 1.45, 1.45)), ice);
+        if (F.iceDual) G3.draw(PROPS.ice_blade, M4.chain(Mhand, M4.RX(P.grip), M4.S(1.45, 1.45, 1.45)), ice);
       } else {
+        if (F.iceDual) G3.draw(PROPS.ice_blade, M4.chain(Mhand, M4.RX(P.grip), M4.S(1.45, 1.45, 1.45)), { tint: d.tint, alpha: d.alpha, self: 0.35 });
         if (F.props.parasol) { const w = 0.2 + 0.8 * (F.props.parasol === true ? 1 : F.props.parasol); G3.draw(PROPS.parasol, M4.chain(Mhand, M4.S(w, 1, w)), d); }
         if (F.dandiya) G3.draw(PROPS.dandiya, M4.chain(Mhand, M4.S(1.4, 1.4, 1.4)), d);
         // Knight Toad's shield rides the near forearm, turning to face forward when raised
@@ -1838,6 +2016,7 @@ const M3D = (() => {
     if (f.star > 0) F.tint = hueTint(fr, 0.4);
     if (f.psn > 0) F.tint = [0.6, 0.3, 0.8, 0.22 + Math.sin(fr * 0.3) * 0.1];
     if (f.frz > 0) F.tint = [0.7, 0.92, 1, 0.5];
+    if (f.slow > 0 && !F.tint) F.tint = [0.72, 0.9, 1, 0.2 + 0.08 * Math.sin(fr * 0.3)]; // chilled by Emilia Toad's ice
     if (f.prT > 0) F.tint = [0.8, 0.97, 1, 0.65 * (f.prT / 16)]; // a parry flashes white-blue
     if (rig.ghost && F.alpha == null) F.alpha = 0.88;
     if (f.hide > 0) F.alpha = 0.07; // haunting: all but invisible
@@ -1863,6 +2042,8 @@ const M3D = (() => {
       if (F.egg >= 1) return;
     }
     drawRig(rig, rootMatrix(X, Y, P, scale), P, F, fr);
+    // Emilia Toad's spirit Puck floats behind her
+    if (rig.look && rig.look.puck && f.pkx != null) drawPuck(f, fr);
     if (f.rp > 0) G3.draw(PROJ.halo, M4.chain(M4.T(X, Y - 0.06, 0), M4.S(1.15, 1, 0.7)), { self: 0.3 });
     if (f.st === 'shield') { const r = (f.h * 0.62 * PX) * (0.45 + 0.55 * ((f.shd || 100) / 100)); G3.draw(PROJ.ball, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(r, r, r)), { alpha: rig.shield ? 0.16 : 0.32, tint: [...hexF(SLOT_COLORS[f.i]), 0.6], self: 0.4 }); }
     if (f.frz > 0) G3.draw(PROJ.ice3, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(f.w * 0.75 * PX, f.h * 0.6 * PX, 0.9)), { alpha: 0.4, self: 0.5 });
@@ -1882,8 +2063,54 @@ const M3D = (() => {
     });
     G3.draw(PROPS.cowTail, M4.chain(Mb, M4.T(0, 1.12, -0.84), M4.RX(0.35 + (run ? 0.5 : 0)), M4.RZ(Math.sin(fr * 0.15) * 0.45)), d);
   }
+  // Puck at his spot behind Emilia Toad (smoothed here too, so he glides on a guest's screen): bobbing, swishing
+  // his tail, and holding his paws out with a snowflake between them while he fires
+  const PMEM = {};
+  function drawPuck(f, fr) {
+    let m = PMEM[f.i];
+    if (!m || Math.hypot(m.x - f.pkx, m.y - f.pky) > 200) m = PMEM[f.i] = { x: f.pkx, y: f.pky };
+    m.x += (f.pkx - m.x) * 0.5; m.y += (f.pky - m.y) * 0.5;
+    const s = 0.95, fc = f.fc || 1, shoot = (f.pkt == null ? 99 : f.pkt) < 34, al = f.hide > 0 ? 0.07 : undefined;
+    const M = M4.chain(M4.T(m.x * PX, -m.y * PX - 0.5, -0.35), M4.RY(fc * 0.45 + Math.sin(fr * 0.04) * 0.15), M4.RZ(Math.sin(fr * 0.05) * 0.06), M4.S(s, s, s));
+    const o = { inkW: 0.06 / s, self: 0.18, alpha: al };
+    G3.draw(PUCK.body, M, o);
+    for (const [nm, sx] of [['armL', -1], ['armR', 1]]) G3.draw(PUCK[nm], M4.chain(M, M4.T(0.22 * sx, 0.62, 0.04), M4.RX(shoot ? -1.45 : -0.25), M4.RZ(sx * (shoot ? 0.25 : 0.35))), o);
+    G3.draw(PUCK.tail, M4.chain(M, M4.T(0.1, 0.22, -0.2), M4.RZ(-0.5 + Math.sin(fr * 0.09) * 0.35), M4.RX(-0.3)), o);
+    if (shoot && !al) G3.draw(PROJ.puckpel, M4.chain(M, M4.T(0, 0.45, 0.45), M4.RZ(fr * 0.2), M4.S(0.9, 0.9, 0.9)), { self: 0.8 });
+  }
+  // Emilia Toad's Ice Soldiers: Subaru Toad made of ice, with two ice blades or a great ice axe
+  function drawIceSoldier(p, fr) {
+    const rig = MINIONS.icesoldier, fc = p.fc || 1, t = p.mt || 0, ms = p.ms || 'idle', blades = p.wp === 'blades';
+    const P = pose0(fc), F = { props: {}, mouthO: false, hurt: false, tint: [0.62, 0.87, 1, 0.6], self: 0.22 };
+    if (blades) F.iceDual = true; else F.iceWpn = 'axe';
+    switch (ms) {
+      case 'run': {
+        const s = Math.sin(fr * 0.42 + p.id), c = Math.cos(fr * 0.42 + p.id);
+        P.lean = 0.2; P.bob = Math.abs(s) * 0.07; P.slY = Math.max(0, c) * 0.13; P.slZ = s * 0.24; P.slR = -s * 0.5; P.srY = Math.max(0, -c) * 0.13; P.srZ = -s * 0.24; P.srR = s * 0.5;
+        P.an = [-0.9, -0.25, -0.5, 0]; P.af = [-0.9, 0.25, -0.5, 0]; P.grip = 1.4;
+        break;
+      }
+      case 'air': P.slY = 0.12; P.srY = 0.08; P.an = [-0.5, -0.9, -0.4, 0]; P.af = [-0.5, 0.9, -0.4, 0]; P.grip = 1.2; break;
+      case 'hurt': P.hx = -0.3; P.lean = -0.25; P.an = [-0.6, -1.0, -0.4, 0]; P.af = [-0.6, 1.0, -0.4, 0]; F.hurt = true; F.tint = [0.88, 0.97, 1, 0.78]; break;
+      case 'atk':
+        if (blades) {
+          // two quick slashes, one with each blade
+          const q1 = clamp01((t - 6) / 4), q2 = clamp01((t - 14) / 4);
+          P.af = [lerp(-2.4, -0.5, q1), 0.3, 0, 0]; P.an = [t < 14 ? -0.6 : lerp(-2.4, -0.5, q2), -0.3, 0, 0]; P.grip = 0.9; P.lean = 0.15; P.yaw = fc * 1.2;
+        } else if (t < 13) { ARMS_UP(P, lerp(1.0, 2.9, clamp01(t / 10))); P.grip = 0.3; P.lean = -0.12; P.yaw = fc * 1.25; }
+        else { const k = clamp01((t - 13) / 4); P.af = [lerp(-2.9, -0.6, k), 0.2, 0, 0]; P.an = [lerp(-2.9, -0.6, k), -0.2, 0, 0]; P.grip = 0.3; P.lean = 0.4 * k; P.yaw = fc * 1.25; } // a big overhead chop
+        break;
+      default: P.an = [-0.9, -0.25, -0.5, 0]; P.af = [-0.9, 0.25, -0.5, 0]; P.grip = 1.4; P.bob = Math.abs(Math.sin(fr * 0.12 + p.id)) * 0.04; P.lean = 0.08;
+    }
+    // rising up out of the ice when summoned
+    const grow = ms === 'spawn' ? clamp01(t / 22) : 1, scale = ((62 * 0.9 * PX) / rig.h) * (0.25 + 0.75 * grow);
+    drawRig(rig, rootMatrix(p.x * PX, -p.y * PX, P, scale), P, F, fr, {
+      extraProp: Mb => { for (const [x, z, a] of [[-0.38, -0.02, 0.6], [0.38, -0.02, -0.6], [0, -0.42, 0]]) G3.draw(PROPS.ice_spike, M4.chain(Mb, M4.T(x, 0.44, z), M4.RZ(a)), { self: 0.4 }); },
+    });
+  }
   // a small Toad Brigade helper (projectile kind 'minion')
   function drawMinion(p, fr) {
+    if (p.sub === 'icesoldier') return drawIceSoldier(p, fr);
     const rig = MINIONS[p.sub] || MINIONS.mail;
     const P = pose0(p.fc), F = { props: {}, mouthO: false, hurt: false, tint: null };
     if (p.sub === 'mail') { const s = Math.sin(fr * 0.5 + p.id), c = Math.cos(fr * 0.5 + p.id); P.lean = 0.2; P.slZ = s * 0.24; P.srZ = -s * 0.24; P.slY = Math.max(0, c) * 0.12; P.srY = Math.max(0, -c) * 0.12; P.an = [s, -0.2, -0.5, 0]; P.af = [-s, 0.2, -0.5, 0]; }

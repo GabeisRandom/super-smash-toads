@@ -176,6 +176,13 @@ const Snd = (() => {
     candy() { noise(0.18, 0.3, 1500, 0, 0.7); [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, f, 0.09, 'triangle', 0.08, i * 0.05)); },
     parranda() { for (let k = 0; k < 8; k++) noise(0.05, 0.16, 6000, k * 0.13, 1.5); [392, 494, 587, 784].forEach((f, i) => tone(f, f, 0.14, 'triangle', 0.1, i * 0.13)); },
     clack() { [0, 0.1].forEach(d => { tone(1800, 1200, 0.04, 'square', 0.07, d); noise(0.03, 0.2, 3000, d, 2); }); },
+    // Emilia Toad: the ice volley (a glassy sparkle and a whoosh), a recharging fizzle, Puck's chime, ice forming,
+    // and Absolute Zero's roaring storm
+    icevolley() { [1760, 2349, 2794, 3520].forEach((f, i) => tone(f, f * 1.03, 0.14, 'sine', 0.05, i * 0.025)); noise(0.18, 0.16, 6500, 0, 1.2); },
+    fizzle() { noise(0.08, 0.07, 4000, 0, 2); tone(900, 600, 0.06, 'sine', 0.025); },
+    puck() { [1568, 1976, 2349, 3136].forEach((f, i) => tone(f, f, 0.16, 'triangle', 0.05, i * 0.05)); },
+    iceform() { noise(0.25, 0.14, 5200, 0, 1.6); [1175, 1568, 2093].forEach((f, i) => tone(f, f * 1.01, 0.2, 'sine', 0.045, i * 0.04)); },
+    blizzard() { noise(2.4, 0.3, 500, 0, 0.35); noise(2.0, 0.22, 1400, 0.1, 0.5); noise(1.6, 0.14, 4200, 0.2, 0.8); tone(110, 70, 2.2, 'sawtooth', 0.04); },
     // El Minya: crystal creeping over a platform (a glassy shimmer and a crackle), then the platform shattering
     crystal() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, f * 1.01, 0.22, 'sine', 0.045, i * 0.035)); noise(0.1, 0.14, 5200, 0, 2.5); tone(620, 1240, 0.16, 'triangle', 0.05); },
     shatter() {

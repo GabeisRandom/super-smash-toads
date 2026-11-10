@@ -16,7 +16,8 @@ function circRect(cx, cy, r, x, y, w, h) {
 
 // brk: platforms broken by El Minya ({ plat index: the frame it comes back }). A broken platform stays in the list
 // (so every index stays put) but moves far out of reach, and nobody can stand on it
-function computeSurfaces(stageId, frame, clouds, brk) {
+// ice: Emilia Toad's ice pillars and barriers, solid blocks while they stand (with no ledges to grab)
+function computeSurfaces(stageId, frame, clouds, brk, ice) {
   const st = STG[stageId], out = [];
   for (const s of st.solids) out.push({ x: s.x, y: s.y, w: s.w, h: s.h, solid: true, dx: 0, dy: 0 });
   for (let pi = 0; pi < st.plats.length; pi++) {
@@ -31,7 +32,20 @@ function computeSurfaces(stageId, frame, clouds, brk) {
     out.push({ x, y, w: p.w, h: 0, solid: false, bounce: !!p.bounce, mv: !!p.move, pi, dx, dy });
   }
   if (clouds) for (const c of clouds) out.push({ x: c.x, y: c.y, w: c.w, h: 0, solid: false, cloud: true, dx: 0, dy: 0 });
+  if (ice) for (const s of ice) for (const R of iceRects(s)) out.push({ x: R.x, y: R.y, w: R.w, h: R.h, solid: true, ice: s.id, noLedge: true, dx: 0, dy: R.dy });
   return out;
+}
+
+// a line from (x0,y0) to (x1,y1) against a box: how far along the line it enters the box (0..1), or -1 if it misses
+function segRect(x0, y0, x1, y1, l, t, r, b) {
+  let t0 = 0, t1 = 1;
+  const dx = x1 - x0, dy = y1 - y0;
+  for (const [p, q] of [[-dx, x0 - l], [dx, r - x0], [-dy, y0 - t], [dy, b - y0]]) {
+    if (p === 0) { if (q < 0) return -1; continue; }
+    const u = q / p;
+    if (p < 0) { if (u > t1) return -1; if (u > t0) t0 = u; } else { if (u < t0) return -1; if (u < t1) t1 = u; }
+  }
+  return t0;
 }
 
 function fighterBy(g, i) { for (const f of g.fighters) if (f.i === i) return f; return null; }
@@ -47,7 +61,7 @@ function makeFighter(s, sp, stocks) {
     x: sp[0], y: sp[1], vx: 0, vy: 0, fc: sp[0] < 0 ? 1 : -1, st: 'air', t: 0, t2: 0,
     dm: 0, sk: stocks, gi: -1, jl: C.jumps - 1, at: null, sp: null, hits: {}, sh2: {}, hs: 0, hl: 0, inv: 0,
     shd: 100, big: 0, small: 0, star: 0, pe: 0, frz: 0, psn: 0, pick: 0, hold: null, drop: 0, jbuf: 0,
-    adUsed: false, upUsed: false, sUsed: false, ledgeCd: 0, dead: 0, rp: 0, glide: 0, ff: false, cd: { n: 0, s: 0, u: 0, d: 0 }, pb: 0,
+    adUsed: false, upUsed: false, sUsed: false, ledgeCd: 0, dead: 0, rp: 0, glide: 0, ff: false, cd: { n: 0, s: 0, u: 0, d: 0, a: 0 }, pb: 0, slow: 0,
     sc: 1, h: C.h, w: 36 * C.wide, pm: 1, lastHit: -1, lastHitT: 0, kos: 0, falls: 0, dealt: 0,
     ctr: -1, ctrT: 0, lx: 0, lcx: 0, lcy: 0, lsi: 0, out: false, outAt: 0,
     fs: 0, fsLock: 0, tn: 0, chg: 0, chgMul: 1, parryAt: -99, prT: 0, dirAt: -99, dTap: -99, ig: 0, hide: 0, boostT: 0,
@@ -68,13 +82,15 @@ function makeGame(cfg) {
     sbT: cfg.items === 'smash' ? 420 + RND() * 300 : 1500 + RND() * 900, haz: initHaz(st),
     // platforms cracked (php: hits taken) and broken (brk: when each comes back) by Subaru's El Minya
     brk: {}, php: {},
+    // Emilia Toad's ice pillars and barriers
+    ice: [],
   };
   let n = 0;
   for (const s of cfg.slots) {
     if (!s) continue;
     g.fighters.push(makeFighter(s, st.spawn[n++ % st.spawn.length], cfg.stocks));
   }
-  g.surf = computeSurfaces(g.stage, g.frame, g.clouds, g.brk);
+  g.surf = computeSurfaces(g.stage, g.frame, g.clouds, g.brk, g.ice);
   return g;
 }
 
@@ -93,7 +109,8 @@ function initHaz(st) {
 
 function stepGame(g, getBits) {
   g.frame++;
-  g.surf = computeSurfaces(g.stage, g.frame, g.clouds, g.brk);
+  updIce(g);
+  g.surf = computeSurfaces(g.stage, g.frame, g.clouds, g.brk, g.ice);
   if (g.phase === 'over') { g.pt++; return; }
   const counting = g.phase === 'count';
   if (counting) {
@@ -104,6 +121,8 @@ function stepGame(g, getBits) {
   // broken platforms pop back into place when their time is up
   for (const pi in g.brk) if (g.brk[pi] === g.frame) { const S = STG[g.stage].plats[pi]; g.ev.push({ t: 'platback', x: S.x + S.w / 2, y: S.y, pi: +pi }); }
   for (const f of g.fighters) updateFighter(g, f, counting ? 0 : getBits(f));
+  // Emilia Toad's spirit Puck follows her around and fires ice every 7 seconds
+  for (const f of g.fighters) if (CH[f.ch].puck && !f.out) updPuck(g, f);
   updateProj(g);
   updateItems(g);
   updateFx(g);
@@ -138,6 +157,7 @@ function updateFighter(g, f, bits) {
   if (f.boostT > 0) f.boostT--;
   if (f.wallT > 0) f.wallT--;
   if (f.parryCd > 0) f.parryCd--;
+  if (f.slow > 0) f.slow--; // chilled by Emilia Toad's ice weapons: slower on the move
   // Beatrice's follow-up spark (Subaru Toad), a moment after his hit lands; it fizzles if he gets hit first.
   // It only adds damage (it never knocks anyone, so it can't cut short the launch his hit just gave them)
   if (f.echo && --f.echo.t <= 0) {
@@ -221,8 +241,8 @@ function control(g, f, c) {
   let onG = c.onG;
   const help = f.st === 'help';
   if (pr & (B_L | B_R | B_U | B_D)) f.dirAt = g.frame;
-  // Super Mushroom: slow and mighty; Mini Mushroom: quick and fragile
-  const spd = (f.small ? 1.35 : 1) * (f.star ? 1.2 : 1) * (f.big ? 0.72 : 1);
+  // Super Mushroom: slow and mighty; Mini Mushroom: quick and fragile; chilled by ice: slowed down
+  const spd = (f.small ? 1.35 : 1) * (f.star ? 1.2 : 1) * (f.big ? 0.72 : 1) * (f.slow > 0 ? 0.55 : 1);
   if (onG) {
     if (!help) for (let n = 0; n < 4; n++) if (pr & B_TAUNTS[n]) { startTaunt(g, f, n + 1); return; }
     if (f.boostT > 0) { f.vx += dirX * 0.3; f.st = 'run'; } // riding a dash panel keeps its speed
@@ -259,7 +279,13 @@ function control(g, f, c) {
     startGrab(g, f);
     return;
   }
-  if (pr & B_A) {
+  if (pr & B_A && C.volley && !f.hold) {
+    // Emilia Toad: every Attack, in any direction, fires her homing ice volley (once every 3.5 seconds).
+    // Up + Attack off the stage still gives the lift everyone's first up-air gets, even while the volley recharges
+    if (!onG && bits & B_U && !f.uaUsed && offStage(g, f)) { f.uaUsed = true; f.vy = Math.min(f.vy, -9.5); f.ff = false; g.ev.push({ t: 'uplift', x: f.x, y: f.y }); }
+    if (f.cd.a > 0) g.ev.push({ t: 'fizzle', x: f.x + f.fc * 16, y: f.y - f.h * 0.6 });
+    else { f.cd.a = EMI.volleyCd; if (dirX) f.fc = dirX; startAttack(g, f, 'volley'); return; }
+  } else if (pr & B_A) {
     if (f.hold) { throwItem(g, f, c); return; }
     // tapping a direction together with attack makes a (chargeable) smash attack
     const smash = g.frame - f.dirAt <= 4 && (bits & (B_L | B_R | B_U | B_D));
@@ -320,7 +346,7 @@ function control(g, f, c) {
 function doJump(g, f) {
   const C = CH[f.ch];
   if (f.pick > 0) return;
-  const jm = f.small ? 1.18 : f.big ? 0.88 : 1;
+  const jm = (f.small ? 1.18 : f.big ? 0.88 : 1) * (f.slow > 0 ? 0.88 : 1);
   if (f.gi >= 0) {
     f.vy = -C.jump * jm; f.gi = -1; f.st = 'air';
     g.ev.push({ t: 'jump', x: f.x, y: f.y });
@@ -359,6 +385,8 @@ function updAttack(g, f, c) {
   if (A.lunge && c.onG && A.hb.length && crossed(A.hb[0].a)) f.vx += f.fc * A.lunge;
   // Hasidic Toad's burst of Hanukkah gelt shoots him upward
   if (A.rise && crossed(A.rise.at)) { f.vy = -A.rise.vy; f.gi = -1; g.ev.push({ t: 'risefx', x: f.x, y: f.y, k: A.tpl }); }
+  // Emilia Toad's ice volley
+  if (A.volley && crossed(A.volley)) fireVolley(g, f);
   // a thrown projectile: Yoshi's egg drop, the Bob-omb
   if (A.drop && crossed(A.drop.at)) {
     spawnProj(g, f, Object.assign({ grav: 0.5, life: 90 }, JSON.parse(JSON.stringify(A.drop.p)), { x: f.x + f.fc * 6, y: f.y + 4, vx: f.vx * 0.3, fc: f.fc }));
@@ -614,7 +642,7 @@ function tryLedge(g, f) {
   if (f.vy < (f.st === 'air' ? 0 : -7)) return;
   for (let k = 0; k < g.surf.length; k++) {
     const s = g.surf[k];
-    if (!s.solid) continue;
+    if (!s.solid || s.noLedge) continue;
     for (const side of [-1, 1]) {
       const cx = side < 0 ? s.x : s.x + s.w;
       if (side < 0 ? f.x >= cx : f.x <= cx) continue;
@@ -639,7 +667,7 @@ function tetherLedge(g, f, reach) {
   let best = null, bd = reach;
   for (let k = 0; k < g.surf.length; k++) {
     const s = g.surf[k];
-    if (!s.solid) continue;
+    if (!s.solid || s.noLedge) continue;
     for (const side of [-1, 1]) {
       const cx = side < 0 ? s.x : s.x + s.w;
       if (side < 0 ? f.x >= cx : f.x <= cx) continue;
@@ -665,9 +693,14 @@ function ko(g, f) {
   if (f.lastHit >= 0 && g.frame - f.lastHitT < 600) { const a = fighterBy(g, f.lastHit); if (a && a !== f) a.kos++; }
   f.falls++; f.sk--; f.st = 'dead'; f.dead = 100; f.vx = 0; f.vy = 0;
   f.big = f.small = f.star = f.pe = f.frz = f.psn = f.pick = 0; f.hold = null; f.glide = 0; f.lastHit = -1;
-  f.fs = 0; f.fsLock = 0; f.hide = 0; f.ig = 0; f.tn = 0; f.boostT = 0;
+  f.fs = 0; f.fsLock = 0; f.hide = 0; f.ig = 0; f.tn = 0; f.boostT = 0; f.slow = 0;
   f.x = 0; f.y = -2000;
-  if (f.sk <= 0) { f.out = true; f.outAt = g.frame; }
+  if (f.sk <= 0) {
+    f.out = true; f.outAt = g.frame;
+    // out of the match: Emilia Toad's ice soldiers, pillar and barrier go with her
+    for (const s of g.ice.slice()) if (s.o === f.i) breakIce(g, s);
+    for (const q of g.proj) if (q.k === 'minion' && q.sub === 'icesoldier' && q.o === f.i) q.hp = 0;
+  }
 }
 
 function checkEnd(g) {
@@ -693,9 +726,22 @@ function hitArea(g, f, ox, oy, r, d, k, gr, ang, o) {
     if (v === f || !hittable(v) || !fresh(v.i)) continue;
     if (!circRect(cx, cy, r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
     map[v.i] = g.frame;
+    // an ice barrier between the attacker and the target takes the blow instead
+    const B = g.ice.length ? iceShield(g, f, v) : null;
+    if (B) { if (fresh('ice' + B.id)) { map['ice' + B.id] = g.frame; hurtIce(g, B, d * f.pm); } any = true; continue; }
     const dir = o.radial ? (v.x >= cx ? 1 : -1) : f.fc;
     applyHit(g, v, f, d * f.pm, k, gr, ang, dir, o);
     any = true;
+  }
+  // Emilia Toad's ice: foes' blows chip her pillars and barriers, and break her ice soldiers
+  for (const s of g.ice.slice()) {
+    if (s.o === f.i || !fresh('ice' + s.id) || !iceCircle(s, cx, cy, r)) continue;
+    map['ice' + s.id] = g.frame; hurtIce(g, s, d * f.pm); any = true;
+  }
+  for (const q of g.proj) {
+    if (q.k !== 'minion' || q.sub !== 'icesoldier' || q.o === f.i || q.hp <= 0 || !fresh('m' + q.id)) continue;
+    if (!circRect(cx, cy, r, q.x - 15, q.y - 52, 30, 52)) continue;
+    map['m' + q.id] = g.frame; hurtSoldier(g, q, o.radial ? (q.x >= cx ? 1 : -1) : f.fc); any = true;
   }
   // things in the world that can be struck: the Smash Mushroom, and Wiggler (who gets angry)
   for (const it of g.items) {
@@ -748,6 +794,14 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
     if (a.useHit !== o.use) { a.useSm = staleMul(a, o.mv); a.stq.unshift(o.mv); if (a.stq.length > 9) a.stq.length = 9; a.useHit = o.use; }
     d *= a.useSm; k *= 0.7 + 0.3 * a.useSm;
   }
+  // chip damage (Emilia Toad's ice pellets): damage only. No flinch, no knockback, nothing interrupted
+  if (o.chip) {
+    d *= v.big ? 0.65 : v.small ? 1.4 : 1;
+    v.dm = Math.min(999, v.dm + d);
+    if (a) { a.dealt += d; v.lastHit = a.i; v.lastHitT = g.frame; }
+    g.ev.push({ t: 'chip', x: v.x, y: v.y - v.h * 0.55, v: v.i });
+    return true;
+  }
   // a fighter caught in a grab is dropped when either of the two gets hit by someone else
   if (v.st === 'hold' || v.st === 'throw') releaseHeld(g, v, 0);
   if (v.gby >= 0) v.gby = -1;
@@ -756,6 +810,8 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   v.dm = Math.min(999, v.dm + d);
   if (a) { a.dealt += d; v.lastHit = a.i; v.lastHitT = g.frame; }
   if (o.psn) v.psn = 210;
+  // Emilia Toad's ice weapons chill: slower on the move for a while
+  if (o.slow) v.slow = Math.max(v.slow || 0, o.slow);
   const wt = CH[v.ch].weight * (v.big ? 1.5 : 1) * (v.small ? 0.55 : 1) * (v.st === 'crouch' ? 1.18 : 1);
   // knockback starts really weak and grows faster and faster with damage: the base part ramps from 20% (at 0%) up to
   // full strength (at 100%), and the damage part curves upward (about half strength at 15%, the same as before at
@@ -796,7 +852,7 @@ function staleMul(a, mv) {
 
 function reflect(g, f, x, y, rad) {
   for (const p of g.proj) {
-    if (p.o === f.i || p.k === 'minion' || p.k === 'trap' || p.k === 'fsdrop') continue;
+    if (p.o === f.i || p.k === 'minion' || p.k === 'trap' || p.k === 'fsdrop' || (p.k === 'icespear' && p.vic >= 0)) continue;
     if (Math.hypot(p.x - x, p.y - y) < rad) {
       p.o = f.i; p.vx = -p.vx * 1.1; p.vy = -Math.abs(p.vy) - 2; p.hits = {}; p.t = Math.min(p.t, 10);
       if (p.k === 'boom') p.dir0 = -p.dir0;
@@ -812,13 +868,17 @@ function blastAt(g, x, y, owner, r, d, k, gr, ang, extra) {
     if (v.i === owner || !hittable(v)) continue;
     if (circRect(x, y, r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) applyHit(g, v, a, d, k, gr, ang, v.x >= x ? 1 : -1, Object.assign({ proj: true }, extra));
   }
+  // blasts crack Emilia Toad's ice and break her soldiers too
+  for (const s of g.ice.slice()) if (s.o !== owner && iceCircle(s, x, y, r)) hurtIce(g, s, d);
+  for (const q of g.proj) if (q.k === 'minion' && q.sub === 'icesoldier' && q.o !== owner && q.hp > 0 && circRect(x, y, r, q.x - 15, q.y - 52, 30, 52)) hurtSoldier(g, q, q.x >= x ? 1 : -1);
 }
 
+// (`quiet`: no firing sound of its own, for shots fired in a bunch)
 function spawnProj(g, f, o) {
   o.o = f.i; o.t = 0; o.pm = f.pm || 1; o.d *= o.pm; o.hits = {}; o.id = g.pid++;
   if (o.fc === undefined) o.fc = f.fc;
   g.proj.push(o);
-  g.ev.push({ t: 'shoot', k: o.k, x: o.x, y: o.y, sub: o.sub });
+  if (!o.quiet) g.ev.push({ t: 'shoot', k: o.k, x: o.x, y: o.y, sub: o.sub });
   return o;
 }
 
@@ -842,6 +902,8 @@ function nearestFoe(g, owner, x, y) {
 }
 
 function updateProj(g) {
+  // (shots only need checking against Emilia Toad's ice and soldiers when there are some)
+  const iceOut = g.ice.length > 0 || g.proj.some(q => q.sub === 'icesoldier');
   for (let n = g.proj.length - 1; n >= 0; n--) {
     const p = g.proj[n];
     if (!p) continue;
@@ -852,6 +914,8 @@ function updateProj(g) {
       if (updMinion(g, p)) kill = true;
     } else if (p.k === 'trap') {
       if (updTrap(g, p)) kill = true;
+    } else if (p.k === 'icespear') {
+      if (updSpear(g, p, iceOut)) kill = true;
     } else {
       if (p.k === 'boom') {
         p.vx -= 0.34 * p.dir0; p.x += p.vx; p.y += p.vy;
@@ -860,7 +924,8 @@ function updateProj(g) {
         const sg = Math.sign(p.vx);
         if (sg !== p.lastSign) { p.hits = {}; p.lastSign = sg; }
       } else {
-        if (p.home) {
+        if (p.k === 'icepel') steerIcePel(g, p);
+        else if (p.home) {
           // homing (Star Bolt, Boo Buddy): steer toward the nearest foe
           const tg = nearestFoe(g, p.o, p.x, p.y);
           if (tg) {
@@ -889,12 +954,17 @@ function updateProj(g) {
           }
         }
       }
+      // Emilia Toad's ice pillars, barriers and soldiers soak up foes' shots
+      const iced = !kill && iceOut && shotVsIce(g, p);
+      if (iced) { kill = true; boom = true; }
       for (const v of g.fighters) {
+        if (iced) break;
         if (v.i === p.o || !hittable(v)) continue;
         if (p.hits[v.i] !== undefined && (!p.every || g.frame - p.hits[v.i] < p.every)) continue;
         if (circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) {
           p.hits[v.i] = g.frame;
-          applyHit(g, v, fighterBy(g, p.o), p.d, p.kb, p.gr, p.ang, p.vx >= 0 ? 1 : -1, { proj: true, frz: p.frz, psn: p.psn, daze: p.daze, mv: 'p:' + p.k, use: 'p' + p.id });
+          // (chip shots, Emilia's ice pellets, only add damage and don't count toward stale moves)
+          applyHit(g, v, fighterBy(g, p.o), p.d, p.kb, p.gr, p.ang, p.vx >= 0 ? 1 : -1, { proj: true, frz: p.frz, psn: p.psn, daze: p.daze, chip: p.chip, mv: p.chip ? '' : 'p:' + p.k, use: 'p' + p.id });
           if (p.k !== 'boom' && !p.pierce) { kill = true; boom = true; break; }
         }
       }
@@ -1022,6 +1092,7 @@ function minionTouch(g, p, d, kb, gr, ang, every) {
 }
 
 function updMinion(g, p) {
+  if (p.sub === 'icesoldier') return updSoldier(g, p);
   p.vy += 0.6;
   const py = p.y;
   p.y += p.vy; p.x += p.vx;
@@ -1363,10 +1434,11 @@ const FSDEF = {
   // El Minya rains crystals at the same pace as the other rains, but 30% longer (23 crystals instead of 18)
   mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 23, every: 8.15 },
   dashyoshi: { k: 'rush', sub: 'dash', spd: 26, laps: 3 }, mechyoshi: { k: 'beam', sub: 'mech' },
+  emilia: { k: 'storm', sub: 'absolute' },
   catholic: { k: 'wave', sub: 'parranda' }, hindu: { k: 'vortex', sub: 'color', move: 2.6, life: 210, r: 240 },
 };
 // finales that keep their user busy until they finish
-const FS_LOCK = { burst: 1, rush: 1, clone: 1, beam: 1, pulses: 1, lasso: 1 };
+const FS_LOCK = { burst: 1, rush: 1, clone: 1, beam: 1, pulses: 1, lasso: 1, storm: 1 };
 
 function fsLaunch(g, f) {
   const D = FSDEF[f.ch] || FSDEF.toad, s = STG[g.stage].solids[0];
@@ -1388,6 +1460,7 @@ function fsLaunch(g, f) {
     case 'lasso': e.life = 90; break;
     case 'swarm': e.life = 230; e.b = []; for (let k = 0; k < D.n; k++) { const a = (k / D.n) * Math.PI * 2; e.b.push([f.x, f.y - 40, Math.cos(a) * 6, Math.sin(a) * 6 - 2]); } break;
     case 'fist': e.life = 200; e.vx = 2; e.y = f.y - 44; break;
+    case 'storm': e.life = 320; e.ox = f.x; e.oy = f.y; break;
   }
   g.fx.push(e);
   if (FS_LOCK[D.k]) f.fsLock = e.id;
@@ -1433,6 +1506,15 @@ const FXU = {
     if (e.both) { g.ev.push({ t: 'boom', x: mid, y: s.y - 40, s: 3 }); for (const v of fsFoes(g, e)) if (Math.abs(v.x - mid) < 280) fsHit(g, e, v, 18, 13, 0.18, 75, v.x >= mid ? 1 : -1); }
     else for (const i of e.vic) { const v = fighterBy(g, i); if (v && alive(v)) fsHit(g, e, v, 12, 13, 0.17, 40, e.dir); }
     return true;
+  },
+  // Absolute Zero (Emilia Toad): she stands locked in place, arms raised, while a huge ice storm roars across the
+  // stage for five seconds, pelting every foe with big ice pellets and blowing them along; a last gust sends them flying
+  storm(g, e, own) {
+    if (own && alive(own)) { own.x = e.ox; own.y = e.oy; own.vx = 0; own.vy = 0; own.inv = Math.max(own.inv, 2); }
+    if (e.t % 100 === 0 && e.t < 300) g.ev.push({ t: 'stormgust', x: e.ox, y: e.oy });
+    if (e.t >= 20 && e.t < 300 && e.t % 7 === 0) for (const v of fsFoes(g, e)) fsHit(g, e, v, 1.1, 1.15, 0.004, 40, e.dir);
+    if (e.t === 300) for (const v of fsFoes(g, e)) { fsHit(g, e, v, 9, 10, 0.13, 32, e.dir); g.ev.push({ t: 'shatter', x: v.x, y: v.y - v.h / 2 }); }
+    return e.t >= 306;
   },
   // everyone else freezes solid, then shatters
   freeze(g, e) {
@@ -1919,6 +2001,326 @@ function spCast(sp, ev, say) {
     start(g, f, c) { const r = s0(g, f, c); if (r !== false) g.ev.push({ t: ev, x: f.x, y: f.y - f.h - 34, s: say, i: f.i }); return r; },
   });
 }
+// ---------- Emilia Toad (with the great spirit Puck) ----------
+const EMI = {
+  volleyCd: 210,                                          // 3.5 s between ice volleys
+  pel: { n: 9, spd: 8.6, life: 600, d: 0.5, r: 9 },       // her pellets: 0.5 damage each, they last 10 s
+  puck: { every: 420, shots: 3, gap: 7, range: 680, spd: 13 },
+  soldierCd: 480, maxSoldiers: 4,
+  pillar: { w: 54, H: 168, grow: 12, hp: 50, cd: 240 },
+  barrier: { H: 124, hp: 30, cd: 300 },
+};
+// Emilia's Attack: nine ice pellets burst out in a fan, then each one hunts the foe nearest to it
+function fireVolley(g, f) {
+  const x0 = f.x + f.fc * 22 * f.sc, y0 = f.y - f.h * 0.62;
+  for (let k = 0; k < EMI.pel.n; k++) {
+    const a = ((-84 + k * 21) * Math.PI) / 180, sp = 6 + (k % 3) * 0.8;
+    spawnProj(g, f, { k: 'icepel', x: x0, y: y0, vx: Math.cos(a) * f.fc * sp, vy: Math.sin(a) * sp, grav: 0, d: EMI.pel.d, kb: 0, gr: 0, ang: 0,
+      r: EMI.pel.r, life: EMI.pel.life, ghost: 1, chip: 1, quiet: 1, ph: k * 0.9, sw: k % 2 ? 1 : -1 });
+  }
+  g.ev.push({ t: 'volley', x: x0, y: y0, i: f.i });
+}
+// the foe nearest to a point (not the owner, not someone still respawning)
+function pelTarget(g, p) {
+  let best = null, bd = 1e9;
+  for (const v of g.fighters) {
+    if (v.i === p.o || !alive(v) || v.rp > 0) continue;
+    const d = Math.hypot(v.x - p.x, v.y - v.h / 2 - p.y);
+    if (d < bd) { bd = d; best = v; }
+  }
+  return best;
+}
+// a way round the first platform or block between a pellet and its target: the nearest end of the platform, or
+// a corner of the block, that the pellet can reach in a straight line (null when the way is clear)
+function iceDetour(g, x0, y0, x1, y1) {
+  let best = null, bt = 2;
+  for (const s of g.surf) {
+    if (s.gone || s.w <= 0) continue;
+    if (s.solid) {
+      const t = segRect(x0, y0, x1, y1, s.x - 6, s.y - 6, s.x + s.w + 6, s.y + s.h + 6);
+      if (t >= 0 && t < bt) { bt = t; best = s; }
+    } else {
+      const dy = y1 - y0;
+      if (Math.abs(dy) < 1e-6) continue;
+      const t = (s.y - y0) / dy;
+      if (t <= 0 || t >= 1) continue;
+      const xc = x0 + (x1 - x0) * t;
+      if (xc > s.x - 10 && xc < s.x + s.w + 10 && t < bt) { bt = t; best = s; }
+    }
+  }
+  if (!best) return null;
+  const s = best, m = 30;
+  const C = s.solid ? [[s.x - m, s.y - m], [s.x + s.w + m, s.y - m], [s.x - m, s.y + s.h + m], [s.x + s.w + m, s.y + s.h + m]] : [[s.x - m, s.y], [s.x + s.w + m, s.y]];
+  let w = null, wd = 1e9;
+  for (const c of C) {
+    if (Math.hypot(c[0] - x0, c[1] - y0) < 20) continue; // already at this corner: head for the next one
+    if (s.solid && segRect(x0, y0, c[0], c[1], s.x, s.y, s.x + s.w, s.y + s.h) >= 0) continue;
+    const d = Math.hypot(c[0] - x0, c[1] - y0) + Math.hypot(x1 - c[0], y1 - c[1]);
+    if (d < wd) { wd = d; w = c; }
+  }
+  return w;
+}
+// each pellet homes on whichever foe is nearest to it right now (so they switch targets mid-flight), weaving from
+// side to side as it flies, and steers round platforms and the stage instead of through them
+function steerIcePel(g, p) {
+  const tg = pelTarget(g, p);
+  let tx, ty;
+  if (tg) { tx = tg.x; ty = tg.y - tg.h * 0.5; }
+  else { const own = fighterBy(g, p.o); tx = own ? own.x + Math.cos(p.t * 0.05 + p.ph) * 120 : p.x; ty = own ? own.y - 130 + Math.sin(p.t * 0.05 + p.ph) * 50 : p.y; }
+  const w = iceDetour(g, p.x, p.y, tx, ty);
+  if (w) { tx = w[0]; ty = w[1]; }
+  const dx = tx - p.x, dy = ty - p.y, L = Math.hypot(dx, dy) || 1, early = p.t < 12;
+  const spd = early ? 6.5 : EMI.pel.spd, turn = early ? 0.04 : 0.15;
+  p.vx += ((dx / L) * spd - p.vx) * turn; p.vy += ((dy / L) * spd - p.vy) * turn;
+  const s = Math.hypot(p.vx, p.vy) || 1, ux = -p.vy / s, uy = p.vx / s, wv = Math.sin(p.t * 0.21 + p.ph) * 0.85 * p.sw * Math.min(1, L / 90);
+  p.vx += ux * wv; p.vy += uy * wv;
+  const s2 = Math.hypot(p.vx, p.vy) || 1;
+  p.vx *= spd / s2; p.vy *= spd / s2;
+}
+// Puck floats behind Emilia Toad's shoulder; every 7 seconds he holds out his paws and fires three quick ice shots
+// at the nearest foe in range (his shots are snowflakes, hers are icicles)
+function updPuck(g, f) {
+  if (f.st === 'dead') { f.pkx = undefined; return; }
+  const tx = f.x - f.fc * 46 * f.sc, ty = f.y - f.h - 22 + Math.sin(g.frame * 0.06 + f.i) * 6;
+  if (f.pkx === undefined || Math.hypot(tx - f.pkx, ty - f.pky) > 420) { f.pkx = tx; f.pky = ty; f.pkc = Math.max(f.pkc || 0, 120); f.pks = 0; f.pkt = 99; }
+  f.pkx += (tx - f.pkx) * 0.1; f.pky += (ty - f.pky) * 0.1;
+  f.pkt++;
+  if (f.pkc > 0) f.pkc--;
+  if (g.phase !== 'play' || f.rp > 0) return;
+  const me = { o: f.i, x: f.pkx, y: f.pky };
+  if (f.pkc <= 0 && f.pks <= 0) {
+    const tg = pelTarget(g, me);
+    if (tg && Math.hypot(tg.x - f.pkx, tg.y - tg.h / 2 - f.pky) < EMI.puck.range) { f.pkc = EMI.puck.every; f.pks = EMI.puck.shots; f.pkt = 0; g.ev.push({ t: 'puck', x: f.pkx, y: f.pky, i: f.i }); }
+  }
+  if (f.pks > 0 && f.pkt >= 8 && (f.pkt - 8) % EMI.puck.gap === 0) {
+    f.pks--;
+    const tg = pelTarget(g, me);
+    if (tg) {
+      const dx = tg.x - f.pkx, dy = tg.y - tg.h * 0.5 - f.pky, L = Math.hypot(dx, dy) || 1, s = EMI.puck.spd;
+      spawnProj(g, f, { k: 'puckpel', x: f.pkx + (dx / L) * 14, y: f.pky + (dy / L) * 14, vx: (dx / L) * s, vy: (dy / L) * s, grav: 0, d: 2.5, kb: 3, gr: 0.03, ang: 35, r: 9,
+        life: 60, ghost: 1, home: 0.25, vmax: s, quiet: 1, fc: dx >= 0 ? 1 : -1 });
+      g.ev.push({ t: 'puckshot', x: f.pkx, y: f.pky });
+    }
+  }
+}
+// Ice Spear: it flies straight until it skewers a foe, then carries them along, stunned, for 0.7 s and bursts.
+// A foe who's on the ground when it bursts is frozen solid for a second; one in the air is blown away
+function updSpear(g, p, iceOut) {
+  const own = fighterBy(g, p.o) || { i: p.o, pm: p.pm, fc: p.fc, dealt: 0 }, dir = p.vx >= 0 ? 1 : -1;
+  if (p.vic < 0) {
+    p.x += p.vx;
+    for (const s of g.surf) if (s.solid && !s.noLedge && p.x > s.x && p.x < s.x + s.w && p.y > s.y + 2 && p.y < s.y + s.h) { g.ev.push({ t: 'spearburst', x: p.x, y: p.y }); return true; }
+    if (iceOut && shotVsIce(g, p)) { g.ev.push({ t: 'spearburst', x: p.x, y: p.y }); return true; }
+    for (const v of g.fighters) {
+      if (v.i === p.o || !hittable(v) || !circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
+      // a shield or a counter stops it cold
+      if (!applyHit(g, v, own, p.d, 1, 0, 0, dir, { proj: true, mv: 'p:icespear', use: 'p' + p.id })) { g.ev.push({ t: 'spearburst', x: p.x, y: p.y }); return true; }
+      p.vic = v.i; p.ct = 0; p.vx = dir * 7; p.life = p.t + 90;
+      g.ev.push({ t: 'skewer', x: v.x, y: v.y - v.h * 0.5 });
+      return false;
+    }
+    if (p.t > p.life) { g.ev.push({ t: 'spearburst', x: p.x, y: p.y }); return true; }
+    return false;
+  }
+  const v = fighterBy(g, p.vic);
+  if (!v || !alive(v)) { g.ev.push({ t: 'spearburst', x: p.x, y: p.y }); return true; }
+  p.ct++;
+  // driving them back, stunned
+  if (v.st !== 'held' && v.st !== 'ledge') { v.st = 'hit'; v.hs = Math.max(v.hs, 4); v.at = null; v.sp = null; v.glide = 0; v.vx = p.vx; }
+  p.x = v.x - dir * 18; p.y = v.y - v.h * 0.5;
+  if (p.ct < 42) return false;
+  if (v.gi >= 0) {
+    applyHit(g, v, own, 6 * p.pm, 2, 0.01, 70, dir, { proj: true, mv: 'p:icespear2', use: 'p' + p.id });
+    v.frz = 60; v.vx = 0; v.vy = 0;
+    g.ev.push({ t: 'frozen', x: v.x, y: v.y - v.h * 0.5 });
+  } else applyHit(g, v, own, 6 * p.pm, 7, 0.09, 40, dir, { proj: true, mv: 'p:icespear2', use: 'p' + p.id });
+  g.ev.push({ t: 'spearburst', x: p.x, y: p.y });
+  return true;
+}
+// ---- Emilia's ice pillar (lifts her up) and ice barrier (a wall that curves over her head). Both are solid while
+// they stand. Foes' blows and shots chip away their HP (50 and 30), then they shatter. One of each per Emilia
+function iceRects(s) {
+  if (s.k === 'pillar') return [{ x: s.x - s.w / 2, y: s.y - s.h, w: s.w, h: s.h, dy: s.t < EMI.pillar.grow ? -EMI.pillar.H / EMI.pillar.grow : 0 }];
+  const H = s.h, R = [{ x: s.fc > 0 ? s.x + 30 : s.x - 48, y: s.y - H, w: 18, h: H, dy: 0 }];
+  if (H > EMI.barrier.H * 0.85) R.push({ x: s.fc > 0 ? s.x - 26 : s.x - 52, y: s.y - H, w: 78, h: 16, dy: 0 });
+  return R;
+}
+const iceCircle = (s, cx, cy, r) => iceRects(s).some(R => circRect(cx, cy, r, R.x, R.y, R.w, R.h));
+function updIce(g) {
+  for (const s of g.ice) {
+    s.t++;
+    s.h = s.k === 'pillar' ? EMI.pillar.H * Math.min(1, s.t / EMI.pillar.grow) : EMI.barrier.H * Math.min(1, s.t / 10);
+  }
+}
+function makeIce(g, f, k, x, y) {
+  for (const s of g.ice.slice()) if (s.o === f.i && s.k === k) breakIce(g, s);
+  const hp = k === 'pillar' ? EMI.pillar.hp : EMI.barrier.hp;
+  const s = { id: g.pid++, k, o: f.i, x, y, fc: f.fc, w: k === 'pillar' ? EMI.pillar.w : 96, h: 0, t: 0, hp, max: hp };
+  g.ice.push(s);
+  return s;
+}
+function hurtIce(g, s, d) {
+  if (s.hp <= 0) return;
+  s.hp = Math.max(0, s.hp - d);
+  g.ev.push({ t: 'icehit', x: s.k === 'pillar' ? s.x : s.x + s.fc * 39, y: s.y - s.h * 0.6, k: s.k });
+  if (s.hp <= 0) breakIce(g, s);
+}
+function breakIce(g, s) {
+  const i = g.ice.indexOf(s);
+  if (i >= 0) g.ice.splice(i, 1);
+  g.ev.push({ t: 'iceshatter', x: s.k === 'pillar' ? s.x : s.x + s.fc * 18, y: s.y - s.h * 0.5, w: s.w, h: s.h, k: s.k });
+}
+// an ice barrier standing between an attacker and their target takes the blow (Emilia's own blows pass)
+function iceShield(g, a, v) {
+  for (const s of g.ice) {
+    if (s.k !== 'barrier' || s.o === a.i) continue;
+    for (const R of iceRects(s)) if (segRect(a.x, a.y - a.h * 0.5, v.x, v.y - v.h * 0.5, R.x, R.y, R.x + R.w, R.y + R.h) >= 0) return s;
+  }
+  return null;
+}
+// a shot that runs into a foe's ice or ice soldier damages it (and stops, unless it pierces)
+function shotVsIce(g, p) {
+  for (const s of g.ice) {
+    if (s.o === p.o || p.hits['ice' + s.id] !== undefined || !iceCircle(s, p.x, p.y, p.r)) continue;
+    p.hits['ice' + s.id] = g.frame; hurtIce(g, s, p.d);
+    return !p.pierce;
+  }
+  for (const q of g.proj) {
+    if (q.k !== 'minion' || q.sub !== 'icesoldier' || q.o === p.o || q.hp <= 0 || p.hits['m' + q.id] !== undefined) continue;
+    if (!circRect(p.x, p.y, p.r, q.x - 15, q.y - 52, 30, 52)) continue;
+    p.hits['m' + q.id] = g.frame; hurtSoldier(g, q, p.vx >= 0 ? 1 : -1);
+    return !p.pierce;
+  }
+  return false;
+}
+// the highest ground right under (x, y), no more than maxD below it (not counting ice)
+function groundBelow(g, x, y, maxD) {
+  let best = null;
+  for (const s of g.surf) {
+    if (s.gone || s.ice || s.w <= 0 || x < s.x || x > s.x + s.w) continue;
+    if (s.y >= y - 2 && s.y - y <= maxD && (best === null || s.y < best)) best = s.y;
+  }
+  return best;
+}
+// ---- Ice Soldiers: ice copies of Subaru Toad (no Beatrice) that fight like a level-2 CPU. One has two ice
+// blades, the other a great ice axe; each has a little hop to get back to the stage. They break after three hits
+// (or a fall off the stage) and never melt on their own
+const SOLDIER = {
+  blades: { spd: 3.5, reach: 44, end: 30, cd: 46, hits: [{ a: 8, b: 10, x: 34, y: -28, r: 26, d: 3.5, k: 3, g: 0.02, ang: 45 }, { a: 16, b: 18, x: 36, y: -30, r: 27, d: 4, k: 6, g: 0.06, ang: 40 }] },
+  axe: { spd: 2.9, reach: 52, end: 38, cd: 62, hits: [{ a: 14, b: 18, x: 40, y: -26, r: 32, d: 7, k: 7, g: 0.09, ang: 50 }] },
+};
+const isSoldier = q => q.k === 'minion' && q.sub === 'icesoldier' && q.hp > 0;
+function spawnSoldiers(g, f) {
+  for (const [dx, wp] of [[48, 'blades'], [-48, 'axe']]) {
+    let x = f.x + f.fc * dx, gy = groundBelow(g, x, f.y - 40, 240);
+    if (gy === null) { x = f.x; gy = groundBelow(g, x, f.y - 40, 240); }
+    spawnProj(g, f, { k: 'minion', sub: 'icesoldier', wp, x, y: gy !== null ? gy : f.y, vx: 0, vy: 0, d: 1, kb: 0, gr: 0, ang: 0, r: 22, grav: 0, life: 1e9,
+      hp: 3, ms: 'spawn', mt: 0, gi: -1, acd: 20, ig: 26, rec: 0, drop: 0, hm: {}, fc: f.fc, quiet: 1 });
+  }
+  g.ev.push({ t: 'icesummon', x: f.x, y: f.y, i: f.i });
+}
+function hurtSoldier(g, q, dir) {
+  if (q.hp <= 0 || q.ig > 0) return;
+  q.hp--; q.ig = 6; // (a moment between hits, so one blow can't count twice)
+  q.ms = 'hurt'; q.mt = 0; q.vx = dir * 5; q.vy = -5; q.gi = -1;
+  g.ev.push({ t: 'soldierhit', x: q.x, y: q.y - 26, hp: q.hp });
+}
+function soldierTarget(g, p) {
+  let best = null, bd = 1000;
+  for (const v of g.fighters) {
+    if (v.i === p.o || !alive(v) || v.rp > 0) continue;
+    const d = Math.abs(v.x - p.x) + Math.abs(v.y - p.y) * 0.7;
+    if (d < bd) { bd = d; best = v; }
+  }
+  return best;
+}
+function soldierStrike(g, p, own, n, h) {
+  const cx = p.x + h.x * p.fc, cy = p.y + h.y, key = n + ':';
+  for (const v of g.fighters) {
+    if (v.i === p.o || !hittable(v) || p.hm[key + v.i] || !circRect(cx, cy, h.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
+    p.hm[key + v.i] = 1;
+    applyHit(g, v, own, h.d * p.pm, h.k, h.g, h.ang, p.fc, { proj: true });
+  }
+  for (const q of g.proj) {
+    if (q === p || !isSoldier(q) || q.o === p.o || p.hm[key + 'm' + q.id] || !circRect(cx, cy, h.r, q.x - 15, q.y - 52, 30, 52)) continue;
+    p.hm[key + 'm' + q.id] = 1; hurtSoldier(g, q, p.fc);
+  }
+  for (const s of g.ice.slice()) if (s.o !== p.o && !p.hm[key + 'i' + s.id] && iceCircle(s, cx, cy, h.r)) { p.hm[key + 'i' + s.id] = 1; hurtIce(g, s, h.d * p.pm); }
+}
+// a soldier's body: gravity, then the ground, platforms (it can drop through soft ones) and walls
+function soldierPhysics(g, p) {
+  p.vy = Math.min(p.vy + 0.6, 11);
+  const py = p.y, hw = 14, h = 50;
+  p.x += p.vx; p.y += p.vy; p.gi = -1;
+  for (let k = 0; k < g.surf.length; k++) {
+    const s = g.surf[k];
+    if (s.gone) continue;
+    if (s.solid) {
+      if (p.x + hw <= s.x || p.x - hw >= s.x + s.w || p.y < s.y || p.y - h >= s.y + s.h) continue;
+      if (py <= s.y + 1 && p.vy >= 0) { p.y = s.y; p.vy = 0; p.gi = k; }
+      else if (py - h >= s.y + s.h - 1 && p.vy < 0) { p.y = s.y + s.h + h; p.vy = 0; }
+      else { p.x = p.x < s.x + s.w / 2 ? s.x - hw : s.x + s.w + hw; p.vx = 0; }
+    } else {
+      if (p.vy < 0 || p.drop > 0 || p.x < s.x - 4 || p.x > s.x + s.w + 4) continue;
+      if (py <= s.y + Math.abs(s.dy) + 1 && p.y >= s.y) { p.y = s.y; p.vy = 0; p.gi = k; }
+    }
+  }
+}
+function updSoldier(g, p) {
+  const own = fighterBy(g, p.o);
+  // broken (three hits, or Emilia is out of the match): it shatters into ice
+  if (!own || own.out || p.hp <= 0) { g.ev.push({ t: 'soldierbreak', x: p.x, y: p.y - 26 }); return true; }
+  const A = SOLDIER[p.wp] || SOLDIER.blades, main = STG[g.stage].solids[0];
+  p.mt++;
+  if (p.acd > 0) p.acd--;
+  if (p.drop > 0) p.drop--;
+  if (p.ig > 0) p.ig--;
+  // riding a moving platform
+  const under = p.gi >= 0 ? g.surf[p.gi] : null, onG = !!under;
+  if (under) { p.x += under.dx; p.y += under.dy; }
+  let mv = 0;
+  if (p.ms === 'spawn') { if (p.mt >= 26) { p.ms = 'idle'; p.mt = 0; } }
+  else if (p.ms === 'hurt') { if (p.mt >= 16) { p.ms = 'idle'; p.mt = 0; } }
+  else if (p.ms === 'atk') {
+    A.hits.forEach((h, n) => { if (p.mt >= h.a && p.mt <= h.b) soldierStrike(g, p, own, n, h); });
+    if (p.mt === A.hits[0].a) g.ev.push({ t: 'soldierswing', x: p.x, y: p.y - 26, w: p.wp });
+    if (p.mt >= A.end) { p.ms = 'idle'; p.mt = 0; p.acd = A.cd; }
+  } else {
+    // the brain: walk to the nearest foe, jump up or drop down after them, and swing when close
+    const tg = soldierTarget(g, p);
+    if (tg) {
+      const dx = tg.x - p.x, dy = tg.y - p.y, adx = Math.abs(dx);
+      if (adx > 6) p.fc = dx > 0 ? 1 : -1;
+      if (adx < A.reach && Math.abs(dy) < 50 && p.acd <= 0) { p.ms = 'atk'; p.mt = 0; p.hm = {}; }
+      else if (adx > A.reach * 0.6) mv = dx > 0 ? 1 : -1;
+      if (onG && p.ms !== 'atk') {
+        if (dy < -70 && adx < 160) { p.vy = -14.6; p.gi = -1; g.ev.push({ t: 'soldierhop', x: p.x, y: p.y }); }
+        else if (dy > 60 && adx < 220 && !under.solid) { p.drop = 14; p.gi = -1; }
+      }
+    }
+    // (they won't walk off the main stage)
+    if (under && under.solid && ((mv < 0 && p.x < under.x + 22) || (mv > 0 && p.x > under.x + under.w - 22))) mv = 0;
+  }
+  if (p.ms === 'atk' || p.ms === 'spawn') p.vx *= 0.75;
+  else if (p.ms !== 'hurt') p.vx += (mv * A.spd - p.vx) * (onG ? 0.3 : 0.08);
+  // knocked off the stage: steer home, with one little hop up on the way
+  const off = p.x < main.x - 2 || p.x > main.x + main.w + 2 || p.y > main.y + 6;
+  if (!onG && off && p.ms !== 'hurt') {
+    const home = p.x < main.x + main.w / 2 ? 1 : -1;
+    p.vx += (home * 3.4 - p.vx) * 0.12; p.fc = home;
+    if (!p.rec && p.vy > 1 && p.y > main.y - 40) { p.rec = 1; p.vy = -13; g.ev.push({ t: 'soldierhop', x: p.x, y: p.y }); }
+  }
+  soldierPhysics(g, p);
+  if (p.gi >= 0) p.rec = 0;
+  if (p.ms === 'idle' || p.ms === 'run' || p.ms === 'air') p.ms = p.gi < 0 ? 'air' : Math.abs(p.vx) > 0.5 ? 'run' : 'idle';
+  if (p.x < BLAST.l || p.x > BLAST.r || p.y > BLAST.b) { g.ev.push({ t: 'soldierbreak', x: clamp(p.x, BLAST.l + 60, BLAST.r - 60), y: clamp(p.y, BLAST.t + 60, BLAST.b - 60) }); return true; }
+  return false;
+}
+// Ice Brand Arts: each use makes the next ice weapon in turn: a long sword, a great axe, a great hammer, a spear
+const BRAND = ['sword', 'axe', 'hammer', 'spear'];
+// a "not ready yet" puff when a move is still recharging
+const fizzle = (g, f, s) => { g.ev.push({ t: 'fizzle', x: f.x, y: f.y - f.h * 0.6, s }); return false; };
+
 // heal over time while holding still (Check-up)
 function spHeal(o) {
   return {
@@ -2400,6 +2802,93 @@ const SP = {
   })(),
   // the Unseen Hand reaches 180 and holds its catch for 18 frames before the squeeze launches them
   unseenhand: spCast(spTether({ slot: 'd', cd: 70, range: 180, a: 10, b: 18, hold: 18, fin: { d: 7, k: 8, g: 0.11, ang: 70 } }), 'unseen', ''),
+  // --- Emilia Toad: ice magic (her Attack button is the ice volley; Puck fires on his own) ---
+  // Ice Soldiers: two at a time, four at most; a new pair needs room for both (8 s to recharge)
+  icesoldiers: {
+    start(g, f, c) {
+      if (g.proj.filter(q => isSoldier(q) && q.o === f.i).length > EMI.maxSoldiers - 2) return fizzle(g, f, 'Four soldiers at most!');
+      if (!useCd(f, 'n', EMI.soldierCd)) return fizzle(g, f);
+      if (c.onG) f.vx *= 0.3;
+      g.ev.push({ t: 'icecast', x: f.x, y: f.y - f.h * 0.5, i: f.i });
+    },
+    upd(g, f, c) {
+      if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2);
+      if (f.t === 12) spawnSoldiers(g, f);
+      return f.t >= 30 ? 1 : 0;
+    },
+  },
+  // Ice Brand Arts: she forms the next ice weapon in turn (sword, great axe, great hammer, spear) and uses it
+  icebrand: {
+    start(g, f, c) {
+      f.wpn = f.brand || 0; f.brand = (f.wpn + 1) % BRAND.length;
+      if (c.onG) f.vx *= 0.3;
+      g.ev.push({ t: 'icebrand', x: f.x + f.fc * 24, y: f.y - f.h * 0.6, w: f.wpn, i: f.i });
+    },
+    upd(g, f, c) {
+      if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2.5);
+      const t = f.t, o = { mv: 's:icebrand' + f.wpn, use: f.use };
+      switch (f.wpn) {
+        case 0: // the Ice Long Sword: a quick swing with a long reach that chills the foe (slower for 3 s)
+          if (t >= 7 && t <= 12) hitArea(g, f, 62 * f.sc, -f.h * 0.5, 44 * f.sc, 9, 6, 0.1, 38, Object.assign({ slow: 180 }, o));
+          return t >= 26 ? 1 : 0;
+        case 1: // the Ice Great Axe: a full circle round her that knocks foes away and chills them for 1 s
+          if (t >= 8 && t <= 20) hitArea(g, f, 0, -f.h * 0.45, 66 * f.sc, 5, 8.5, 0.08, 40, Object.assign({ radial: true, slow: 60 }, o));
+          return t >= 30 ? 1 : 0;
+        case 2: // the Ice Great Hammer: up over her head, then down: a heavy smash that launches foes upward
+          if (t === 18) g.ev.push({ t: 'hammersmash', x: f.x + f.fc * 46 * f.sc, y: f.y - 8 });
+          if (t >= 18 && t <= 22) hitArea(g, f, 46 * f.sc, -f.h * 0.35, 40 * f.sc, 15, 6, 0.16, 82, o);
+          return t >= 42 ? 1 : 0;
+        default: // the Ice Spear: wind up and hurl it straight ahead
+          if (t === 14) {
+            spawnProj(g, f, { k: 'icespear', x: f.x + f.fc * 30 * f.sc, y: f.y - f.h * 0.55, vx: f.fc * 13, vy: 0, grav: 0, d: 4, kb: 0, gr: 0, ang: 0, r: 12, life: 46, ghost: 1, vic: -1, quiet: 1, fc: f.fc });
+            g.ev.push({ t: 'spearthrow', x: f.x, y: f.y - f.h * 0.55 });
+          }
+          return t >= 30 ? 1 : 0;
+      }
+    },
+  },
+  // Ice Pillar: near the ground, a pillar of ice shoots up under her and lifts her high (4 s to recharge);
+  // higher up in the air, an ice blast from her feet propels her upward instead
+  icepillar: {
+    start(g, f, c) {
+      const gy = groundBelow(g, f.x, f.y, 64);
+      if (gy !== null) {
+        if (!useCd(f, 'u', EMI.pillar.cd)) return fizzle(g, f);
+        f.icep = makeIce(g, f, 'pillar', f.x, gy).id; f.t2 = 1; f.vx = 0; f.vy = 0;
+        g.ev.push({ t: 'pillar', x: f.x, y: gy });
+        return;
+      }
+      if (f.upUsed) return false;
+      f.upUsed = true; f.t2 = 0; f.gi = -1; f.vy = -17; f.vx *= 0.5;
+      g.ev.push({ t: 'iceblast', x: f.x, y: f.y });
+    },
+    upd(g, f, c) {
+      if (f.t2) {
+        // riding the pillar up as it grows
+        const s = g.ice.find(q => q.id === f.icep);
+        if (!s) return 1;
+        f.x = s.x; f.y = s.y - s.h - 0.5; f.vx = 0; f.vy = 0; f.gi = -1;
+        return s.t >= EMI.pillar.grow ? 1 : 0;
+      }
+      airDrift(f, c, 5);
+      if (f.t < 6) f.vy = -17;
+      // the blast under her feet knocks foes below her downward
+      if (f.t <= 8) hitArea(g, f, 0, 4, 34 * f.sc, 6, 6, 0.08, -80);
+      if (f.t % 3 === 0 && f.t < 15) g.ev.push({ t: 'icetrail', x: f.x, y: f.y });
+      return f.t >= 28 ? 2 : 0;
+    },
+  },
+  // Ice Barrier: a wall of ice in front of her that curves up and over her head (5 s to recharge)
+  icebarrier: {
+    start(g, f, c) {
+      if (!useCd(f, 'd', EMI.barrier.cd)) return fizzle(g, f);
+      if (c.onG) f.vx *= 0.2;
+      const gy = groundBelow(g, f.x, f.y, 30);
+      makeIce(g, f, 'barrier', f.x, gy !== null ? gy : f.y);
+      g.ev.push({ t: 'barrier', x: f.x + f.fc * 39, y: f.y - 30 });
+    },
+    upd(g, f, c) { f.vx *= 0.75; if (!c.onG) f.vy = Math.min(f.vy, 1.5); return f.t >= 22 ? 1 : 0; },
+  },
   // --- Dash Yoshi: pure speed ---
   // a kick so fast it sends a sonic boom across the stage
   boomkick: spShot({ cd: 28, at: 6, end: 16, ev: 'boomfx', p: { k: 'gust', vx: 15, d: 7, kb: 7, gr: 0.09, ang: 32, r: 22, life: 36, pierce: 1, ghost: 1 } }),
@@ -2456,7 +2945,9 @@ const SP = {
 // ---------- Snapshots (host -> clients) ----------
 const FKEYS = ['i', 'ch', 'nm', 'tag', 'fc', 'st', 't', 'at', 'sp', 'sk', 'h', 'w', 'inv', 'star', 'pe', 'frz', 'psn', 'pick', 'hold',
   'shd', 'glide', 'rp', 'hs', 'gi', 'out', 'big', 'small', 'ctrT', 'ctr', 'lx', 'kos', 'falls', 'fs', 'fsLock', 'tn', 'chg', 'prT', 'ig', 'hide', 'boostT', 'jl',
-  'gv', 'gby', 'thr'];
+  'gv', 'gby', 'thr',
+  // Emilia Toad: Puck's position and paw-raise timer, the ice weapon in her hand, the chill on a foe, and her cooldowns
+  'pkx', 'pky', 'pkt', 'wpn', 'slow', 'cd'];
 const r1 = v => Math.round(v * 10) / 10;
 function snapshot(g, ev) {
   const Hz = g.haz;
@@ -2468,10 +2959,13 @@ function snapshot(g, ev) {
       o.h = r1(f.h); o.w = r1(f.w); o.shd = Math.round(f.shd);
       return o;
     }),
-    proj: g.proj.map(p => ({ id: p.id, k: p.k, x: Math.round(p.x), y: Math.round(p.y), vx: r1(p.vx), t: p.t, o: p.o, sub: p.sub, face: p.face, fc: p.fc, life: p.life, r: Math.round(p.r) })),
+    // (vy aims Emilia's icicles; ms/mt/wp/hp are an ice soldier's state, timer, weapon and hits left)
+    proj: g.proj.map(p => ({ id: p.id, k: p.k, x: Math.round(p.x), y: Math.round(p.y), vx: r1(p.vx), vy: r1(p.vy || 0), t: p.t, o: p.o, sub: p.sub, face: p.face, fc: p.fc, life: p.life, r: Math.round(p.r),
+      ms: p.ms, mt: p.mt, wp: p.wp, hp: p.hp, vic: p.vic })),
     items: g.items.map(it => ({ k: it.k, x: Math.round(it.x), y: Math.round(it.y), t: it.t, sprout: it.sprout, life: it.life, hp: it.hp })),
     clouds: g.clouds.map(c => ({ x: Math.round(c.x), y: Math.round(c.y), w: c.w, life: c.life })),
     brk: g.brk, php: g.php,
+    ice: g.ice.map(s => ({ id: s.id, k: s.k, o: s.o, x: Math.round(s.x), y: Math.round(s.y), w: s.w, h: Math.round(s.h), hp: Math.ceil(s.hp), max: s.max, fc: s.fc, t: s.t })),
     kart: g.kart ? { x: Math.round(g.kart.x), dir: g.kart.dir, warn: g.kart.warn, c: g.kart.c } : null,
     fx: g.fx.map(e => ({ id: e.id, k: e.k, sub: e.sub, o: e.o, t: e.t, life: e.life, x: Math.round(e.x), y: Math.round(e.y), x2: e.x2 !== undefined ? Math.round(e.x2) : undefined,
       dir: e.dir, r: e.r, lv: e.lv !== undefined ? Math.round(e.lv) : undefined, vic: e.vic, b: e.b ? e.b.map(b => [Math.round(b[0]), Math.round(b[1])]) : undefined,

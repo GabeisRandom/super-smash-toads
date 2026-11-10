@@ -11,7 +11,7 @@ const AI_SHOOT = { turnip: 1, iceball: 1, fireball: 1, boomerang: 1, poison: 1, 
 // side specials that can hook the ledge from this far away (px)
 const AI_TETHER = { lasso: 160, canehook: 105, venomlash: 140 };
 // finales that reach most of the stage, fine to fire right away
-const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1 };
+const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1, storm: 1 };
 
 function aiBits(g, f) {
   const a = f.ai || (f.ai = { prev: 0, shieldT: 0, seq: [], tauntCd: 300 });
@@ -97,6 +97,16 @@ function aiBits(g, f) {
   }
 
   if (a.shieldT > 0) { a.shieldT--; return out(B_S); }
+
+  // Emilia Toad: loose the ice volley whenever it's ready and a foe is in sight, keep a pair of ice soldiers out,
+  // and put up an ice barrier when a shot is coming in
+  if (C.volley && f.st !== 'atk' && f.st !== 'spc') {
+    if (f.cd.a <= 0 && bd < 700 && RND() < 0.05 * lvl) return out(B_A);
+    if (f.gi >= 0 && f.cd.n <= 0 && bd < 900 && RND() < 0.01 * lvl && g.proj.filter(q => q.sub === 'icesoldier' && q.o === f.i && q.hp > 0).length <= 2) return out(B_B);
+    // (only for a shot coming at the side she faces, since the barrier goes up in front of her)
+    if (f.gi >= 0 && f.cd.d <= 0 && lvl >= 2 && RND() < 0.2 && g.proj.some(q => q.o !== f.i && q.k !== 'minion' && q.k !== 'trap' && Math.abs(q.x - f.x) < 220 &&
+      Math.abs(q.y - (f.y - f.h / 2)) < 90 && (q.x - f.x) * q.vx < 0 && (q.x - f.x) * f.fc > 0)) return out(B_B | B_D);
+  }
 
   // stage hazards: hop over Wiggler and karts, step off spike tiles
   if (f.gi >= 0 && g.haz) {
