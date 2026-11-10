@@ -65,7 +65,7 @@ function makeFighter(s, sp, stocks) {
     sc: 1, h: C.h, w: 36 * C.wide, pm: 1, lastHit: -1, lastHitT: 0, kos: 0, falls: 0, dealt: 0,
     ctr: -1, ctrT: 0, lx: 0, lcx: 0, lcy: 0, lsi: 0, out: false, outAt: 0,
     fs: 0, fsLock: 0, tn: 0, chg: 0, chgMul: 1, parryAt: -99, prT: 0, dirAt: -99, dTap: -99, ig: 0, hide: 0, boostT: 0,
-    uaUsed: false, wallT: 0, wall: 0, wj: 0,
+    uaUsed: false, wallT: 0, wall: 0, wj: 0, bfz: 0, bacc: 0, noPk: 0,
     // grabs: gv = the foe I'm holding, gby = who holds me, gt = how long the hold lasts, pmT = pummel cooldown, thr = throw
     gv: -1, gby: -1, gt: 0, pmT: 0, thr: '',
     // anti-spam: parry cooldown, tiring dodges, and the queue of recent moves that landed (stale moves hit softer)
@@ -138,6 +138,9 @@ function stepGame(g, getBits) {
 function updateFighter(g, f, bits) {
   const C = CH[f.ch];
   if (f.out) return;
+  // caught in the Beast of the End's storm: time runs slower and slower for this fighter (moving, falling,
+  // attacking, everything), down to a crawl just before it freezes solid
+  if (f.bfz > 0 && f.st !== 'dead') { f.bacc = (f.bacc || 0) + 1 - 0.94 * Math.min(1, f.bfz); if (f.bacc < 1) return; f.bacc -= 1; }
   const pressed = bits & ~f.pb;
   f.pb = bits;
   if (f.st === 'dead') { if (--f.dead <= 0) respawn(g, f); return; }
@@ -705,6 +708,7 @@ function ko(g, f) {
 
 function checkEnd(g) {
   if (g.phase !== 'play' || g.fighters.length < 2) return;
+  if (beastOn(g)) return; // (the Beast of the End always finishes its storm first)
   const left = g.fighters.filter(f => !f.out);
   if (left.length > 1) return;
   g.phase = 'over'; g.pt = 0;
@@ -816,8 +820,9 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   // knockback starts really weak and grows faster and faster with damage: the base part ramps from 20% (at 0%) up to
   // full strength (at 100%), and the damage part curves upward (about half strength at 15%, the same as before at
   // 100%, stronger beyond). Finales always hit at full strength.
-  const ramp = o.fs ? 1 : 0.2 + 0.8 * Math.min(1, v.dm / 100);
-  const eff = o.fs ? v.dm : v.dm * Math.pow(Math.max(v.dm, 1) / 100, 0.35);
+  // (`fixed` knockback, the Unseen Hand's slam throw, is the same at any damage)
+  const ramp = o.fs || o.fixed ? 1 : 0.2 + 0.8 * Math.min(1, v.dm / 100);
+  const eff = o.fixed ? 0 : o.fs ? v.dm : v.dm * Math.pow(Math.max(v.dm, 1) / 100, 0.35);
   const K = (k * ramp + eff * gr * (0.55 + d / 14)) / wt;
   const lag = Math.floor(3 + d * 0.33);
   if (a && !o.proj) a.hl = Math.max(a.hl, lag);
@@ -1437,11 +1442,18 @@ const FSDEF = {
   emilia: { k: 'storm', sub: 'absolute' },
   catholic: { k: 'wave', sub: 'parranda' }, hindu: { k: 'vortex', sub: 'color', move: 2.6, life: 210, r: 240 },
 };
-// finales that keep their user busy until they finish
-const FS_LOCK = { burst: 1, rush: 1, clone: 1, beam: 1, pulses: 1, lasso: 1, storm: 1 };
+// finales that keep their user busy until they finish (the Beast of the End only for its opening)
+const FS_LOCK = { burst: 1, rush: 1, clone: 1, beam: 1, pulses: 1, lasso: 1, storm: 1, beast: 1 };
+// Emilia Toad's super finale, when she uses her finale at 250% or more: the Beast of the End. Its timeline in
+// frames: Puck vanishes, the beast rises (rise), roars (roar), its storm freezes her foes bit by bit for 20 seconds
+// (storm to frozen), they stay frozen solid for 2 seconds and shatter (shatter), then the beast sinks away (gone)
+const FS_BEAST = { k: 'beast', sub: 'end' };
+const BEAST = { rise: 30, roar: 110, storm: 170, frozen: 1370, shatter: 1490, sink: 1520, gone: 1600 };
+const beastOn = (g, i) => g.fx.some(e => e.k === 'beast' && (i === undefined || e.o === i));
 
 function fsLaunch(g, f) {
-  const D = FSDEF[f.ch] || FSDEF.toad, s = STG[g.stage].solids[0];
+  // (a second finale while her beast is still out is a normal Absolute Zero)
+  const D = f.ch === 'emilia' && f.dm >= 250 && !beastOn(g, f.i) ? FS_BEAST : FSDEF[f.ch] || FSDEF.toad, s = STG[g.stage].solids[0];
   const e = { id: g.pid++, k: D.k, sub: D.sub || '', o: f.i, t: 0, x: f.x, y: f.y - f.h * 0.5, dir: f.fc, hits: {}, vic: [], life: 400 };
   switch (D.k) {
     case 'wave': e.life = 260; e.both = D.both || 0; e.x = f.fc > 0 ? s.x - 140 : s.x + s.w + 140; e.x2 = f.fc > 0 ? s.x + s.w + 140 : s.x - 140; break;
@@ -1461,6 +1473,7 @@ function fsLaunch(g, f) {
     case 'swarm': e.life = 230; e.b = []; for (let k = 0; k < D.n; k++) { const a = (k / D.n) * Math.PI * 2; e.b.push([f.x, f.y - 40, Math.cos(a) * 6, Math.sin(a) * 6 - 2]); } break;
     case 'fist': e.life = 200; e.vx = 2; e.y = f.y - 44; break;
     case 'storm': e.life = 320; e.ox = f.x; e.oy = f.y; break;
+    case 'beast': e.life = BEAST.gone + 20; e.ox = f.x; e.oy = f.y; e.x = s.x + s.w / 2; e.y = s.y; e.pos = {}; break;
   }
   g.fx.push(e);
   if (FS_LOCK[D.k]) f.fsLock = e.id;
@@ -1508,13 +1521,54 @@ const FXU = {
     return true;
   },
   // Absolute Zero (Emilia Toad): she stands locked in place, arms raised, while a huge ice storm roars across the
-  // stage for five seconds, pelting every foe with big ice pellets and blowing them along; a last gust sends them flying
+  // stage for five seconds. Its ice pellets only chip away (no flinching), and its wind slowly blows every foe the
+  // way the storm goes; a last strong gust shoves them along (it still doesn't stun)
   storm(g, e, own) {
-    if (own && alive(own)) { own.x = e.ox; own.y = e.oy; own.vx = 0; own.vy = 0; own.inv = Math.max(own.inv, 2); }
+    if (own && alive(own) && !e.free) { own.x = e.ox; own.y = e.oy; own.vx = 0; own.vy = 0; own.inv = Math.max(own.inv, 2); }
     if (e.t % 100 === 0 && e.t < 300) g.ev.push({ t: 'stormgust', x: e.ox, y: e.oy });
-    if (e.t >= 20 && e.t < 300 && e.t % 7 === 0) for (const v of fsFoes(g, e)) fsHit(g, e, v, 1.1, 1.15, 0.004, 40, e.dir);
-    if (e.t === 300) for (const v of fsFoes(g, e)) { fsHit(g, e, v, 9, 10, 0.13, 32, e.dir); g.ev.push({ t: 'shatter', x: v.x, y: v.y - v.h / 2 }); }
+    // (chip hits go straight to applyHit, so they never wipe a dodge's invincibility the way finale hits do)
+    const chip = (v, d) => applyHit(g, v, fighterBy(g, e.o), d, 0, 0, 0, e.dir, { proj: true, fs: true, chip: true });
+    if (e.t >= 20 && e.t < 300) for (const v of fsFoes(g, e)) {
+      if (e.t % 7 === 0) chip(v, 0.715);
+      if (v.st !== 'ledge' && v.vx * e.dir < 4.5) v.vx += e.dir * (v.gi >= 0 ? 0.19 : 0.28) * (v.big ? 0.6 : v.small ? 1.5 : 1);
+    }
+    if (e.t === 300) for (const v of fsFoes(g, e)) {
+      chip(v, 5.85);
+      if (v.st !== 'ledge') v.vx = e.dir * 9 * (v.big ? 0.6 : 1);
+      g.ev.push({ t: 'shatter', x: v.x, y: v.y - v.h / 2 });
+    }
     return e.t >= 306;
+  },
+  // the Beast of the End (Emilia Toad's super finale): Puck vanishes and comes back as an enormous black beast that
+  // rises behind the stage and roars. Its storm freezes every foe a little more each moment (time runs slower and
+  // slower for them) until, after twenty seconds, they're frozen solid; two seconds later they shatter, a KO for
+  // Emilia. Nothing stops it, not even Emilia getting KO'd or knocked out of the match. Then the beast sinks away
+  // and Puck comes back (if she's still in the match)
+  beast(g, e, own) {
+    const B = BEAST, foes = g.fighters.filter(v => v.i !== e.o && alive(v));
+    if (own) own.noPk = 1; // (Puck is the beast now; if she gets KO'd, she comes back without him until it's over)
+    if (e.t === 1) g.ev.push({ t: 'puckgone', i: e.o, x: own ? own.pkx : e.ox, y: own ? own.pky : e.oy - 80 });
+    if (e.t === B.rise) g.ev.push({ t: 'beastrise', x: e.x, y: e.y });
+    if (e.t === B.roar) g.ev.push({ t: 'beastroar', x: e.x, y: e.y });
+    if (e.t < B.storm && own && alive(own) && own.fsLock === e.id) { own.x = e.ox; own.y = e.oy; own.vx = 0; own.vy = 0; own.inv = Math.max(own.inv, 2); }
+    if (e.t === B.storm && own && own.fsLock === e.id) own.fsLock = 0;
+    if (e.t >= B.storm && e.t < B.frozen) { const k = Math.round(((e.t - B.storm) / (B.frozen - B.storm)) * 100) / 100; for (const v of foes) v.bfz = k; }
+    if (e.t >= B.frozen && e.t < B.shatter) {
+      if (e.t === B.frozen) g.ev.push({ t: 'beastfrozen' });
+      for (const v of foes) {
+        if (!e.pos[v.i]) e.pos[v.i] = [v.x, v.y]; // (frozen where they stand; someone who just came back freezes too)
+        v.bfz = 1; v.frz = Math.max(v.frz, 2); v.inv = Math.max(v.inv, 2); fsHold(v, e.pos[v.i][0], e.pos[v.i][1]);
+      }
+    }
+    if (e.t === B.shatter) for (const v of foes) {
+      g.ev.push({ t: 'beastshatter', x: v.x, y: v.y - v.h / 2, i: v.i });
+      v.bfz = 0; v.frz = 0; v.inv = 0; v.lastHit = e.o; v.lastHitT = g.frame; ko(g, v);
+    }
+    if (e.t === B.sink) g.ev.push({ t: 'beastsink', x: e.x, y: e.y });
+    if (e.t < B.gone) return false;
+    for (const v of g.fighters) v.bfz = 0;
+    if (own) { own.noPk = 0; if (!own.out) g.ev.push({ t: 'puckback', i: e.o }); }
+    return true;
   },
   // everyone else freezes solid, then shatters
   freeze(g, e) {
@@ -1620,8 +1674,10 @@ const FXU = {
         Object.assign(P, { x: x0, y: y0, vx: (tx - x0) / T, vy: (s.y - y0 - 0.5 * 0.32 * T * T) / T });
       } else {
         let tx = e.cols ? s.x + 30 + ((e.cnt * 97) % (s.w - 60)) : s.x - 80 + RND() * (s.w + 160);
-        // El Minya aims half its crystals at the platforms, so they slowly crack and break
+        // El Minya aims half its crystals at the platforms, so they slowly crack and break. Its crystals hit 30%
+        // softer than the other raining finales' drops
         if (e.sub === 'crystal') {
+          P.d = 6.3; P.explode = { r: 72, d: 6.3, k: 9, g: 0.12 };
           const up = g.surf.filter(q => !q.solid && !q.gone && !q.cloud && q.pi !== undefined);
           if (up.length && RND() < 0.55) { const q = up[Math.floor(RND() * up.length)]; tx = q.x + 20 + RND() * (q.w - 40); }
         }
@@ -1907,7 +1963,7 @@ function spFloat(o) {
 // reach out (lasso, cane, bandage); a catch reels the foe in, then `fin` lands
 function spTether(o) {
   return {
-    start(g, f, c) { if (!useCd(f, o.slot || 's', o.cd)) return false; if (c.onG) f.vx *= 0.3; f.ctr = -1; },
+    start(g, f, c) { if (!useCd(f, o.slot || 's', o.cd)) return false; if (c.onG) f.vx *= 0.3; f.ctr = -1; f.slamT = 0; },
     upd(g, f, c) {
       f.vx *= 0.8; if (!c.onG) f.vy = Math.min(f.vy, 2);
       const a = o.a || 8, b = o.b || 14, reach = o.range * f.sc, cy = f.y - f.h * 0.55;
@@ -1927,8 +1983,11 @@ function spTether(o) {
       if (f.ctr >= 0) {
         const v = fighterBy(g, f.ctr);
         if (!v || !alive(v)) { f.ctr = -1; return 1; }
-        // the catch is held (reeled in) for `hold` frames, then `fin` lands
+        // the catch is held (reeled in) for `hold` frames, then `fin` lands. With `slam`, still holding Special
+        // when the hold ends turns it into the slam instead
         const k = f.t - f.t2, hold = o.hold || 12;
+        if (o.slam && k === hold && c.bits & B_B) f.slamT = 1;
+        if (f.slamT) return tetherSlam(g, f, v, o.slam);
         if (k < hold) fsHold(v, v.x + (f.x + f.fc * 34 - v.x) * 0.3, v.y + (f.y - v.y) * 0.3);
         else if (k === hold) {
           const F = o.fin;
@@ -1941,6 +2000,29 @@ function spTether(o) {
       return f.t >= (o.end || 30) ? 1 : 0;
     },
   };
+}
+// Subaru's Unseen Hand slam: lift the caught foe and smash them into the ground S.n times (S.d damage each),
+// then throw them a set distance away (the throw's knockback doesn't grow with their damage)
+function tetherSlam(g, f, v, S) {
+  const t = f.slamT++, n = Math.floor(t / S.every), q = (t % S.every) / S.every;
+  const gx = f.x + f.fc * 44, gy = f.y;
+  if (n < S.n) {
+    // up for most of each beat, then down hard
+    const lift = q < 0.65 ? 70 * Math.sin(((q / 0.65) * Math.PI) / 2) : 70 * (1 - (q - 0.65) / 0.35);
+    fsHold(v, gx, gy - lift);
+    if (t % S.every === S.every - 1) {
+      const d = S.d * f.pm;
+      v.dm = Math.min(999, v.dm + d); f.dealt += d; v.lastHit = f.i; v.lastHitT = g.frame;
+      g.ev.push({ t: 'slam', x: gx, y: gy, n: n + 1 });
+    }
+    return 0;
+  }
+  if (t === S.n * S.every) {
+    applyHit(g, v, f, S.throwD * f.pm, S.k, 0, S.ang, f.fc, { fixed: true, mv: 's:unseenslam', use: f.use });
+    g.ev.push({ t: 'slamthrow', x: v.x, y: v.y - v.h / 2 });
+  }
+  if (t >= S.n * S.every + 12) { f.ctr = -1; f.slamT = 0; return 1; }
+  return 0;
 }
 // drop a trap on the ground in front
 function spTrap(o) {
@@ -1982,9 +2064,9 @@ function spCounter(o) {
     },
   };
 }
-// Beatrice's Minya: three crystal shards (the special itself, and a mid-Murak cast). Its knockback grows
-// steeply with the foe's damage (gr), so it can KO at high percents
-const MINYA = { cd: 30, vys: [-1.2, 0, 1.2], p: { k: 'crystal', vx: 16.5, d: 5.5, kb: 4.5, gr: 0.09, ang: 35, r: 10, life: 54, ghost: 1, oy: 0.75 } };
+// Beatrice's Minya: five crystal shards in a fan (the special itself, and a mid-Murak cast), 2.2 damage each.
+// Its knockback grows with the foe's damage (gr), so it can still KO at high percents
+const MINYA = { cd: 30, vys: [-2.4, -1.2, 0, 1.2, 2.4], p: { k: 'crystal', vx: 16.5, d: 2.2, kb: 4.5, gr: 0.072, ang: 35, r: 10, life: 54, ghost: 1, oy: 0.75 } };
 function fireMinya(g, f, c) {
   f.cd.n = MINYA.cd;
   if (c.dirX) f.fc = c.dirX;
@@ -2003,11 +2085,11 @@ function spCast(sp, ev, say) {
 }
 // ---------- Emilia Toad (with the great spirit Puck) ----------
 const EMI = {
-  volleyCd: 210,                                          // 3.5 s between ice volleys
-  pel: { n: 9, spd: 8.6, life: 600, d: 0.5, r: 9 },       // her pellets: 0.5 damage each, they last 10 s
+  volleyCd: 126,                                          // 2.1 s between ice volleys
+  pel: { n: 9, spd: 8.6, life: 600, d: 0.2, r: 9 },       // her pellets: 0.2 damage each, they last 10 s
   puck: { every: 420, shots: 3, gap: 7, range: 680, spd: 13 },
   soldierCd: 480, maxSoldiers: 4,
-  pillar: { w: 54, H: 168, grow: 12, hp: 50, cd: 240 },
+  pillar: { w: 54, H: 227, grow: 14, hp: 50, cd: 240 },
   barrier: { H: 124, hp: 30, cd: 300 },
 };
 // Emilia's Attack: nine ice pellets burst out in a fan, then each one hunts the foe nearest to it
@@ -2080,7 +2162,7 @@ function steerIcePel(g, p) {
 // Puck floats behind Emilia Toad's shoulder; every 7 seconds he holds out his paws and fires three quick ice shots
 // at the nearest foe in range (his shots are snowflakes, hers are icicles)
 function updPuck(g, f) {
-  if (f.st === 'dead') { f.pkx = undefined; return; }
+  if (f.st === 'dead' || f.noPk) { f.pkx = undefined; return; } // (gone while he's the Beast of the End)
   const tx = f.x - f.fc * 46 * f.sc, ty = f.y - f.h - 22 + Math.sin(g.frame * 0.06 + f.i) * 6;
   if (f.pkx === undefined || Math.hypot(tx - f.pkx, ty - f.pky) > 420) { f.pkx = tx; f.pky = ty; f.pkc = Math.max(f.pkc || 0, 120); f.pks = 0; f.pkt = 99; }
   f.pkx += (tx - f.pkx) * 0.1; f.pky += (ty - f.pky) * 0.1;
@@ -2202,27 +2284,32 @@ function groundBelow(g, x, y, maxD) {
   }
   return best;
 }
-// ---- Ice Soldiers: ice copies of Subaru Toad (no Beatrice) that fight like a level-2 CPU. One has two ice
-// blades, the other a great ice axe; each has a little hop to get back to the stage. They break after three hits
-// (or a fall off the stage) and never melt on their own
+// ---- Ice Soldiers: ice copies of Subaru Toad (no Beatrice) that fight on their own. One has two ice blades, the
+// other a great ice axe; only those swings do damage. Their specials are all for moving: an ice dash (side), a leap
+// (up), a slide that dodges (down; a fast fall in the air) and a blink that flanks behind the foe (neutral). Each
+// one gets its own fighting style (which side it flanks from, how close it likes to stand, how fast it reacts), so
+// the two don't move as one. They break after three hits (or a fall off the stage) and never melt on their own
 const SOLDIER = {
-  blades: { spd: 3.5, reach: 44, end: 30, cd: 46, hits: [{ a: 8, b: 10, x: 34, y: -28, r: 26, d: 3.5, k: 3, g: 0.02, ang: 45 }, { a: 16, b: 18, x: 36, y: -30, r: 27, d: 4, k: 6, g: 0.06, ang: 40 }] },
-  axe: { spd: 2.9, reach: 52, end: 38, cd: 62, hits: [{ a: 14, b: 18, x: 40, y: -26, r: 32, d: 7, k: 7, g: 0.09, ang: 50 }] },
+  blades: { spd: 3.6, reach: 44, end: 30, cd: 40, hits: [{ a: 8, b: 10, x: 34, y: -28, r: 26, d: 3.5, k: 3, g: 0.02, ang: 45 }, { a: 16, b: 18, x: 36, y: -30, r: 27, d: 4, k: 6, g: 0.06, ang: 40 }] },
+  axe: { spd: 3.0, reach: 52, end: 38, cd: 54, hits: [{ a: 14, b: 18, x: 40, y: -26, r: 32, d: 7, k: 7, g: 0.09, ang: 50 }] },
 };
 const isSoldier = q => q.k === 'minion' && q.sub === 'icesoldier' && q.hp > 0;
 function spawnSoldiers(g, f) {
   for (const [dx, wp] of [[48, 'blades'], [-48, 'axe']]) {
     let x = f.x + f.fc * dx, gy = groundBelow(g, x, f.y - 40, 240);
     if (gy === null) { x = f.x; gy = groundBelow(g, x, f.y - 40, 240); }
+    // its style: the side it flanks from, the spacing it keeps, how many frames it takes to react, how pushy it is
+    const pers = { side: wp === 'blades' ? 1 : -1, off: 10 + Math.floor(RND() * 26), react: 4 + Math.floor(RND() * 7), aggro: 0.55 + RND() * 0.4 };
     spawnProj(g, f, { k: 'minion', sub: 'icesoldier', wp, x, y: gy !== null ? gy : f.y, vx: 0, vy: 0, d: 1, kb: 0, gr: 0, ang: 0, r: 22, grav: 0, life: 1e9,
-      hp: 3, ms: 'spawn', mt: 0, gi: -1, acd: 20, ig: 26, rec: 0, drop: 0, hm: {}, fc: f.fc, quiet: 1 });
+      hp: 3, ms: 'spawn', mt: 0, gi: -1, acd: 20, ig: 26, rec: 0, adash: 0, drop: 0, hm: {}, fc: f.fc, quiet: 1,
+      pers, think: 0, mv: 0, dcd: 60, scd: 30, bcd: 90, stuck: 0 });
   }
   g.ev.push({ t: 'icesummon', x: f.x, y: f.y, i: f.i });
 }
 function hurtSoldier(g, q, dir) {
-  if (q.hp <= 0 || q.ig > 0) return;
-  q.hp--; q.ig = 6; // (a moment between hits, so one blow can't count twice)
-  q.ms = 'hurt'; q.mt = 0; q.vx = dir * 5; q.vy = -5; q.gi = -1;
+  if (q.hp <= 0 || q.ig > 0 || q.inv > 0) return; // (a sliding or blinking soldier slips past hits)
+  q.hp--; q.ig = 20; // (a moment between hits, so one blow or one quick combo can't break it all at once)
+  q.ms = 'hurt'; q.mt = 0; q.vx = dir * 5; q.vy = -5; q.gi = -1; q.ff = 0;
   g.ev.push({ t: 'soldierhit', x: q.x, y: q.y - 26, hp: q.hp });
 }
 function soldierTarget(g, p) {
@@ -2238,7 +2325,7 @@ function soldierStrike(g, p, own, n, h) {
   const cx = p.x + h.x * p.fc, cy = p.y + h.y, key = n + ':';
   for (const v of g.fighters) {
     if (v.i === p.o || !hittable(v) || p.hm[key + v.i] || !circRect(cx, cy, h.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
-    p.hm[key + v.i] = 1;
+    p.hm[key + v.i] = 1; p.lhT = 30; // (so it can chase a foe it just launched)
     applyHit(g, v, own, h.d * p.pm, h.k, h.g, h.ang, p.fc, { proj: true });
   }
   for (const q of g.proj) {
@@ -2247,15 +2334,19 @@ function soldierStrike(g, p, own, n, h) {
   }
   for (const s of g.ice.slice()) if (s.o !== p.o && !p.hm[key + 'i' + s.id] && iceCircle(s, cx, cy, h.r)) { p.hm[key + 'i' + s.id] = 1; hurtIce(g, s, h.d * p.pm); }
 }
-// a soldier's body: gravity, then the ground, platforms (it can drop through soft ones) and walls
+// a soldier's body: gravity, then the ground, platforms (it can drop through soft ones) and walls. Emilia's ice
+// pillars and barriers only hold it up from above, like platforms, so it never gets stuck against them
 function soldierPhysics(g, p) {
-  p.vy = Math.min(p.vy + 0.6, 11);
+  p.vy = Math.min(p.vy + 0.6, p.ff ? 14 : 11);
   const py = p.y, hw = 14, h = 50;
   p.x += p.vx; p.y += p.vy; p.gi = -1;
   for (let k = 0; k < g.surf.length; k++) {
     const s = g.surf[k];
     if (s.gone) continue;
-    if (s.solid) {
+    if (s.ice) {
+      if (p.vy < 0 || p.drop > 0 || p.x < s.x - 4 || p.x > s.x + s.w + 4) continue;
+      if (py <= s.y + 1 && p.y >= s.y) { p.y = s.y; p.vy = 0; p.gi = k; }
+    } else if (s.solid) {
       if (p.x + hw <= s.x || p.x - hw >= s.x + s.w || p.y < s.y || p.y - h >= s.y + s.h) continue;
       if (py <= s.y + 1 && p.vy >= 0) { p.y = s.y; p.vy = 0; p.gi = k; }
       else if (py - h >= s.y + s.h - 1 && p.vy < 0) { p.y = s.y + s.h + h; p.vy = 0; }
@@ -2266,53 +2357,156 @@ function soldierPhysics(g, p) {
     }
   }
 }
+// what a soldier sees coming at it: a foe winding up close by and facing it, or a shot flying its way. It
+// answers with the side the danger comes from (-1 left, 1 right), or 0 when it's safe
+function soldierThreat(g, p) {
+  for (const v of g.fighters) {
+    if (v.i === p.o || !alive(v) || v.rp > 0) continue;
+    const dx = p.x - v.x, busy = v.st === 'atk' || v.st === 'charge' || v.st === 'grab' || (v.st === 'spc' && v.t < 20);
+    if (busy && Math.abs(dx) < 90 && Math.abs(v.y - p.y) < 70 && dx * v.fc >= 0) return dx > 0 ? -1 : 1;
+  }
+  for (const q of g.proj) {
+    if (q.o === p.o || q.k === 'minion' || !(q.d > 0) || Math.abs(q.vx) < 1) continue;
+    const dx = p.x - q.x, dy = p.y - 26 - q.y;
+    if (Math.abs(dy) < 46 && Math.abs(dx) < 130 && dx * q.vx > 0) return dx > 0 ? -1 : 1;
+  }
+  return 0;
+}
+// a spot on the floor on one side of someone, for a blink to land on (null when there's no floor there)
+function blinkSpot(g, v, side) {
+  for (const dx of [44, 70, 26]) {
+    const x = v.x + side * dx, gy = groundBelow(g, x, v.y - 90, 280);
+    if (gy !== null) return { x, y: gy };
+  }
+  return null;
+}
+// (it won't dash or slide off the main stage)
+const edgeSafe = (p, under, dir, dist) => !under || !under.solid || (dir > 0 ? p.x + dist < under.x + under.w : p.x - dist > under.x);
+// start one of a soldier's moves. Only its swing ('atk') hurts anyone; the rest just move it around
+function soldierMove(g, p, kind, dir) {
+  if (dir) p.fc = dir;
+  p.ms = kind; p.mt = 0;
+  switch (kind) {
+    case 'atk': p.hm = {}; break;
+    case 'jump': p.ms = 'air'; p.vy = -14.6; p.gi = -1; g.ev.push({ t: 'soldierhop', x: p.x, y: p.y }); break;
+    case 'leap': if (p.gi < 0) p.rec = 1; p.vy = -16; p.gi = -1; if (dir) p.vx = dir * Math.max(Math.abs(p.vx), 2.5); g.ev.push({ t: 'soldierhop', x: p.x, y: p.y, big: 1 }); break;
+    case 'dash': p.dcd = 64; if (p.gi < 0) p.adash = 1; p.vy = Math.min(p.vy, 0); g.ev.push({ t: 'soldierdash', x: p.x, y: p.y - 22, fc: p.fc }); break;
+    case 'slide': p.scd = 46; g.ev.push({ t: 'soldierslide', x: p.x, y: p.y, fc: p.fc }); break;
+    case 'ff': p.ms = 'air'; p.ff = 1; p.vy = Math.max(p.vy, 10); break;
+    case 'blink': p.bcd = 210; g.ev.push({ t: 'soldierblink', x: p.x, y: p.y - 26 }); break;
+  }
+}
+// the brain, every few frames (each soldier at its own pace): dodge what's coming, keep its own spacing on its
+// own side of the foe (never the same side as its partner), and use its moves to get around the stage
+function soldierThink(g, p, A, P, own, onG, under, tg) {
+  p.think = P.react + Math.floor(RND() * 5);
+  p.mv = 0;
+  // stuck against something: hop, and if that doesn't work, blink back next to Emilia
+  if (p.stuck > 50 && p.bcd <= 0) { const s = blinkSpot(g, own, -own.fc || 1); if (s) { p.bx = s.x; p.by = s.y; p.stuck = 0; return soldierMove(g, p, 'blink'); } }
+  if (p.stuck > 20 && onG) { p.stuck = 0; return soldierMove(g, p, 'jump'); }
+  if (!tg) { const dx = own.x + P.side * 50 - p.x; p.mv = Math.abs(dx) > 30 ? Math.sign(dx) : 0; return; } // nobody to fight: stay by Emilia
+  const dx = tg.x - p.x, dy = tg.y - p.y, adx = Math.abs(dx), mate = g.proj.find(q => q !== p && isSoldier(q) && q.o === p.o);
+  let side = Math.sign(-dx) || P.side;
+  if (mate && p.wp === 'blades' && Math.sign(mate.x - tg.x) === side && Math.abs(mate.x - p.x) < 110) side = -side; // the blades go around
+  // (both stand well inside their reach: the blades up close, the axe out near the tip)
+  const spot = tg.x + side * (A.reach * (p.wp === 'blades' ? 0.42 : 0.68) + P.off * 0.15), sx = spot - p.x;
+  // a foe it just hit is flying up: leap after it
+  if (p.lhT > 0 && dy < -50 && adx < 170 && (onG || !p.rec)) return soldierMove(g, p, 'leap', Math.sign(dx) || p.fc);
+  // far away, or on the wrong side: blink over to its spot (or dash in along the floor)
+  if (p.bcd <= 0 && (adx > 360 || (side !== Math.sign(-dx) && adx < 200)) && RND() < 0.7) {
+    const s = blinkSpot(g, tg, side);
+    if (s) { p.bx = s.x; p.by = s.y; return soldierMove(g, p, 'blink'); }
+  }
+  if (onG && p.dcd <= 0 && adx > 170 && adx < 420 && Math.abs(dy) < 70 && edgeSafe(p, under, Math.sign(dx), 130)) return soldierMove(g, p, 'dash', Math.sign(dx));
+  // up and down
+  if (onG && dy < -150 && adx < 200) return soldierMove(g, p, 'leap', Math.sign(dx) || p.fc);
+  if (onG && dy < -70 && adx < 170) return soldierMove(g, p, 'jump');
+  if (!onG && dy < -90 && adx < 160 && p.vy > -2 && !p.rec) return soldierMove(g, p, 'leap');
+  if (onG && dy > 60 && adx < 230 && !under.solid) { p.drop = 14; p.gi = -1; return; }
+  if (!onG && dy > 140 && adx < 90 && !p.ff) return soldierMove(g, p, 'ff');
+  // walk to its spot; while its swing recharges, the axe backs off to the tip of its reach and the blades bob about
+  p.mv = Math.abs(sx) > 8 ? Math.sign(sx) : 0;
+  if (p.acd > 14 && adx < A.reach + 10) {
+    if (p.wp === 'axe') p.mv = -Math.sign(dx);
+    else if (onG && RND() < 0.25) soldierMove(g, p, 'jump');
+  }
+}
+// getting out of the way (th = the side the danger comes from): sometimes a blink right behind whoever is
+// attacking it, to hit back from there; otherwise a slide or a jump away on the ground, an ice dash in the air
+function soldierDodge(g, p, th, tg, onG, under) {
+  if (p.bcd <= 0 && tg && RND() < 0.4) { const s = blinkSpot(g, tg, Math.sign(tg.x - p.x) || 1); if (s) { p.bx = s.x; p.by = s.y; return soldierMove(g, p, 'blink'); } }
+  if (onG && p.scd <= 0 && edgeSafe(p, under, -th, 90)) return soldierMove(g, p, 'slide', -th);
+  if (onG) { soldierMove(g, p, 'jump'); p.vx = -th * 3; return; }
+  if (!p.adash && p.dcd <= 0) soldierMove(g, p, 'dash', -th);
+}
+const SOLD_T = ['acd', 'drop', 'ig', 'inv', 'dcd', 'scd', 'bcd', 'lhT'];
+const SOLD_FREE = { idle: 1, run: 1, air: 1 };
 function updSoldier(g, p) {
   const own = fighterBy(g, p.o);
   // broken (three hits, or Emilia is out of the match): it shatters into ice
   if (!own || own.out || p.hp <= 0) { g.ev.push({ t: 'soldierbreak', x: p.x, y: p.y - 26 }); return true; }
-  const A = SOLDIER[p.wp] || SOLDIER.blades, main = STG[g.stage].solids[0];
+  const A = SOLDIER[p.wp] || SOLDIER.blades, main = STG[g.stage].solids[0], P = p.pers || { side: 1, off: 20, react: 6, aggro: 0.7 };
   p.mt++;
-  if (p.acd > 0) p.acd--;
-  if (p.drop > 0) p.drop--;
-  if (p.ig > 0) p.ig--;
+  for (const k of SOLD_T) if (p[k] > 0) p[k]--;
   // riding a moving platform
   const under = p.gi >= 0 ? g.surf[p.gi] : null, onG = !!under;
-  if (under) { p.x += under.dx; p.y += under.dy; }
-  let mv = 0;
-  if (p.ms === 'spawn') { if (p.mt >= 26) { p.ms = 'idle'; p.mt = 0; } }
-  else if (p.ms === 'hurt') { if (p.mt >= 16) { p.ms = 'idle'; p.mt = 0; } }
-  else if (p.ms === 'atk') {
-    A.hits.forEach((h, n) => { if (p.mt >= h.a && p.mt <= h.b) soldierStrike(g, p, own, n, h); });
-    if (p.mt === A.hits[0].a) g.ev.push({ t: 'soldierswing', x: p.x, y: p.y - 26, w: p.wp });
-    if (p.mt >= A.end) { p.ms = 'idle'; p.mt = 0; p.acd = A.cd; }
-  } else {
-    // the brain: walk to the nearest foe, jump up or drop down after them, and swing when close
-    const tg = soldierTarget(g, p);
-    if (tg) {
-      const dx = tg.x - p.x, dy = tg.y - p.y, adx = Math.abs(dx);
-      if (adx > 6) p.fc = dx > 0 ? 1 : -1;
-      if (adx < A.reach && Math.abs(dy) < 50 && p.acd <= 0) { p.ms = 'atk'; p.mt = 0; p.hm = {}; }
-      else if (adx > A.reach * 0.6) mv = dx > 0 ? 1 : -1;
-      if (onG && p.ms !== 'atk') {
-        if (dy < -70 && adx < 160) { p.vy = -14.6; p.gi = -1; g.ev.push({ t: 'soldierhop', x: p.x, y: p.y }); }
-        else if (dy > 60 && adx < 220 && !under.solid) { p.drop = 14; p.gi = -1; }
+  if (under) { p.x += under.dx; p.y += under.dy; p.adash = 0; p.rec = 0; p.ff = 0; }
+  const end = n => { if (p.mt >= n) { p.ms = 'idle'; p.mt = 0; } };
+  // neutral move, the blink: it melts into mist for a moment, then forms again on its new spot
+  if (p.ms === 'blink' && p.mt < 8) {
+    p.inv = 2;
+    if (p.mt === 7) { p.x = p.bx; p.y = p.by; p.vx = 0; p.vy = 0; p.gi = -1; g.ev.push({ t: 'soldierblink', x: p.x, y: p.y - 26, back: 1 }); }
+    return false;
+  }
+  switch (p.ms) {
+    case 'spawn': end(26); break;
+    case 'hurt': end(16); break;
+    case 'blink': p.inv = 2; end(14); break;
+    case 'atk':
+      A.hits.forEach((h, n) => { if (p.mt >= h.a && p.mt <= h.b) soldierStrike(g, p, own, n, h); });
+      if (p.mt === A.hits[0].a) g.ev.push({ t: 'soldierswing', x: p.x, y: p.y - 26, w: p.wp });
+      if (p.mt >= A.end) { p.ms = 'idle'; p.mt = 0; p.acd = A.cd + Math.floor(RND() * 12); }
+      break;
+    case 'dash': p.vx = p.fc * (p.mt < 9 ? 11.5 : 6); if (p.mt < 9) p.vy = Math.min(p.vy, 0.4); end(14); break; // side: a burst of speed (once in the air)
+    case 'slide': p.vx = p.fc * Math.max(2.5, 10.5 - p.mt * 0.5); if (p.mt < 15) p.inv = 2; end(18); break; // down: a low slide under attacks
+    case 'leap': end(12); break; // up: a big leap, also its way back to the stage
+    default: {
+      const tg = soldierTarget(g, p);
+      // danger coming: it reacts a moment later (each soldier at its own speed), once per danger
+      const th = soldierThreat(g, p);
+      // (p.seen: 0 = all clear, > 0 = the frame it will react on, < 0 = it reacted on frame -p.seen; a foe that
+      // keeps on swinging gets a fresh reaction after a while)
+      if (!th || (p.seen < 0 && g.frame + p.seen > 24)) p.seen = 0;
+      if (th && !p.seen) p.seen = g.frame + Math.ceil(P.react / 2);
+      else if (th && p.seen > 0 && g.frame >= p.seen) { p.seen = -g.frame; if (RND() < 0.85) soldierDodge(g, p, th, tg, onG, under); }
+      if (SOLD_FREE[p.ms] && p.think-- <= 0) soldierThink(g, p, A, P, own, onG, under, tg);
+      if (SOLD_FREE[p.ms]) {
+        if (tg) {
+          const dx = tg.x - p.x, adx = Math.abs(dx);
+          if (adx < 240 && adx > 4) p.fc = dx > 0 ? 1 : -1; else if (p.mv) p.fc = p.mv;
+          if (adx < A.reach && Math.abs(tg.y - p.y) < 50 && p.acd <= 0 && RND() < P.aggro * 0.45) soldierMove(g, p, 'atk', dx > 0 ? 1 : dx < 0 ? -1 : 0);
+        } else if (p.mv) p.fc = p.mv;
       }
     }
-    // (they won't walk off the main stage)
-    if (under && under.solid && ((mv < 0 && p.x < under.x + 22) || (mv > 0 && p.x > under.x + under.w - 22))) mv = 0;
   }
-  if (p.ms === 'atk' || p.ms === 'spawn') p.vx *= 0.75;
-  else if (p.ms !== 'hurt') p.vx += (mv * A.spd - p.vx) * (onG ? 0.3 : 0.08);
-  // knocked off the stage: steer home, with one little hop up on the way
+  let mv = SOLD_FREE[p.ms] ? p.mv || 0 : 0;
+  // (they won't walk off the main stage)
+  if (under && under.solid && ((mv < 0 && p.x < under.x + 22) || (mv > 0 && p.x > under.x + under.w - 22))) mv = 0;
+  if (p.ms === 'atk' || p.ms === 'spawn' || p.ms === 'blink') p.vx *= 0.75;
+  else if (p.ms !== 'hurt' && p.ms !== 'dash' && p.ms !== 'slide') p.vx += (mv * A.spd - p.vx) * (onG ? 0.3 : 0.08);
+  // knocked off the stage: steer home, with a leap up and then an ice dash on the way
   const off = p.x < main.x - 2 || p.x > main.x + main.w + 2 || p.y > main.y + 6;
-  if (!onG && off && p.ms !== 'hurt') {
-    const home = p.x < main.x + main.w / 2 ? 1 : -1;
-    p.vx += (home * 3.4 - p.vx) * 0.12; p.fc = home;
-    if (!p.rec && p.vy > 1 && p.y > main.y - 40) { p.rec = 1; p.vy = -13; g.ev.push({ t: 'soldierhop', x: p.x, y: p.y }); }
+  if (!onG && off && p.ms !== 'hurt' && p.ms !== 'dash') {
+    const home = p.x < main.x + main.w / 2 ? 1 : -1, edge = home > 0 ? main.x : main.x + main.w;
+    if (p.ms !== 'leap') { p.vx += (home * 3.6 - p.vx) * 0.12; p.fc = home; }
+    if (!p.rec && p.vy > 1 && p.y > main.y - 40) soldierMove(g, p, 'leap', home);
+    else if (p.rec && !p.adash && p.vy > -3 && Math.abs(p.x - edge) > 50 && p.y > main.y - 120) soldierMove(g, p, 'dash', home);
   }
+  // stuck: walking, but not getting anywhere
+  p.stuck = mv && onG && Math.abs(p.x - (p.lx === undefined ? p.x : p.lx)) < 0.3 ? (p.stuck || 0) + 1 : 0; p.lx = p.x;
   soldierPhysics(g, p);
   if (p.gi >= 0) p.rec = 0;
-  if (p.ms === 'idle' || p.ms === 'run' || p.ms === 'air') p.ms = p.gi < 0 ? 'air' : Math.abs(p.vx) > 0.5 ? 'run' : 'idle';
+  if (SOLD_FREE[p.ms]) p.ms = p.gi < 0 ? 'air' : Math.abs(p.vx) > 0.5 ? 'run' : 'idle';
   if (p.x < BLAST.l || p.x > BLAST.r || p.y > BLAST.b) { g.ev.push({ t: 'soldierbreak', x: clamp(p.x, BLAST.l + 60, BLAST.r - 60), y: clamp(p.y, BLAST.t + 60, BLAST.b - 60) }); return true; }
   return false;
 }
@@ -2786,22 +2980,28 @@ const SP = {
   pichkari: spPulse({ slot: 'd', cd: 40, ev: 'squirt', at: [{ t: 8, x: 46, r: 30, d: 3, k: 3, g: 0.02, ang: 40, fwd: 1, ev: 'splashfx' }, { t: 14, x: 60, r: 32, d: 3, k: 3, g: 0.02, ang: 40, fwd: 1, ev: 'splashfx' },
     { t: 20, x: 74, r: 34, d: 5, k: 7, g: 0.09, ang: 35, fwd: 1, ev: 'splashfx' }], end: 30 }),
   // --- Subaru Toad: Beatrice casts from the backpack (the Unseen Hand is his own) ---
-  // Minya flies twice as far and half again as fast as it first did, with a quarter less cooldown
-  minya: spCast(spShot({ cd: MINYA.cd, at: 10, end: 24, shots: MINYA.vys.map(vy => Object.assign({ vy }, MINYA.p)) }), 'beako', 'Minya!'),
-  // Shamac's black mist stuns for a full second
-  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 4.4, d: 1, kb: 0.5, gr: 0, ang: 60, r: 38, life: 150, pierce: 1, every: 70, daze: 60, ghost: 1 } }), 'beako', 'Shamac!'),
-  // Murak floats them up (15% longer than before), and Beatrice can still fire Minya on the way: press Special again
-  murak: (() => {
-    const base = spFloat({ frames: 81, rise: 4.4, drift: 5.5, ev: 'yinfx' });
-    return spCast(Object.assign({}, base, {
-      upd(g, f, c) {
-        if (f.t > 2 && c.pressed & B_B && !(c.bits & (B_U | B_D)) && f.cd.n <= 0) fireMinya(g, f, c);
-        return base.upd(g, f, c);
-      },
-    }), 'beako', 'Murak!');
-  })(),
-  // the Unseen Hand reaches 180 and holds its catch for 18 frames before the squeeze launches them
-  unseenhand: spCast(spTether({ slot: 'd', cd: 70, range: 180, a: 10, b: 18, hold: 18, fin: { d: 7, k: 8, g: 0.11, ang: 70 } }), 'unseen', ''),
+  // Minya flies far and fast; the crystals fly out half a beat after the cast (frame 5)
+  minya: spCast(spShot({ cd: MINYA.cd, at: 5, end: 19, shots: MINYA.vys.map(vy => Object.assign({ vy }, MINYA.p)) }), 'beako', 'Minya!'),
+  // Shamac's black mist stuns for a full second, and the cloud is half again as big as it was
+  shamac: spCast(spShot({ slot: 's', cd: 150, at: 12, end: 26, p: { k: 'shamac', vx: 4.4, d: 1, kb: 0.5, gr: 0, ang: 60, r: 57, life: 150, pierce: 1, every: 70, daze: 60, ghost: 1 } }), 'beako', 'Shamac!'),
+  // Murak (two seconds of it): hold Up to rise, Down to sink, neither to hover. Beatrice can still fire Minya on
+  // the way: press Special again
+  murak: spCast({
+    start(g, f) { if (f.upUsed) return false; f.upUsed = true; f.gi = -1; f.vy = Math.min(f.vy, -2); },
+    upd(g, f, c) {
+      if (f.t > 2 && c.pressed & B_B && !(c.bits & (B_U | B_D)) && f.cd.n <= 0) fireMinya(g, f, c);
+      airDrift(f, c, 5.5);
+      if (f.t >= 122) return 1;
+      // (gravity adds 0.62 a frame after this, so a target of -0.62 holds still)
+      const want = c.bits & B_U ? -5 : c.bits & B_D ? 3 : -0.62;
+      f.vy += clamp(want - f.vy, -0.9, 0.9);
+      if (f.t % 6 === 0) g.ev.push({ t: 'yinfx', x: f.x, y: f.y - f.h * 0.4 });
+      return 0;
+    },
+  }, 'beako', 'Murak!'),
+  // the Unseen Hand reaches 270 and holds its catch for 18 frames before the squeeze launches them. Keep holding
+  // Special and it slams them into the ground three times instead, then throws them a fixed distance (`slam`)
+  unseenhand: spCast(spTether({ slot: 'd', cd: 70, range: 270, a: 10, b: 18, hold: 18, fin: { d: 7, k: 8, g: 0.11, ang: 70 }, slam: { n: 3, every: 14, d: 3, throwD: 5, k: 10, ang: 38 } }), 'unseen', ''),
   // --- Emilia Toad: ice magic (her Attack button is the ice volley; Puck fires on his own) ---
   // Ice Soldiers: two at a time, four at most; a new pair needs room for both (8 s to recharge)
   icesoldiers: {
@@ -2947,7 +3147,9 @@ const FKEYS = ['i', 'ch', 'nm', 'tag', 'fc', 'st', 't', 'at', 'sp', 'sk', 'h', '
   'shd', 'glide', 'rp', 'hs', 'gi', 'out', 'big', 'small', 'ctrT', 'ctr', 'lx', 'kos', 'falls', 'fs', 'fsLock', 'tn', 'chg', 'prT', 'ig', 'hide', 'boostT', 'jl',
   'gv', 'gby', 'thr',
   // Emilia Toad: Puck's position and paw-raise timer, the ice weapon in her hand, the chill on a foe, and her cooldowns
-  'pkx', 'pky', 'pkt', 'wpn', 'slow', 'cd'];
+  'pkx', 'pky', 'pkt', 'wpn', 'slow', 'cd',
+  // how frozen a fighter is in the Beast of the End's storm (0 to 1)
+  'bfz'];
 const r1 = v => Math.round(v * 10) / 10;
 function snapshot(g, ev) {
   const Hz = g.haz;

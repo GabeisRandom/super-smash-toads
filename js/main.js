@@ -899,6 +899,13 @@ function handleEvents(evs) {
         break;
       case 'beakospark': Snd.play('sparkle'); burst(e.x, e.y, 5, '#c890ff', 4, 'star', 4, 16); break;
       case 'unseen': Snd.play('unseen'); for (let k = 0; k < 6; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 50, y: e.y + 40, vy: -0.5, size: 8, tint: 'rgba(40,20,60,0.7)', life: 26 }); break;
+      // the Unseen Hand slamming its catch into the ground, then throwing them
+      case 'slam':
+        Snd.play('hit', 9); Snd.play('poof2'); cam.shake = Math.max(cam.shake, 7);
+        for (let k = 0; k < 6; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 50, y: e.y - 4, vy: -0.7, size: 8, tint: k % 2 ? 'rgba(40,20,60,0.7)' : 'rgba(214,196,160,0.85)', life: 22 });
+        say('Slam!', e.x, e.y - 50, 16 + e.n * 2, '#c8a0ff');
+        break;
+      case 'slamthrow': Snd.play('throwfx'); addP({ type: 'ring', x: e.x, y: e.y, size: 40, color: '#8a6ad0', life: 14 }); break;
       case 'slashfx': Snd.play('slash'); break;
       case 'petal': addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 30, y: e.y, vy: 0.6, size: 5, color: Math.random() < 0.5 ? '#ffc0d8' : '#ffffff', life: 26, g: 0.02 }); break;
       case 'warhorn': break;
@@ -1000,16 +1007,16 @@ function handleEvents(evs) {
       // Dash Yoshi's sonic booms and speed lines
       // El Minya turning the platforms to pink crystal, hit by hit, until they shatter (the view grows the crystals)
       case 'platcrack':
-        Snd.play('crystal'); burst(e.x, e.y, 10, '#ff9cd0', 5, 'star', 5, 24); burst(e.x, e.y + 4, 6, '#c8a0ff', 4, 'dot', 4, 18);
-        say(e.n >= 2 ? 'About to shatter!' : 'Crystallizing!', e.x, e.y - 30, e.n >= 2 ? 20 : 18, '#ff9cd0');
+        Snd.play('crystal'); burst(e.x, e.y, 10, '#c8a0ff', 5, 'star', 5, 24); burst(e.x, e.y + 4, 6, '#9a6ae8', 4, 'dot', 4, 18);
+        say(e.n >= 2 ? 'About to shatter!' : 'Crystallizing!', e.x, e.y - 30, e.n >= 2 ? 20 : 18, '#d8b0ff');
         break;
       case 'platbreak':
         Snd.play('shatter'); cam.shake = Math.max(cam.shake, 12);
         if (USE3D) V3D.shatter(e);
-        addP({ type: 'ring', x: e.x, y: e.y, size: (e.w || 160) * 0.7, color: '#ff9cd0', life: 18 }); addP({ type: 'ring', x: e.x, y: e.y, size: (e.w || 160) * 0.45, color: '#ffffff', life: 14 });
-        burst(e.x, e.y, 16, '#ffd6f0', 9, 'star', 6, 34); burst(e.x, e.y, 10, '#c8a0ff', 7, 'spark', 5, 22);
-        for (let k = 0; k < 14; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * (e.w || 160), y: e.y + Math.random() * 14, vx: (Math.random() - 0.5) * 5, vy: -2 - Math.random() * 4, g: 0.3, size: 4 + Math.random() * 4, color: k % 3 ? '#ff8fd0' : '#c8a0ff', life: 46 });
-        say('Shattered!', e.x, e.y - 40, 24, '#ff9cd0');
+        addP({ type: 'ring', x: e.x, y: e.y, size: (e.w || 160) * 0.7, color: '#c8a0ff', life: 18 }); addP({ type: 'ring', x: e.x, y: e.y, size: (e.w || 160) * 0.45, color: '#ffffff', life: 14 });
+        burst(e.x, e.y, 16, '#efe2ff', 9, 'star', 6, 34); burst(e.x, e.y, 10, '#9a6ae8', 7, 'spark', 5, 22);
+        for (let k = 0; k < 14; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * (e.w || 160), y: e.y + Math.random() * 14, vx: (Math.random() - 0.5) * 5, vy: -2 - Math.random() * 4, g: 0.3, size: 4 + Math.random() * 4, color: k % 3 ? '#b48cf4' : '#c8a0ff', life: 46 });
+        say('Shattered!', e.x, e.y - 40, 24, '#d8b0ff');
         break;
       case 'platback': Snd.play('item'); burst(e.x, e.y, 10, '#fff6a0', 5, 'star', 6, 26); break;
       case 'boomfx': Snd.play('slash'); addP({ type: 'ring', x: e.x, y: e.y, size: 46, color: '#ffe066', life: 12 }); addP({ type: 'ring', x: e.x, y: e.y, size: 28, color: '#ffffff', life: 10 }); break;
@@ -1065,7 +1072,7 @@ function handleEvents(evs) {
       case 'fsready': Snd.play('fsready'); burst(e.x, e.y, 26, '#ffe066', 10, 'star', 8, 40); say('SMASH POWER!', e.x, e.y - 40, 28, '#ff7ad9'); break;
       case 'fs': Snd.play('fs'); cam.shake = Math.max(cam.shake, 16); fsBanner = { ch: e.ch, i: e.i, t: 0 }; burst(e.x, e.y, 20, '#ffe066', 9, 'star', 8, 36); break;
       case 'fsgo':
-        Snd.play({ petals: 'wind', ship: 'hornblast', legion: 'roar', lotus: 'chime', lantern: 'chime', choir: 'choir', hora: 'mazeltov', crystal: 'magic', dash: 'boostpad', mech: 'laser', parranda: 'parranda', color: 'candy', absolute: 'blizzard' }[e.sub] ||
+        Snd.play({ petals: 'wind', ship: 'hornblast', legion: 'roar', lotus: 'chime', lantern: 'chime', choir: 'choir', hora: 'mazeltov', crystal: 'magic', dash: 'boostpad', mech: 'laser', parranda: 'parranda', color: 'candy', absolute: 'blizzard', end: 'magic' }[e.sub] ||
           { wave: 'stampede', rain: 'cannon', beam: 'laser', sweep: 'laser', pulses: 'amp', freeze: 'frost', meteor: 'boom', vortex: 'wind', flood: 'steam', burst: 'crown', rush: 'horn', clone: 'poof', lasso: 'spin', swarm: 'boo', fist: 'rocket' }[e.k] || 'fs');
         if (e.sub === 'hora') say('Mazel Tov!', e.x, e.y - 120, 34, '#ffe066');
         if (e.sub === 'parranda') say('¡Feliz Navidad!', e.x, e.y - 120, 30, '#ffe066');
@@ -1093,7 +1100,11 @@ function handleEvents(evs) {
       case 'icecast': Snd.play('iceform'); for (let k = 0; k < 6; k++) addP({ type: 'star', x: e.x + (Math.random() - 0.5) * 50, y: e.y + 10, vy: -1, size: 5, color: k % 2 ? '#ffffff' : '#bfeaff', life: 24 }); break;
       case 'icesummon': Snd.play('crystal'); say('Ice Soldiers!', e.x, e.y - 90, 20, '#bfeaff'); break;
       case 'soldierswing': Snd.play(e.w === 'axe' ? 'swing' : 'slash'); break;
-      case 'soldierhop': addP({ type: 'ring', x: e.x, y: e.y, size: 20, color: '#dff8ff', life: 10 }); break;
+      case 'soldierhop': addP({ type: 'ring', x: e.x, y: e.y, size: e.big ? 30 : 20, color: '#dff8ff', life: 10 }); if (e.big) burst(e.x, e.y, 6, '#dff8ff', 3, 'dot', 3, 14); break;
+      // the soldiers' moving moves: an ice dash, a low slide and a blink of mist
+      case 'soldierdash': Snd.play('dodge'); for (let k = 0; k < 4; k++) addP({ type: 'dot', x: e.x - e.fc * k * 9, y: e.y + (k % 2 ? 6 : -6), vx: -e.fc * 2, vy: 0, size: 4, color: '#bfeaff', life: 14 }); break;
+      case 'soldierslide': Snd.play('dodge'); burst(e.x, e.y - 4, 5, '#dff8ff', 3, 'dot', 3, 12); break;
+      case 'soldierblink': Snd.play('poof2'); burst(e.x, e.y, 10, '#dff8ff', 3.5, 'dot', 4, 18); addP({ type: 'ring', x: e.x, y: e.y, size: 26, color: '#bfeaff', life: 12 }); break;
       case 'soldierhit': Snd.play('clack'); burst(e.x, e.y, 6, '#bfeaff', 4, 'dot', 4, 16); break;
       case 'soldierbreak':
         // the soldier shatters into tiny ice particles
@@ -1111,6 +1122,14 @@ function handleEvents(evs) {
         burst(e.x, e.y, 14, '#dff8ff', 8, 'star', 6, 30); say('Shattered!', e.x, e.y - 20, 20, '#bfeaff');
         break;
       case 'stormgust': Snd.play('blizzard'); cam.shake = Math.max(cam.shake, 6); break;
+      // ---- the Beast of the End (Emilia Toad's super finale) ----
+      case 'puckgone': Snd.play('poof2'); if (e.x !== undefined) { burst(e.x, e.y, 14, '#dff8ff', 4, 'dot', 5, 22); addP({ type: 'ring', x: e.x, y: e.y, size: 40, color: '#bfeaff', life: 16 }); } break;
+      case 'beastrise': Snd.play('frost'); cam.shake = Math.max(cam.shake, 10); say('BEAST OF THE END', e.x, e.y - 120, 60, '#ffd84a'); break;
+      case 'beastroar': Snd.play('roar'); Snd.play('blizzard'); cam.shake = Math.max(cam.shake, 26); break;
+      case 'beastfrozen': Snd.play('frost'); cam.shake = Math.max(cam.shake, 8); break;
+      case 'beastshatter': Snd.play('shatter'); Snd.play('break'); burst(e.x, e.y, 26, '#bff0ff', 10, 'dot', 7, 36); burst(e.x, e.y, 10, '#ffffff', 7, 'star', 6, 28); cam.shake = Math.max(cam.shake, 14); break;
+      case 'beastsink': Snd.play('roar'); cam.shake = Math.max(cam.shake, 8); break;
+      case 'puckback': Snd.play('puck'); break;
       // --- stage hazards ---
       case 'spikewarn': Snd.play('ledge'); burst(e.x, e.y - 6, 6, '#ffffff', 3, 'spark', 4, 16); break;
       case 'spike': Snd.play('spike'); break;

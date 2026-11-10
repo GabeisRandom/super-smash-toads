@@ -260,6 +260,7 @@ const V3D = (() => {
         break;
       }
       case 'storm': drawStorm(e); break;
+      case 'beast': M3D.drawBeast(e, fr, s0.y); break;
       case 'rain': if (e.side) {
         // Pirate Toad's airship lobs cannonballs from offstage
         const sx = (e.dir > 0 ? s0.x - 620 : s0.x + s0.w + 620) * PX, sy = 270 * PX + Math.sin(fr * 0.05) * 0.3, Ms = M4.chain(M4.T(sx, sy, -2), M4.RY(e.dir > 0 ? 0 : Math.PI), M4.S(2.2, 2.2, 2.2));
@@ -274,9 +275,9 @@ const V3D = (() => {
   // pulses), and the third hit shatters it into a burst of crystal shards. All of it is worked out from the hit
   // counts (view.php) and break times (view.brk) the host sends, so every player sees the same thing.
   const CORR = {}, LAY = {}, CRY = {}, SHARDS = [];
-  // faceted crystal colours, pink with a touch of El Minya's lavender: [tip, body, lower, base] x [two faces]
-  const CRYCOL = [['#ffe2f4', '#ffd2ee'], ['#ff86cc', '#f2a2f4'], ['#f064b4', '#c87ae6'], ['#d0509c', '#a866de']];
-  const PINK = [1, 0.5, 0.8];
+  // faceted crystal colours, the same lavender and purple as Minya's crystals: [tip, body, lower, base] x [two faces]
+  const CRYCOL = [['#efe2ff', '#e4d6ff'], ['#c8a0ff', '#b48cf4'], ['#a47ae8', '#9a6ae8'], ['#8858d0', '#7a4ac4']];
+  const PINK = [0.78, 0.63, 1];
   const easeBack = x => { const u = x - 1; return 1 + 2.70158 * u * u * u + 1.70158 * u * u; };
   // when each platform took each of its hits (C.at[0] = the first), so the crystals can grow in over time
   function corrOf(view, pi) {
@@ -490,6 +491,25 @@ const V3D = (() => {
     if (D.ph === 'dark') for (const b of booPath((view.frame || 0) - (D.t0 || 0))) { const [x, y] = at(b.x, b.y); hole(x, y, 60 * z); }
     c.restore();
   }
+  // the Beast of the End's frame of jagged ice round the screen's edges (k = how far it has grown in, 0 to 1)
+  function beastIceBorder(c, k, fr) {
+    c.save();
+    const E = [[0, 0, 1280, 0, 0, 1], [1280, 720, 0, 720, 0, -1], [0, 720, 0, 0, 1, 0], [1280, 0, 1280, 720, -1, 0]];
+    for (const [pass, depth, fill] of [[0, 30 + 80 * k, 'rgba(196,230,255,0.85)'], [1, 14 + 40 * k, 'rgba(238,248,255,0.9)']]) {
+      for (let ei = 0; ei < 4; ei++) {
+        const [x0, y0, x1, y1, nx, ny] = E[ei], n = Math.round(Math.hypot(x1 - x0, y1 - y0) / (pass ? 30 : 44));
+        c.beginPath(); c.moveTo(x0, y0);
+        for (let j = 0; j <= n; j++) {
+          const q = j / n, d = depth * (0.3 + 0.7 * hash01(ei * 97 + j * 3 + pass * 500)) * (j % 2 ? 1 : 0.4) * (1 + 0.04 * Math.sin(fr * 0.05 + j));
+          c.lineTo(x0 + (x1 - x0) * q + nx * d, y0 + (y1 - y0) * q + ny * d);
+        }
+        c.lineTo(x1, y1); c.closePath();
+        c.fillStyle = fill; c.fill();
+        if (!pass) { c.strokeStyle = '#f4fbff'; c.lineWidth = 2.5; c.stroke(); }
+      }
+    }
+    c.restore();
+  }
   // screen-space weather: Mushroom Gorge gusts and the Absolute Zero frost
   function screenFx(c, view, fr) {
     // Bowser's Castle: the lava's warning glow, and the boulder warning on Yoshi's Island
@@ -518,6 +538,27 @@ const V3D = (() => {
     if ((view.fx || []).some(e => e.k === 'freeze')) {
       const g = c.createRadialGradient(640, 360, 220, 640, 360, 760); g.addColorStop(0, 'rgba(190,240,255,0)'); g.addColorStop(1, 'rgba(190,240,255,0.55)');
       c.fillStyle = g; c.fillRect(0, 0, 1280, 720);
+    }
+    // the Beast of the End: the stage goes dark, ice grows in round the edges of the screen, and snow rages
+    const BE = (view.fx || []).find(e => e.k === 'beast');
+    if (BE) {
+      const t = BE.t || 0, k = clamp01((t - 20) / 60) * clamp01((1600 - t) / 70), ice = clamp01((t - 110) / 240) * clamp01((1600 - t) / 70);
+      if (k > 0) {
+        c.fillStyle = `rgba(6,8,22,${0.5 * k})`; c.fillRect(0, 0, 1280, 720);
+        const g = c.createRadialGradient(640, 360, 200, 640, 360, 780); g.addColorStop(0, 'rgba(10,14,40,0)'); g.addColorStop(1, `rgba(10,14,40,${0.55 * k})`);
+        c.fillStyle = g; c.fillRect(0, 0, 1280, 720);
+      }
+      if (ice > 0) beastIceBorder(c, ice, fr);
+      if (k > 0 && t > 110) {
+        const s = clamp01((t - 110) / 40) * k;
+        c.save(); c.lineCap = 'round';
+        for (let q = 0; q < 140; q++) {
+          const sp = 18 + (q % 7) * 6, len = 18 + (q % 5) * 16, x = (((fr * sp + q * 211) % 1560) + 1560) % 1560 - 140, y = ((q * 71 + fr * (5 + (q % 5))) % 820) - 50;
+          c.globalAlpha = s * (0.4 + (q % 3) * 0.2); c.strokeStyle = q % 4 ? '#ffffff' : '#cfe8ff'; c.lineWidth = 1.5 + (q % 3);
+          c.beginPath(); c.moveTo(x, y); c.lineTo(x - len, y - len * 0.35 + Math.sin(fr * 0.07 + q) * 4); c.stroke();
+        }
+        c.restore();
+      }
     }
     // Absolute Zero: a cold blue haze, frost round the edges, and snow streaking across with the wind
     const ST = (view.fx || []).find(e => e.k === 'storm');
@@ -570,8 +611,8 @@ const V3D = (() => {
             c.beginPath(); c.moveTo(P[0][0], P[0][1]);
             for (let q = 1; q < 4; q++) { const u = clamp01(g * 3 - (q - 1)); if (u <= 0) break; c.lineTo(P[q - 1][0] + (P[q][0] - P[q - 1][0]) * u, P[q - 1][1] + (P[q][1] - P[q - 1][1]) * u); }
           };
-          c.globalAlpha = 0.5; c.strokeStyle = '#ff6ec4'; c.lineWidth = 6; vein(); c.stroke();
-          c.globalAlpha = 1; c.strokeStyle = '#ffe3f6'; c.lineWidth = 1.8; vein(); c.stroke();
+          c.globalAlpha = 0.5; c.strokeStyle = '#a878f0'; c.lineWidth = 6; vein(); c.stroke();
+          c.globalAlpha = 1; c.strokeStyle = '#efe2ff'; c.lineWidth = 1.8; vein(); c.stroke();
         }
         c.restore();
       }

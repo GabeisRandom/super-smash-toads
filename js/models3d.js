@@ -305,6 +305,17 @@ const M3D = (() => {
       if (L.payot) for (const sx of [-1, 1]) curl([0.41 * sx, 1.02, 0.12], 0.32, 0.055, L.payot);
       // Pharaoh Toad: the nemes's striped flaps hang down beside the face
       if (L.hat === 'nemes') for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) B.box([0.445 * sx, 1.13 - k * 0.1, 0.12], [0.03, 0.05, 0.12], { col: k % 2 ? '#2f6bd8' : '#ffd23a' });
+      // Subaru Toad: spiky dark-brown bangs falling from under the cap onto his forehead, spikes over his ears, and brows
+      if (L.hair) {
+        const spike = (base, dir, len, r) => sub(() => B.cone([0, 0, 0], r, len, 5, { col: L.hair }), p => { const F = B.frameFor(dir); return v.add(base, v.add(v.mul(F.r, p[0]), v.add(v.mul(F.n, p[1]), v.mul(F.u, p[2])))); },
+          n => { const F = B.frameFor(dir); return v.add(v.mul(F.r, n[0]), v.add(v.mul(F.n, n[1]), v.mul(F.u, n[2]))); });
+        for (const [x, len, tilt] of [[-0.27, 0.13, -0.35], [-0.14, 0.17, -0.15], [0, 0.15, 0.08], [0.13, 0.18, 0.2], [0.26, 0.12, 0.4]]) {
+          const z = HC[2] + HR[2] * Math.sqrt(Math.max(0.05, 1 - (x / HR[0]) ** 2 - ((1.21 - HC[1]) / HR[1]) ** 2));
+          spike([x, 1.22, z - 0.02], [tilt, -1, 0.55], len, 0.06);
+        }
+        for (const sx of [-1, 1]) { spike([0.39 * sx, 1.15, 0.1], [0.35 * sx, -1, 0.15], 0.14, 0.055); spike([0.36 * sx, 1.2, -0.12], [0.5 * sx, -0.6, -0.4], 0.13, 0.05); }
+        for (const sx of [-1, 1]) headDecal([0.31 * sx, 0.2, 0.93], [0.095, 0.02, 0.012], L.hair, { spin: 0.2 * sx });
+      }
       const headTris = B.take();
       // a striped cap (nemes) uses a finer outline so each band is thin; Pharaoh Toad has no spots
       const fine = !!L.capBands, gillAt = fine ? 10 : 6;
@@ -344,10 +355,14 @@ const M3D = (() => {
         } else if (rig.robo) {
           headDecal([0.3 * sx, -0.02, 0.95], [0.09, 0.05, 0.03], '#5ff0ff');
         } else if (L.eyes === 'sharp') {
-          // Subaru's sharp eyes: small dark pupils in white eyes
-          headDecal([0.32 * sx, -0.02, 0.95], [0.074, 0.1, 0.028], PAPER.eye);
-          headDecal([0.32 * sx, -0.02, 0.95], [0.062, 0.088, 0.03], '#ffffff', { off: [0, 0, 0.004] });
-          headDecal([0.32 * sx, -0.02, 0.95], [0.026, 0.038, 0.014], PAPER.eye, { off: [-0.008 * sx, -0.004, 0.026] });
+          // Subaru's eyes: narrow and sharp, a small dark-brown iris with white showing below it, under a heavy upper lid
+          const c = [0.32 * sx, -0.02, 0.95];
+          headDecal(c, [0.078, 0.084, 0.028], PAPER.eye);
+          headDecal(c, [0.066, 0.072, 0.03], '#ffffff', { off: [0, 0, 0.004] });
+          headDecal(c, [0.031, 0.038, 0.014], '#5a3418', { off: [-0.006 * sx, 0.012, 0.026] });
+          headDecal(c, [0.016, 0.021, 0.012], PAPER.eye, { off: [-0.006 * sx, 0.012, 0.03] });
+          headDecal(c, [0.007, 0.008, 0.01], '#ffffff', { off: [-0.014 * sx, 0.026, 0.034] });
+          headDecal(c, [0.084, 0.02, 0.016], PAPER.eye, { off: [0, 0.064, 0.034], spin: -0.16 * sx });
         } else if (L.eyes === 'violet') {
           // Emilia's big violet eyes, darker at the bottom, with a bright highlight
           const c = [0.32 * sx, -0.02, 0.95];
@@ -379,9 +394,11 @@ const M3D = (() => {
       part(rig, 'mouth', HEAD_PIV, () => { headDecal([0.02, -0.4, 0.92], [0.12, 0.05, 0.024], '#2b3038'); for (const k of [-1, 0, 1]) headDecal([0.02, -0.4, 0.92], [0.1, 0.007, 0.01], '#8e98a8', { off: [0, k * 0.022, 0.012] }); }, { ink: false, crease: false });
       part(rig, 'mouthO', HEAD_PIV, () => headDecal([0.02, -0.42, 0.9], [0.09, 0.08, 0.026], '#2b3038'), { ink: false, crease: false });
     } else if (!L.mask) {
+      // (Subaru Toad's is a wide, toothy grin)
+      const gw = L.grin ? 1.2 : 1, gt = L.grin ? 1.45 : 1;
       part(rig, 'mouth', HEAD_PIV, () => {
-        headDecal([0.02, -0.38, 0.92], [0.135, 0.095, 0.026], PAPER.mouth, { lat: [-90, 0] });
-        headDecal([0.02, -0.38, 0.92], [0.11, 0.026, 0.018], '#ffffff', { off: [0, -0.006, 0.01], lat: [-90, 0] });
+        headDecal([0.02, -0.38, 0.92], [0.135 * gw, 0.095, 0.026], PAPER.mouth, { lat: [-90, 0] });
+        headDecal([0.02, -0.38, 0.92], [0.11 * gw, 0.026 * gt, 0.018], '#ffffff', { off: [0, -0.006, 0.01], lat: [-90, 0] });
         headDecal([0.02, -0.38, 0.92], [0.065, 0.034, 0.016], PAPER.tongue, { off: [0, -0.055, 0.013] });
       }, { ink: false, crease: false });
       part(rig, 'mouthO', HEAD_PIV, () => {
@@ -1196,6 +1213,53 @@ const M3D = (() => {
     PUCK.tail = mesh(() => {
       const pts = [[0, 0, 0], [0.08, 0.25, -0.05], [0.12, 0.55, -0.06], [0.1, 0.85, -0.04], [0.04, 1.08, 0]];
       for (let k = 0; k < pts.length - 1; k++) B.capsule(pts[k], pts[k + 1], 0.05 - k * 0.004, 5, { col: k === 3 ? pale : grey });
+    });
+    // the Beast of the End: Puck's true form, an enormous black shaggy cat with glowing yellow eyes and a snarl of
+    // fangs, its great paws on the stage. Built facing the camera, chin near y = 0; the eyes are their own mesh so
+    // they can glow
+    const tuft = (base, dir, len, r, col) => sub(() => B.cone([0, 0, 0], r, len, 4, { col }), p => { const F = B.frameFor(dir); return v.add(base, v.add(v.mul(F.r, p[0]), v.add(v.mul(F.n, p[1]), v.mul(F.u, p[2])))); },
+      n => { const F = B.frameFor(dir); return v.add(v.mul(F.r, n[0]), v.add(v.mul(F.n, n[1]), v.mul(F.u, n[2]))); });
+    const FUR = ['#141419', '#1d1d25', '#26262f', '#0e0e12'];
+    PUCK.beast = mesh(() => {
+      // shoulders and chest, the head, the muzzle and nose
+      B.ellipsoid([0, -1.15, -0.5], [2.4, 1.15, 1.4], 5, 14, { col: FUR[0], seed: 91, jit: 0.06 });
+      B.ellipsoid([0, 0.55, 0.15], [1.3, 1.1, 1.05], 5, 14, { col: FUR[1], seed: 92, jit: 0.04 });
+      B.ellipsoid([0, 0.12, 0.95], [0.6, 0.4, 0.38], 3, 10, { col: FUR[2], seed: 93 });
+      B.ellipsoid([0, 0.3, 1.31], [0.13, 0.09, 0.07], 2, 6, { col: '#3a3440' });
+      // the mouth, open in a snarl, with long fangs
+      B.decalAt([0, -0.05, 1.29], [0, -0.35, 1], [0.36, 0.13, 0.04], '#4a0f1a');
+      for (const sx of [-1, 1]) { tuft([0.2 * sx, 0.06, 1.28], [0.08 * sx, -1, 0.15], 0.24, 0.05, '#f4f0e6'); tuft([0.1 * sx, -0.16, 1.27], [0, 1, 0.1], 0.1, 0.035, '#f4f0e6'); }
+      // big pointed ears
+      for (const sx of [-1, 1]) sub(() => { B.cone([0, 0, 0], 0.42, 0.95, 4, { col: FUR[1] }); B.cone([0, 0.02, 0.14], 0.26, 0.7, 4, { col: '#3a2440' }); },
+        p => { const c = Math.cos(sx * 0.45), s = Math.sin(sx * 0.45); return [0.78 * sx + p[0] * c + p[1] * s, 1.35 - p[0] * s + p[1] * c, p[2] - 0.05]; },
+        n => { const c = Math.cos(sx * 0.45), s = Math.sin(sx * 0.45); return [n[0] * c + n[1] * s, -n[0] * s + n[1] * c, n[2]]; });
+      // shaggy fur: a mane of tufts all round the head and over the shoulders (from a fixed seed)
+      let sd = 7;
+      const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+      for (let k = 0; k < 46; k++) {
+        const a = (k / 46) * Math.PI * 2 + rnd() * 0.2, r = 1.15 + rnd() * 0.15, x = Math.cos(a) * r, y = 0.5 + Math.sin(a) * r * 0.9;
+        if (y > 1.25 && Math.abs(x) > 0.5 && Math.abs(x) < 1.1) continue; // (room for the ears)
+        tuft([x, y, 0.1 + rnd() * 0.3], [Math.cos(a), Math.sin(a) * 0.9, 0.35 + rnd() * 0.3], 0.45 + rnd() * 0.35, 0.16 + rnd() * 0.06, FUR[k % 4]);
+      }
+      for (let k = 0; k < 40; k++) {
+        const a = Math.PI * (0.05 + rnd() * 0.9), x = Math.cos(a) * 2.4, y = -1.0 + Math.sin(a) * 1.1 + rnd() * 0.2;
+        tuft([x * 0.95, y, 0.2 + rnd() * 0.5], [Math.cos(a) * 0.8, 0.6 + rnd() * 0.3, 0.5], 0.5 + rnd() * 0.4, 0.2, FUR[(k + 1) % 4]);
+      }
+      // cheek tufts sweeping out to the sides
+      for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) tuft([1.05 * sx, 0.15 - k * 0.14, 0.45], [sx, -0.35 - k * 0.15, 0.25], 0.55, 0.14, FUR[k % 4]);
+      // a shaggy fringe along the bottom, so it never ends in a hard edge
+      for (let k = 0; k <= 20; k++) { const x = -2.25 + k * 0.225; tuft([x, -2.0 + Math.abs(x) * 0.12, 0.1 + rnd() * 0.4], [x * 0.25, -1, 0.3], 0.55 + rnd() * 0.3, 0.2, FUR[k % 4]); }
+      // great front paws with pale claws
+      for (const sx of [-1, 1]) {
+        B.ellipsoid([1.9 * sx, -1.95, 0.9], [0.6, 0.42, 0.7], 3, 10, { col: FUR[0], seed: sx > 0 ? 95 : 94 });
+        for (let k = -1; k <= 1; k++) tuft([1.9 * sx + k * 0.24, -2.1, 1.5], [0, -0.3, 1], 0.24, 0.06, '#e8e2d4');
+      }
+    });
+    PUCK.beastEyes = mesh(() => {
+      for (const sx of [-1, 1]) {
+        B.ellipsoid([0.46 * sx, 0.72, 1.06], [0.27, 0.15, 0.1], 3, 10, { col: '#ffd21f' });
+        B.ellipsoid([0.46 * sx, 0.72, 1.15], [0.045, 0.13, 0.04], 2, 6, { col: '#2a1a00' }); // slit pupils
+      }
     });
   }
 
@@ -2016,6 +2080,7 @@ const M3D = (() => {
     if (f.star > 0) F.tint = hueTint(fr, 0.4);
     if (f.psn > 0) F.tint = [0.6, 0.3, 0.8, 0.22 + Math.sin(fr * 0.3) * 0.1];
     if (f.frz > 0) F.tint = [0.7, 0.92, 1, 0.5];
+    if (f.bfz > 0 && !(f.frz > 0)) F.tint = [0.7, 0.92, 1, 0.12 + 0.5 * f.bfz]; // frosting over in the Beast of the End's storm
     if (f.slow > 0 && !F.tint) F.tint = [0.72, 0.9, 1, 0.2 + 0.08 * Math.sin(fr * 0.3)]; // chilled by Emilia Toad's ice
     if (f.prT > 0) F.tint = [0.8, 0.97, 1, 0.65 * (f.prT / 16)]; // a parry flashes white-blue
     if (rig.ghost && F.alpha == null) F.alpha = 0.88;
@@ -2047,6 +2112,20 @@ const M3D = (() => {
     if (f.rp > 0) G3.draw(PROJ.halo, M4.chain(M4.T(X, Y - 0.06, 0), M4.S(1.15, 1, 0.7)), { self: 0.3 });
     if (f.st === 'shield') { const r = (f.h * 0.62 * PX) * (0.45 + 0.55 * ((f.shd || 100) / 100)); G3.draw(PROJ.ball, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(r, r, r)), { alpha: rig.shield ? 0.16 : 0.32, tint: [...hexF(SLOT_COLORS[f.i]), 0.6], self: 0.4 }); }
     if (f.frz > 0) G3.draw(PROJ.ice3, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(f.w * 0.75 * PX, f.h * 0.6 * PX, 0.9)), { alpha: 0.4, self: 0.5 });
+    // ice creeping over a fighter in the Beast of the End's storm, thicker as they freeze
+    else if (f.bfz > 0.35) { const k = (f.bfz - 0.35) / 0.65; G3.draw(PROJ.ice3, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(f.w * 0.75 * PX * (0.6 + 0.4 * k), f.h * 0.6 * PX * (0.5 + 0.5 * k), 0.9)), { alpha: 0.12 + 0.28 * k, self: 0.5 }); }
+  }
+  // the Beast of the End, risen behind the middle of the stage (sy = the stage's top): it rises, breathes, roars
+  // (rearing its head back) and sinks away at the end. Its eyes glow
+  function drawBeast(e, fr, sy) {
+    const t = e.t || 0, R = 30, ROAR = 110, SINK = 1520, GONE = 1600, ez = q => 1 - Math.pow(1 - clamp01(q), 3);
+    const up = t < R ? 0 : t < ROAR ? ez((t - R) / (ROAR - R)) : t < SINK ? 1 : 1 - ez((t - SINK) / (GONE - SINK - 10));
+    if (up <= 0.001) return;
+    const sc = 7.4, br = 1 + Math.sin(fr * 0.05) * 0.015, roar = t >= ROAR && t < ROAR + 70 ? Math.sin(((t - ROAR) / 70) * Math.PI) : 0;
+    const y = sy - 250 * up + 820 * (1 - up);
+    const M = M4.chain(M4.T(e.x * PX, -y * PX, -12), M4.RX(-0.05 - roar * 0.16), M4.S(sc * (1 + roar * 0.04), sc * br, sc * 0.5));
+    G3.draw(PUCK.beast, M, { inkW: 0.012 });
+    G3.draw(PUCK.beastEyes, M, { self: 1, ink: false });
   }
   function hexF(h) { const c = B.hex(h); return [c[0] / 255, c[1] / 255, c[2] / 255]; }
   // Buttercup the cow at matrix M (feet on the ground, facing +z). legs: 'run' gallops, 'air' tucks, 'kick' bucks the back legs
@@ -2092,6 +2171,11 @@ const M3D = (() => {
       }
       case 'air': P.slY = 0.12; P.srY = 0.08; P.an = [-0.5, -0.9, -0.4, 0]; P.af = [-0.5, 0.9, -0.4, 0]; P.grip = 1.2; break;
       case 'hurt': P.hx = -0.3; P.lean = -0.25; P.an = [-0.6, -1.0, -0.4, 0]; P.af = [-0.6, 1.0, -0.4, 0]; F.hurt = true; F.tint = [0.88, 0.97, 1, 0.78]; break;
+      // its moves: an ice dash (leaning in, weapons trailing), a low slide (feet first), a leap (arms up)
+      case 'dash': P.lean = 0.5; P.an = [0.7, -0.5, -0.3, 0]; P.af = [0.7, 0.5, -0.3, 0]; P.slZ = -0.2; P.srZ = 0.25; P.slY = 0.1; F.tint = [0.8, 0.95, 1, 0.7]; F.self = 0.4; break;
+      case 'slide': P.sy = 0.72; P.lean = -0.55; P.slZ = 0.42; P.srZ = 0.3; P.slY = 0.06; P.an = [0.3, -1.1, -0.3, 0]; P.af = [0.3, 1.1, -0.3, 0]; F.tint = [0.8, 0.95, 1, 0.7]; break;
+      case 'leap': ARMS_UP(P, 2.6); P.slY = 0.22; P.srY = 0.16; P.grip = 0.6; F.self = 0.35; break;
+      case 'blink': if (t < 8) return; F.tint = [0.92, 0.99, 1, 0.85]; F.self = 0.6; break; // (gone while it blinks over)
       case 'atk':
         if (blades) {
           // two quick slashes, one with each blade
@@ -2103,7 +2187,7 @@ const M3D = (() => {
       default: P.an = [-0.9, -0.25, -0.5, 0]; P.af = [-0.9, 0.25, -0.5, 0]; P.grip = 1.4; P.bob = Math.abs(Math.sin(fr * 0.12 + p.id)) * 0.04; P.lean = 0.08;
     }
     // rising up out of the ice when summoned
-    const grow = ms === 'spawn' ? clamp01(t / 22) : 1, scale = ((62 * 0.9 * PX) / rig.h) * (0.25 + 0.75 * grow);
+    const grow = ms === 'spawn' ? clamp01(t / 22) : ms === 'blink' ? clamp01((t - 7) / 6) : 1, scale = ((62 * 0.9 * PX) / rig.h) * (0.25 + 0.75 * grow);
     drawRig(rig, rootMatrix(p.x * PX, -p.y * PX, P, scale), P, F, fr, {
       extraProp: Mb => { for (const [x, z, a] of [[-0.38, -0.02, 0.6], [0.38, -0.02, -0.6], [0, -0.42, 0]]) G3.draw(PROPS.ice_spike, M4.chain(Mb, M4.T(x, 0.44, z), M4.RZ(a)), { self: 0.4 }); },
     });
@@ -2212,5 +2296,5 @@ const M3D = (() => {
     if (rig.mount) drawCow(M4.chain(M0, M4.T(0, -COW_SADDLE * COW_K, 0.05), M4.RY(0.95), M4.S(COW_K, COW_K, COW_K)), 0, 'idle', fr, {});
     drawRig(rig, M4.chain(M0, M4.RY(P.spin), M4.T(0, P.bob, 0)), Object.assign(P, { yaw: 0 }), F, fr);
   }
-  return { PX, build, RIGS, ITEM, PROJ, PROPS, KARTS, TRAP, FXM, drawFighter, drawMinion, drawCrowd, drawChoir, drawHora, drawRig, drawPreview, rootMatrix, pose0, targetPose, MEM, hexF, hueTint, CAP_TOP };
+  return { PX, build, RIGS, ITEM, PROJ, PROPS, KARTS, TRAP, FXM, drawFighter, drawMinion, drawBeast, drawCrowd, drawChoir, drawHora, drawRig, drawPreview, rootMatrix, pose0, targetPose, MEM, hexF, hueTint, CAP_TOP };
 })();

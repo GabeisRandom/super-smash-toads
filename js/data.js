@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611091927';
+const GAME_BUILD = '202611100044';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -151,7 +151,8 @@ const CHARS = [
     blurb: 'Celebrating Holi, the festival of colors! Clouds of bright powder, the dandiya stick dance, a festival kite to fly home on and a squirt of colored water.',
     quote: 'Happy Holi! Hold still... this color looks great on you!' }),
   // Ice Climbers style: Beatrice rides in a backpack and casts his specials; her little spark follows his attacks
-  defChar({ id: 'subaru', name: 'Subaru Toad', look: { cap: '#2a2a33', spot: '#ffffff', vest: '#ececf0', trim: '#ff8a1f', shirt: '#ececf0', pants: '#2b2b34', sleeves: '#3a3a44', zip: true, eyes: 'sharp', beako: true },
+  defChar({ id: 'subaru', name: 'Subaru Toad', look: { cap: '#2a2a33', spot: '#ffffff', vest: '#ececf0', trim: '#ff8a1f', shirt: '#ececf0', pants: '#2b2b34', sleeves: '#3a3a44', zip: true, eyes: 'sharp', beako: true,
+    hair: '#2e241e', grin: true },
     weight: 0.96, run: 6.6, air: 5.4, jump: 15, djump: 13.5, pow: 1.0, duo: true, swoosh: '#e8d8ff', sp: { n: 'minya', s: 'shamac', u: 'murak', d: 'unseenhand' },
     blurb: 'A stubborn kid in a tracksuit, with the tiny spirit Beatrice riding on his back. He hits softly; her magic does the rest.',
     quote: 'Starting from zero... and winning! Right, Beako? ("Obviously, I suppose.")' }),
