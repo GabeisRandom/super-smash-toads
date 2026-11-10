@@ -1,6 +1,6 @@
 # Super Smash Toads
 
-A free, fan-made **platform fighter** you play right in your web browser. Forty-five fighters, thirty-two Toads (one riding a cow, one carrying a tiny spirit in his backpack, one with a spirit cat floating behind her) and thirteen Yoshis, brawl across eight Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 8 players**.
+A free, fan-made **platform fighter** you play right in your web browser. Forty-five fighters, thirty-two Toads (one riding a cow, one carrying a tiny spirit in his backpack, one with a spirit cat floating behind her) and thirteen Yoshis, brawl across twelve stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 8 players**.
 
 ### ▶ [Play now in your browser](https://gabeisrandom.github.io/super-smash-toads/)
 
@@ -18,6 +18,7 @@ Up to **8 fighters** can play at once (local play: two players on one keyboard p
 - **Teams:** up to four teams (Red, Blue, Yellow, Green), picked on each player's card. Teammates can't hurt each other (not even with shots, ice soldiers or finales). Works with Stock and Timed: the last team standing wins, or the team with the most KOs added up.
 - **Items:** On, Off, **Smash only** (only Smash Mushrooms, now and then) or **Hyper Smash only** (Smash Mushrooms all the time).
 - **Stage hazards** on or off, and the battle **music**.
+- **Double length:** the stage is twice as long, with twice as many platforms (and the edges of the screen move out to match). Works on every stage.
 - **OP & Early Access fighters:** fighters tagged **OP** (Dash Yoshi) or **Early Access** (Emilia Toad, still being balanced) can be turned off for the match. The tag shows at the right of the fighter's description.
 
 In the lobby you can also pick **Random** (a surprise fighter when the match starts) and set a CPU to **Dummy**, which just stands there (great for practising combos). During a match a small **Cooldowns** panel on the side of your screen shows your own moves recharging (only you see it). Press **P** to pause (online, only the host can, and it pauses everyone); change the key in Settings.
@@ -88,6 +89,12 @@ Win match after match in a row and the results screen and lobby show your streak
 - **Rainbow Road:** a glowing road through space with dash panels and rainbow platforms drifting around it. Nothing below but stars.
 - **Boo Mansion:** a haunted hall with bookshelf balconies and a swinging chandelier. The lights flicker, then go out, and Boos swoop through the dark.
 - **Bowser's Castle:** stone and chains over a sea of lava. When the lava rises over the floor, get up on the platforms!
+- **Frostbite Glacier:** a shelf of blue ice under the northern lights. The floor is slippery (you slide when you stop), ice floes drift overhead, and now and then a row of icicles shakes loose and crashes down (their spots are marked first, and a platform above you keeps you safe).
+- **Gearworks Clocktower:** inside a giant clock. Conveyor belts carry you along the floor and switch direction every so often, three platforms ride round on a turning gear, and a huge pendulum lets go from one side and sweeps across the floor: jump it!
+- **Tidal Lagoon:** a sandbar at sunset with palm trees, lookout decks and rafts. The tide rolls in over the sand: in the water you float, fall slowly and move sluggishly.
+- **Starlight Observatory:** a stone terrace under the stars. Gravity fades for a while now and then (everyone jumps sky-high), and falling stars streak down across the stage.
+
+The four newest stages are original designs. Every platform can be crystallized and broken by El Minya, and Emilia's storms sweep across them all.
 
 ## Music
 

@@ -494,7 +494,8 @@ function isoCube(c, x, y, s, top, left, right) {
   c.beginPath(); c.moveTo(x - s, y - s / 2); c.lineTo(x, y); c.lineTo(x, y + s); c.lineTo(x - s, y + s / 2); c.closePath(); c.fillStyle = left; c.fill();
   c.beginPath(); c.moveTo(x + s, y - s / 2); c.lineTo(x, y); c.lineTo(x, y + s); c.lineTo(x + s, y + s / 2); c.closePath(); c.fillStyle = right; c.fill();
 }
-function drawBG(c, id, cam, fr) {
+function drawBG(c, id0, cam, fr) {
+  const id = baseStage(id0); // (a Double Length stage looks like its own stage)
   if (id === 'town') {
     skyGrad(c, '#5cb6ff', '#dff4ff');
     E(c, 1060, 120, 80, 80, 'rgba(255,250,200,0.35)'); E(c, 1060, 120, 52, 52, '#fff6b0');
@@ -533,6 +534,10 @@ function drawBG(c, id, cam, fr) {
   else if (id === 'rainbow') { skyGrad(c, '#05051a', '#3a1a6a'); for (let k = 0; k < 80; k++) E(c, hash(k) * W, hash(k + 80) * H, 1.3, 1.3, 'rgba(255,255,230,0.8)'); }
   else if (id === 'mansion') skyGrad(c, '#120a22', '#3a2450');
   else if (id === 'castle') skyGrad(c, '#1a0a0a', '#a03a10');
+  else if (id === 'glacier') skyGrad(c, '#3a5ab0', '#ffe6f0');
+  else if (id === 'clock') skyGrad(c, '#24160e', '#5a3a24');
+  else if (id === 'lagoon') skyGrad(c, '#ff7a6a', '#ffe0a8');
+  else if (id === 'observatory') { skyGrad(c, '#04061a', '#2a2a6a'); for (let k = 0; k < 80; k++) E(c, hash(k) * W, hash(k + 80) * H, 1.3, 1.3, 'rgba(255,255,230,0.8)'); }
   else {
     skyGrad(c, '#ff9e5e', '#ffe6b0');
     E(c, 640 - cam.x * 0.03, 300, 120, 120, 'rgba(255,240,190,0.6)');
@@ -550,9 +555,10 @@ function drawBG(c, id, cam, fr) {
 
 // ---------- Stage foreground (world space) ----------
 // the newer stages in the 2D fallback renderer (no WebGL): simple paper slabs in each stage's colours
-const FG2D = { island: ['#8fe070', '#d8a868', '#6fcf55'], rainbow: ['#ffd23a', '#7a5ae0', '#ff4b4b'], mansion: ['#8a5a3a', '#3e2632', '#c8a060'], castle: ['#8a8a98', '#5a5a66', '#4a4a52'] };
-function drawStageFG(c, id, surf, fr) {
-  const st = STG[id];
+const FG2D = { island: ['#8fe070', '#d8a868', '#6fcf55'], rainbow: ['#ffd23a', '#7a5ae0', '#ff4b4b'], mansion: ['#8a5a3a', '#3e2632', '#c8a060'], castle: ['#8a8a98', '#5a5a66', '#4a4a52'],
+  glacier: ['#f6fbff', '#a8d6f6', '#e6f4ff'], clock: ['#8a5a3a', '#5a3a28', '#c89030'], lagoon: ['#f6dfa8', '#d8b478', '#c08a58'], observatory: ['#c8cde0', '#4a5270', '#b8b0a0'] };
+function drawStageFG(c, id0, surf, fr) {
+  const id = baseStage(id0), st = STG[id0];
   if (FG2D[id]) {
     const [top, side, plat] = FG2D[id];
     for (const s of surf) {

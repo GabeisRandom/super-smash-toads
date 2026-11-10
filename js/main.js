@@ -142,7 +142,7 @@ function getBits(f) {
 // ---------- Lobby state ----------
 // (rules: mode 'stock' or 'time' with `time` minutes, team mode, and opBan: OP / Early Access fighters turned off)
 const Lobby = { slots: [], stage: 'town', stocks: 3, items: true, hazards: true, music: 'shuffle', active: 0, mySlot: 0, bans: {}, banMode: false, need: 2,
-  mode: 'stock', time: 5, teams: false, opBan: false };
+  mode: 'stock', time: 5, teams: false, opBan: false, big: false }; // (big: the Double Length modifier)
 const MAX_SLOTS = 8, TIMES = [3, 5, 10, 15];
 // items: everything, nothing, Smash Mushrooms only (now and then), or Hyper Smash (Smash Mushrooms very often)
 const ITEM_OPTS = [[true, 'On'], [false, 'Off'], ['smash', 'Smash only'], ['hyper', 'Hyper Smash only']];
@@ -155,7 +155,7 @@ const MUSIC_OPTS = [['shuffle', 'Shuffle'], ['stage', 'Stage theme'], ['funk', '
 const musicName = id => (MUSIC_OPTS.find(m => m[0] === id) || MUSIC_OPTS[0])[1];
 function battleOrder(stage) {
   const m = Lobby.music || 'shuffle';
-  if (m === 'stage') return [STAGE_SONG[stage] || stage];
+  if (m === 'stage') return [STAGE_SONG[baseStage(stage)] || baseStage(stage)];
   if (m !== 'shuffle') return [m];
   const list = BATTLE_SONGS.slice();
   for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
@@ -464,6 +464,7 @@ function setOpt(o) {
     case 'teams': Lobby.teams = v === 'on'; break;
     case 'items': Lobby.items = v === 'on' ? true : v === 'off' ? false : v; break;
     case 'haz': Lobby.hazards = v === 'on'; break;
+    case 'big': Lobby.big = v === 'on'; break;
     case 'music': case 'music-': {
       const i = MUSIC_OPTS.findIndex(m => m[0] === Lobby.music), n = MUSIC_OPTS.length;
       Lobby.music = MUSIC_OPTS[(i + (k === 'music' ? 1 : n - 1)) % n][0];
@@ -483,6 +484,7 @@ function ruleSummary() {
   const p = [Lobby.mode === 'time' ? `Timed (${Lobby.time} min)` : 'Stock'];
   if (Lobby.teams) p.push('Teams');
   p.push('Items: ' + itemsName(Lobby.items), 'Hazards ' + (Lobby.hazards ? 'on' : 'off'), 'Music: ' + musicName(Lobby.music));
+  if (Lobby.big) p.push('Double length');
   if (Lobby.opBan) p.push('No OP / Early Access');
   return p.join('  ·  ');
 }
@@ -494,7 +496,7 @@ function renderRules() {
     const [k, v] = b.dataset.opt.split(':');
     if (v === undefined) continue;
     const on = k === 'mode' ? Lobby.mode === v : k === 'time' ? Lobby.time === +v : k === 'teams' ? Lobby.teams === (v === 'on')
-      : k === 'items' ? Lobby.items === (v === 'on' ? true : v === 'off' ? false : v) : k === 'haz' ? Lobby.hazards === (v === 'on') : k === 'op' ? Lobby.opBan === (v === 'off') : false;
+      : k === 'items' ? Lobby.items === (v === 'on' ? true : v === 'off' ? false : v) : k === 'haz' ? Lobby.hazards === (v === 'on') : k === 'op' ? Lobby.opBan === (v === 'off') : k === 'big' ? Lobby.big === (v === 'on') : false;
     b.classList.toggle('on', on);
   }
   $('ruleCountL').textContent = Lobby.mode === 'time' ? 'Match length' : 'Stocks';
@@ -558,7 +560,8 @@ function buildCfg() {
     else { ctrl = 'cpu'; tag = 'CPU'; }
     return { slot: k, ch: pickFor(s.ch), name: tag, tag, ctrl, pid: s.pid, lvl: s.lvl, team: Lobby.teams ? s.team | 0 : -1 };
   });
-  return { stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, mode: Lobby.mode, time: Lobby.time, teams: Lobby.teams, slots };
+  // (the Double Length modifier plays the stage's twice-as-long version)
+  return { stage: Lobby.big && STG[Lobby.stage + '@2x'] ? Lobby.stage + '@2x' : Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, mode: Lobby.mode, time: Lobby.time, teams: Lobby.teams, slots };
 }
 function enterGame(stage, songs) {
   mode = 'game'; paused = false; resultsShown = false; goT = 0;
@@ -568,7 +571,8 @@ function enterGame(stage, songs) {
   for (const k in hudMem) delete hudMem[k];
   for (const k in CDM) delete CDM[k];
   for (const k in CDL) delete CDL[k];
-  Snd.playlist(songs && songs.length ? songs : [stage], 100); Snd.duck(false);
+  setBlast(STG[stage]); // (a Double Length stage has wider blast zones)
+  Snd.playlist(songs && songs.length ? songs : [baseStage(stage)], 100); Snd.duck(false);
 }
 function startMatch() {
   // team mode needs players on at least two teams
@@ -758,7 +762,7 @@ function lobbyPublic() {
   return {
     slots: Lobby.slots.map((s, k) => ({ type: s.type, ch: s.ch, name: s.type === 'host' ? myName() : s.name || '', lvl: s.lvl, team: s.team | 0, streak: s.type !== 'off' ? streakOf(k) : 0 })),
     stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, music: Lobby.music, code: Net.code,
-    mode: Lobby.mode, time: Lobby.time, teams: Lobby.teams, opBan: Lobby.opBan,
+    mode: Lobby.mode, time: Lobby.time, teams: Lobby.teams, opBan: Lobby.opBan, big: Lobby.big,
     // banned fighters with the slot numbers of the guests voting to unban each one, and how many votes it takes
     bans: Object.keys(Lobby.bans).map(id => ({ ch: id, v: Lobby.bans[id].map(pid => (Net.conns.get(pid) || { slot: -1 }).slot).filter(k => k >= 0) })),
     need: unbanNeed(),
@@ -923,7 +927,7 @@ function onClientData(d) {
       Lobby.slots = (L.slots || []).slice(0, MAX_SLOTS).map(s => ({ type: s.type, ch: CH[s.ch] || s.ch === 'random' ? s.ch : 'toad', name: cleanName(s.name), lvl: s.lvl | 0, team: ((s.team | 0) % 4 + 4) % 4, streak: Math.max(0, s.streak | 0) }));
       Lobby.stage = STG[L.stage] ? L.stage : 'town';
       Lobby.stocks = L.stocks | 0; Lobby.items = L.items === 'smash' || L.items === 'hyper' ? L.items : !!L.items; Lobby.hazards = !!L.hazards;
-      Lobby.mode = L.mode === 'time' ? 'time' : 'stock'; Lobby.time = TIMES.includes(L.time) ? L.time : 5; Lobby.teams = !!L.teams; Lobby.opBan = !!L.opBan;
+      Lobby.mode = L.mode === 'time' ? 'time' : 'stock'; Lobby.time = TIMES.includes(L.time) ? L.time : 5; Lobby.teams = !!L.teams; Lobby.opBan = !!L.opBan; Lobby.big = !!L.big;
       hostPaused = false;
       Lobby.music = MUSIC_OPTS.some(m => m[0] === L.music) ? L.music : 'shuffle';
       Lobby.bans = {};
@@ -1141,6 +1145,10 @@ function handleEvents(evs) {
       case 'count': Snd.play('count'); break;
       case 'go': Snd.play('go'); goT = 50; break;
       case 'game': Snd.play('game'); Snd.music(null); break;
+      // ---- v1.15 stage hazards ----
+      case 'lowgrav': Snd.play(e.on ? 'magic' : 'shrink'); if (e.on) toast('Low gravity!'); break;
+      case 'starhit': Snd.play(e.land ? 'boom' : 'star'); burst(e.x, e.y, e.land ? 14 : 9, '#ffe98a', e.land ? 7 : 5, 'star', 5, 24); if (e.land) cam.shake = Math.max(cam.shake, 4); break;
+      case 'pendlatch': Snd.play('clang'); break;
       // a timed match: a beep for each of the last ten seconds, and a horn when time runs out
       case 'clock': Snd.play('count'); break;
       case 'timeup': Snd.play('horn'); break;

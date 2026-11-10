@@ -3,7 +3,8 @@
 const RND = Math.random;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const STG = {};
-for (const s of STAGES) STG[s.id] = s;
+// (every stage, plus its Double Length version)
+for (const s of STAGES.concat(STAGES_2X)) STG[s.id] = s;
 const AERIALS = { nair: 1, fair: 1, bair: 1, uair: 1, dair: 1 };
 const SMASHES = { fsmash: 1, usmash: 1, dsmash: 1 };
 const WIG_LEN = 170; // Wiggler's body length behind its head
@@ -19,15 +20,16 @@ function circRect(cx, cy, r, x, y, w, h) {
 // ice: Emilia Toad's ice pillars and barriers, solid blocks while they stand (with no ledges to grab)
 function computeSurfaces(stageId, frame, clouds, brk, ice) {
   const st = STG[stageId], out = [];
-  for (const s of st.solids) out.push({ x: s.x, y: s.y, w: s.w, h: s.h, solid: true, dx: 0, dy: 0 });
+  for (const s of st.solids) out.push({ x: s.x, y: s.y, w: s.w, h: s.h, solid: true, dx: 0, dy: 0, icy: !!s.icy });
   for (let pi = 0; pi < st.plats.length; pi++) {
     const p = st.plats[pi];
     if (brk && brk[pi] > frame) { out.push({ x: p.x, y: 1e5, w: 0, h: 0, solid: false, gone: true, pi, dx: 0, dy: 0 }); continue; }
     let x = p.x, y = p.y, dx = 0, dy = 0;
     if (p.move) {
       const m = p.move, k = (Math.PI * 2) / m.per;
-      const sa = Math.sin(frame * k + m.ph), sb = Math.sin((frame - 1) * k + m.ph);
-      x += m.ax * sa; y += m.ay * sa; dx = m.ax * (sa - sb); dy = m.ay * (sa - sb);
+      // (circ: round in a circle, like a platform riding a turning gear; otherwise back and forth along a line)
+      const sa = Math.sin(frame * k + m.ph), sb = Math.sin((frame - 1) * k + m.ph), ca = m.circ ? Math.cos(frame * k + m.ph) : sa, cb = m.circ ? Math.cos((frame - 1) * k + m.ph) : sb;
+      x += m.ax * ca; y += m.ay * sa; dx = m.ax * (ca - cb); dy = m.ay * (sa - sb);
     }
     out.push({ x, y, w: p.w, h: 0, solid: false, bounce: !!p.bounce, mv: !!p.move, pi, dx, dy });
   }
@@ -99,6 +101,7 @@ function spawnPoint(st, n) {
 const RESPAWN_X = [-150, 150, -50, 50, -200, 200, -100, 100];
 function makeGame(cfg) {
   const st = STG[cfg.stage], timed = cfg.mode === 'time';
+  setBlast(st); // (a Double Length stage has wider blast zones)
   const g = {
     // rules: 'stock' (lose your lives and you're out) or 'time' (endless lives; when the clock runs out, the most KOs
     // wins; timeLeft is in frames), and team mode on or off
@@ -131,6 +134,13 @@ function initHaz(st) {
     rock: { on: false, t: 700 + RND() * 400, x: 0, dir: 1, warn: 0, hits: {} },
     dark: { ph: 'idle', t: 800 + RND() * 400, t0: 0, hits: {} },
     lava: { ph: 'idle', t: 900 + RND() * 400, lv: LAVA_LOW, hits: {} },
+    // v1.15 stages: icicles, conveyor belts, the pendulum, the tide, low gravity, falling stars
+    icicle: { ph: 'idle', t: 700 + RND() * 400, list: [], hits: {} },
+    conv: { ph: 'run', t: 600 + RND() * 300, dir: 1 },
+    pend: { ph: 'idle', t: 800 + RND() * 400, a: RND() < 0.5 ? -PEND_A : PEND_A, warn: 0, k: 0, from: 1, hits: {} },
+    tide: { ph: 'low', t: 700 + RND() * 400, lv: TIDE_LOW },
+    grav: { ph: 'idle', t: 800 + RND() * 400 },
+    star: { t: 300, list: [] },
   };
 }
 
@@ -152,7 +162,8 @@ function stepGame(g, getBits) {
     if (g.timeLeft === 0) g.ev.push({ t: 'timeup' });
   }
   // broken platforms pop back into place when their time is up
-  for (const pi in g.brk) if (g.brk[pi] === g.frame) { const S = STG[g.stage].plats[pi]; g.ev.push({ t: 'platback', x: S.x + S.w / 2, y: S.y, pi: +pi }); }
+  // (where the platform is right now: some ride round on gears)
+  for (const pi in g.brk) if (g.brk[pi] === g.frame) { const S = g.surf[STG[g.stage].solids.length + +pi] || STG[g.stage].plats[pi]; g.ev.push({ t: 'platback', x: S.x + S.w / 2, y: S.y, pi: +pi }); }
   for (const f of g.fighters) updateFighter(g, f, counting ? 0 : getBits(f));
   // Emilia Toad's spirit Puck follows her around and fires ice every 7 seconds
   for (const f of g.fighters) if (CH[f.ch].puck && !f.out) updPuck(g, f);
@@ -227,7 +238,7 @@ function updateFighter(g, f, bits) {
   switch (f.st) {
     case 'hit':
       f.hs--;
-      f.vx *= onG ? 0.85 : 0.965;
+      f.vx *= onG ? (g.surf[f.gi] && g.surf[f.gi].icy ? 0.95 : 0.85) : 0.965;
       if (dirX && f.frz <= 0) f.vx += dirX * 0.06;
       if (f.hs <= 0 && f.frz <= 0) f.st = onG ? 'idle' : 'air';
       break;
@@ -275,7 +286,7 @@ function updateFighter(g, f, bits) {
 function control(g, f, c) {
   const C = c.C, dirX = c.dirX, pr = c.pressed, bits = c.bits;
   let onG = c.onG;
-  const help = f.st === 'help';
+  const help = f.st === 'help', iceG = onG && g.surf[f.gi] && g.surf[f.gi].icy; // (Frostbite Glacier's slippery floor)
   if (pr & (B_L | B_R | B_U | B_D)) f.dirAt = g.frame;
   // Super Mushroom: slow and mighty; Mini Mushroom: quick and fragile; chilled by ice: slowed down
   const spd = (f.small ? 1.35 : 1) * (f.star ? 1.2 : 1) * (f.big ? 0.72 : 1) * (f.slow > 0 ? 0.55 : 1);
@@ -283,12 +294,12 @@ function control(g, f, c) {
     if (!help) for (let n = 0; n < 4; n++) if (pr & B_TAUNTS[n]) { startTaunt(g, f, n + 1); return; }
     if (f.boostT > 0) { f.vx += dirX * 0.3; f.st = 'run'; } // riding a dash panel keeps its speed
     else if (dirX) {
-      f.vx += dirX * C.run * 0.22;
+      f.vx += dirX * C.run * (iceG ? 0.075 : 0.22); // (on ice you get going slowly)
       const m = C.run * spd;
       f.vx = clamp(f.vx, -m, m);
       f.fc = dirX; f.st = 'run';
     } else {
-      f.vx *= 0.72;
+      f.vx *= iceG ? 0.965 : 0.72; // (and you slide to a stop)
       if (Math.abs(f.vx) < 0.1) f.vx = 0;
       f.st = bits & B_D ? 'crouch' : 'idle';
     }
@@ -611,6 +622,10 @@ function physics(g, f, bits) {
   if (f.glide > 0 && f.vy > 0 && f.st !== 'hit') { grav = f.glide; maxf = 2.4; }
   if (f.st === 'spc' && f.sp && SP[f.sp].fall) maxf = SP[f.sp].fall;
   if (f.small) grav *= 0.9;
+  // Starlight Observatory's low gravity; Tidal Lagoon's water (floaty, slow, and you sink gently)
+  if (g.gravK < 1) { grav *= g.gravK; maxf *= 0.62; }
+  f.wet = g.water !== undefined && f.y - f.h * 0.35 > g.water ? 1 : 0;
+  if (f.wet) { grav *= 0.38; maxf = Math.min(maxf, 3.4); f.vx *= 0.955; }
   f.vy += grav;
   if (f.st !== 'hit') f.vy = Math.min(f.vy, maxf);
   else f.vy = Math.min(f.vy, 22);
@@ -1302,6 +1317,12 @@ function hazards(g) {
     else if (hz === 'rock') updRock(g, Hz.rock, st);
     else if (hz === 'dark') updDark(g, Hz.dark);
     else if (hz === 'lava') updLava(g, Hz.lava, st);
+    else if (hz === 'icicles') updIcicles(g, Hz.icicle, st);
+    else if (hz === 'conveyor') updConveyor(g, Hz.conv, st);
+    else if (hz === 'pendulum') updPendulum(g, Hz.pend);
+    else if (hz === 'tide') updTide(g, Hz.tide);
+    else if (hz === 'lowgrav') updLowGrav(g, Hz.grav);
+    else if (hz === 'stars') updStars(g, Hz.star, st);
   }
 }
 
@@ -1444,6 +1465,124 @@ function updSpikes(g, Hz, st) {
       applyHit(g, f, null, 12, 9, 0.1, 85, f.x >= tile.x + tile.w / 2 ? 1 : -1, { proj: true });
     }
   });
+}
+
+// ---------- v1.15 stage hazards ----------
+// Frostbite Glacier: now and then a row of icicles shakes loose from the ceiling. Their spots are marked first,
+// then they drop and shatter on whatever they land on (a hit chills you for a moment)
+function updIcicles(g, I, st) {
+  const s = st.solids[0];
+  if (I.ph === 'idle') {
+    if (--I.t > 0) return;
+    I.ph = 'warn'; I.t = 96; I.list = []; I.hits = {};
+    const n = 4 + Math.floor(RND() * 3) + (st.big ? 3 : 0), span = (s.w - 120) / n;
+    for (let k = 0; k < n; k++) I.list.push({ x: Math.round(s.x + 60 + span * (k + 0.2 + RND() * 0.6)), y: -720, vy: 0, on: 1, d: Math.floor(RND() * 20) });
+    g.ev.push({ t: 'say', x: 0, y: -340, s: 'Icicles!', snd: 'frost' });
+    return;
+  }
+  if (I.ph === 'warn') { if (--I.t <= 0) I.ph = 'fall'; return; }
+  let any = false;
+  for (const c of I.list) {
+    if (!c.on) continue;
+    any = true;
+    if (c.d > 0) { c.d--; continue; } // (they don't all let go at once)
+    const py = c.y;
+    c.vy = Math.min(c.vy + 0.9, 22); c.y += c.vy;
+    for (const f of g.fighters) {
+      if (!hittable(f) || I.hits[f.i + ':' + c.x]) continue;
+      if (Math.abs(f.x - c.x) < f.w / 2 + 14 && c.y > f.y - f.h && c.y - 70 < f.y) {
+        I.hits[f.i + ':' + c.x] = 1;
+        applyHit(g, f, null, 9, 7, 0.08, 75, f.x >= c.x ? 1 : -1, { proj: true, slow: 90 });
+      }
+    }
+    const gy = groundBelow(g, c.x, py, c.vy + 3);
+    if (gy !== null && c.y >= gy) { c.on = 0; g.ev.push({ t: 'iceshatter', x: c.x, y: gy - 24, w: 26, h: 56, k: 'pillar' }); }
+    else if (c.y > 800) c.on = 0;
+  }
+  if (!any) { I.ph = 'idle'; I.t = 840 + RND() * 600; I.list = []; }
+}
+// Gearworks Clocktower: the conveyor belts carry whoever stands on them, stop for a moment, then switch direction
+function updConveyor(g, Cv, st) {
+  if (--Cv.t <= 0) {
+    if (Cv.ph === 'run') { Cv.ph = 'warn'; Cv.t = 90; g.ev.push({ t: 'say', x: 0, y: -340, s: 'The belts are switching!', snd: 'clack' }); }
+    else { Cv.ph = 'run'; Cv.t = 540 + RND() * 300; Cv.dir = -Cv.dir; }
+  }
+  if (Cv.ph !== 'run') return;
+  const push = (o, gi) => { if (gi !== 0) return; for (const b of st.conveyors || []) if (o.x > b.x && o.x < b.x + b.w) o.x += b.dir * Cv.dir * 1.7; };
+  for (const f of g.fighters) if (alive(f) && f.st !== 'ledge') push(f, f.gi);
+  for (const q of g.proj) if (isSoldier(q)) push(q, q.gi);
+}
+// ... and its giant pendulum: latched high on one side, it lets go and sweeps across the floor to the other side
+const PEND_Y = -700, PEND_L = 662, PEND_A = 1.05; // pivot height above the middle, rod length (the bob skims the floor), the latched angle
+function updPendulum(g, P) {
+  if (P.ph === 'idle') {
+    if (--P.t === 110) { P.warn = 110; g.ev.push({ t: 'say', x: 0, y: -340, s: P.a < 0 ? 'Pendulum! >>>' : '<<< Pendulum!', snd: 'bell' }); }
+    if (P.warn > 0) P.warn--;
+    if (P.t <= 0) { P.ph = 'swing'; P.k = 0; P.hits = {}; P.from = P.a < 0 ? -1 : 1; }
+    return;
+  }
+  // (an easing swing: slow at the ends, fastest at the bottom)
+  P.k = Math.min(1, P.k + 1 / 140);
+  P.a = -P.from * PEND_A * Math.cos(Math.PI * P.k);
+  const bx = Math.sin(P.a) * PEND_L, by = PEND_Y + Math.cos(P.a) * PEND_L;
+  for (const f of g.fighters) {
+    if (!hittable(f) || P.hits[f.i]) continue;
+    if (circRect(bx, by, 54, f.x - f.w / 2, f.y - f.h, f.w, f.h)) {
+      P.hits[f.i] = 1;
+      applyHit(g, f, null, 13, 10, 0.12, 40, -P.from, { proj: true });
+      g.ev.push({ t: 'boom', x: f.x, y: f.y - 30, s: 0.7 });
+    }
+  }
+  for (const q of g.proj) if (isSoldier(q) && circRect(bx, by, 54, q.x - 15, q.y - 52, 30, 52)) hurtSoldier(g, q, -P.from);
+  if (P.k >= 1) { P.ph = 'idle'; P.t = 960 + RND() * 600; P.warn = 0; g.ev.push({ t: 'pendlatch' }); }
+}
+// Tidal Lagoon: the tide rolls in over the sandbar, stays a while, and goes back out (lv: the water's surface)
+const TIDE_LOW = 70, TIDE_HIGH = -72;
+function updTide(g, T) {
+  if (--T.t <= 0) {
+    if (T.ph === 'low') { T.ph = 'warn'; T.t = 120; g.ev.push({ t: 'say', x: 0, y: -340, s: 'The tide is coming in!', snd: 'wind' }); }
+    else if (T.ph === 'warn') { T.ph = 'rise'; T.t = 180; }
+    else if (T.ph === 'rise') { T.ph = 'high'; T.t = 420; }
+    else if (T.ph === 'high') { T.ph = 'fall'; T.t = 180; }
+    else { T.ph = 'low'; T.t = 900 + RND() * 500; }
+  }
+  const k = T.ph === 'rise' ? 1 - T.t / 180 : T.ph === 'high' ? 1 : T.ph === 'fall' ? T.t / 180 : 0;
+  T.lv = TIDE_LOW + (TIDE_HIGH - TIDE_LOW) * (0.5 - 0.5 * Math.cos(Math.PI * k));
+  g.water = T.lv;
+}
+// Starlight Observatory: now and then gravity fades to almost nothing for eight seconds
+function updLowGrav(g, L) {
+  if (--L.t <= 0) {
+    if (L.ph === 'idle') { L.ph = 'warn'; L.t = 120; g.ev.push({ t: 'say', x: 0, y: -340, s: 'Gravity is fading...', snd: 'magic' }); }
+    else if (L.ph === 'warn') { L.ph = 'low'; L.t = 480; g.ev.push({ t: 'lowgrav', on: 1 }); }
+    else { L.ph = 'idle'; L.t = 1100 + RND() * 600; g.ev.push({ t: 'lowgrav', on: 0 }); }
+  }
+  g.gravK = L.ph === 'low' ? 0.42 : 1;
+}
+// ... and falling stars that streak down across the stage
+function updStars(g, S, st) {
+  const s = st.solids[0];
+  if (--S.t <= 0) {
+    S.t = 220 + RND() * 220;
+    const dir = RND() < 0.5 ? 1 : -1, x0 = s.x + 40 + RND() * (s.w - 80);
+    S.list.push({ x: x0 - dir * 500, y: -760, vx: dir * 5, vy: 7.6, on: 1, hits: {} });
+  }
+  for (const m of S.list) {
+    const py = m.y;
+    m.x += m.vx; m.y += m.vy;
+    for (const f of g.fighters) {
+      if (!hittable(f) || m.hits[f.i]) continue;
+      if (circRect(m.x, m.y, 24, f.x - f.w / 2, f.y - f.h, f.w, f.h)) {
+        m.hits[f.i] = 1;
+        applyHit(g, f, null, 7, 7, 0.09, 55, m.vx > 0 ? 1 : -1, { proj: true });
+        g.ev.push({ t: 'starhit', x: m.x, y: m.y });
+      }
+    }
+    const gy = groundBelow(g, m.x, py, m.vy + 3);
+    if (gy !== null && m.y >= gy) { m.on = 0; g.ev.push({ t: 'starhit', x: m.x, y: gy - 6, land: 1 }); }
+    else if (m.y > 800) m.on = 0;
+  }
+  S.list = S.list.filter(m => m.on);
 }
 
 // Toad's Turnpike dash panels fling you along the road
@@ -2390,7 +2529,7 @@ function soldierStrike(g, p, own, n, h) {
 // a soldier's body: gravity, then the ground, platforms (it can drop through soft ones) and walls. Emilia's ice
 // pillars and barriers only hold it up from above, like platforms, so it never gets stuck against them
 function soldierPhysics(g, p) {
-  p.vy = Math.min(p.vy + 0.6, p.ff ? 14 : 11);
+  p.vy = Math.min(p.vy + 0.6 * (g.gravK || 1), p.ff ? 14 : 11);
   const py = p.y, hw = 14, h = 50;
   p.x += p.vx; p.y += p.vy; p.gi = -1;
   for (let k = 0; k < g.surf.length; k++) {
@@ -3229,7 +3368,11 @@ function snapshot(g, ev) {
       dir: e.dir, r: e.r, lv: e.lv !== undefined ? Math.round(e.lv) : undefined, vic: e.vic, b: e.b ? e.b.map(b => [Math.round(b[0]), Math.round(b[1])]) : undefined,
       both: e.both || undefined, side: e.side || undefined })),
     haz: { wig: { on: Hz.wig.on, x: Math.round(Hz.wig.x), dir: Hz.wig.dir, angry: Hz.wig.angry, warn: Hz.wig.warn }, spk: Hz.spk.map(k => ({ ph: k.ph, t: k.t })), wind: { ph: Hz.wind.ph, dir: Hz.wind.dir, t: Hz.wind.t },
-      rock: { on: Hz.rock.on, x: Math.round(Hz.rock.x), dir: Hz.rock.dir, warn: Hz.rock.warn }, dark: { ph: Hz.dark.ph, t0: Hz.dark.t0 }, lava: { ph: Hz.lava.ph, lv: Math.round(Hz.lava.lv) } },
+      rock: { on: Hz.rock.on, x: Math.round(Hz.rock.x), dir: Hz.rock.dir, warn: Hz.rock.warn }, dark: { ph: Hz.dark.ph, t0: Hz.dark.t0 }, lava: { ph: Hz.lava.ph, lv: Math.round(Hz.lava.lv) },
+      // (v1.15 stages)
+      icl: { ph: Hz.icicle.ph, l: Hz.icicle.list.filter(c => c.on).map(c => [c.x, Math.round(c.y)]) }, conv: { ph: Hz.conv.ph, dir: Hz.conv.dir },
+      pend: { ph: Hz.pend.ph, a: Math.round(Hz.pend.a * 1000) / 1000, warn: Hz.pend.warn }, tide: { ph: Hz.tide.ph, lv: Math.round(Hz.tide.lv) }, grav: { ph: Hz.grav.ph },
+      star: Hz.star.list.map(m => [Math.round(m.x), Math.round(m.y), m.vx > 0 ? 1 : -1]) },
     ev,
   };
 }

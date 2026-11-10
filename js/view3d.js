@@ -170,6 +170,42 @@ const V3D = (() => {
     if (H && H.dark && H.dark.ph === 'dark') for (const b of booPath((view.frame || 0) - (H.dark.t0 || 0))) {
       G3.draw(M3D.PROJ.boo, M4.chain(M4.T(b.x * PX, -b.y * PX, 0.6), M4.RY(b.vx > 0 ? 0.5 : -0.5), M4.S(3.2, 3.2, 3.2)), { self: 0.55, alpha: 0.92 });
     }
+    // ---- v1.15 stages ----
+    // Frostbite Glacier: icicles shake overhead (their spots marked on the floor), then drop
+    // (a guest's snapshot packs these as arrays; the host's and local play's own game has the full lists)
+    const ICL = H && (H.icl || (H.icicle && { ph: H.icicle.ph, l: H.icicle.list.filter(c => c.on).map(c => [c.x, c.y]) }));
+    const STARS = !H || !H.star ? [] : Array.isArray(H.star) ? H.star : (H.star.list || []).map(m => [m.x, m.y, m.vx > 0 ? 1 : -1]);
+    if (ICL && ICL.ph !== 'idle' && st.haz.includes('icicles')) for (const [x, y] of ICL.l || []) {
+      const shake = ICL.ph === 'warn' ? Math.sin(fr * 1.7 + x) * 0.06 : 0, gy = -st.solids[0].y * PX;
+      G3.draw(M3D.PROJ.icepel, M4.chain(M4.T(x * PX + shake, -y * PX, 0.3), M4.RZ(-Math.PI / 2), M4.S(5.5, 4.2, 4.2)), { self: 0.45 });
+      G3.draw(M3D.PROJ.ice3, M4.chain(M4.T(x * PX, gy + 0.03, 0.4), M4.S(0.7, 0.02, 0.7)), { alpha: 0.35 + 0.25 * Math.sin(fr * 0.4), tint: [0.4, 0.75, 1, 0.8], self: 0.6 });
+    }
+    // Gearworks Clocktower: arrows running along the conveyor belts (they stop while switching)
+    if (st.conveyors && H && H.conv) for (const b of st.conveyors) {
+      const d = b.dir * (H.conv.dir || 1), run = H.conv.ph === 'run', n = Math.max(3, Math.round(b.w / 70));
+      for (let k = 0; k < n; k++) {
+        const q = ((k / n + (run ? fr * 0.006 * d : 0)) % 1 + 1) % 1, x = (b.x + b.w * q) * PX;
+        G3.draw(F.chev, M4.chain(M4.T(x, top + 0.035, 0.4), M4.RY(d > 0 ? 0 : Math.PI), M4.S(1, 1, 1.6)), { self: run ? 0.6 : 0.15, tint: run ? null : [1, 0.3, 0.2, 0.5] });
+      }
+    }
+    // ... and the giant pendulum: a brass rod and bob swinging from high above
+    if (H && H.pend && st.haz.includes('pendulum')) {
+      const a = H.pend.a || 0, py = -PEND_Y * PX, L = PEND_L * PX, bx = Math.sin(a) * L, by = py - Math.cos(a) * L;
+      G3.draw(M3D.PROJ.ice3, M4.chain(M4.T((0 + bx) / 2, (py + by) / 2, -0.6), M4.RZ(a), M4.S(0.12, L / 2, 0.12)), { tint: [0.75, 0.55, 0.25, 1] });
+      G3.draw(M3D.PROJ.ball, M4.chain(M4.T(bx, by, -0.6), M4.S(1.9, 1.9, 0.6)), { tint: [0.85, 0.62, 0.22, 1], self: 0.2 });
+      if (H.pend.ph === 'idle' && H.pend.warn > 0 && Math.floor(fr / 6) % 2) G3.draw(M3D.PROJ.ball, M4.chain(M4.T(bx, by, -0.4), M4.S(2.3, 2.3, 0.4)), { alpha: 0.35, tint: [1, 0.3, 0.2, 1], self: 1 });
+    }
+    // Tidal Lagoon: the sea, up to the tide's level (see-through, so you can see who's swimming)
+    if (H && H.tide && st.haz.includes('tide')) {
+      const ly = -(H.tide.lv || 0) * PX + Math.sin(fr * 0.06) * 0.05, bot = -(BLAST.b + 300) * PX;
+      G3.draw(M3D.PROJ.ice3, M4.chain(M4.T(0, (ly + bot) / 2, 0.6), M4.S(80, (ly - bot) / 2, 3.4)), { alpha: 0.5, tint: [0.2, 0.55, 0.9, 0.85], self: 0.25 });
+      G3.draw(M3D.PROJ.ice3, M4.chain(M4.T(0, ly - 0.02, 0.62), M4.S(80, 0.05, 3.45)), { alpha: 0.75, tint: [0.75, 0.92, 1, 1], self: 0.6 });
+    }
+    // Starlight Observatory: falling stars streak down across the stage
+    for (const [x, y, d] of STARS) {
+      G3.draw(M3D.PROJ.star, M4.chain(M4.T(x * PX, -y * PX, 0.5), M4.RZ(fr * 0.3), M4.S(2.2, 2.2, 2.2)), { self: 1 });
+      for (let k = 1; k <= 3; k++) G3.draw(M3D.PROJ.star, M4.chain(M4.T((x - d * 5 * k * 3) * PX, -(y - 7.6 * k * 3) * PX, 0.45), M4.S(2.2 - k * 0.5, 2.2 - k * 0.5, 1)), { self: 1, alpha: 0.6 - k * 0.15 });
+    }
     if (st.boost) for (const b of st.boost) for (let k = 0; k < 3; k++) {
       const x = (b.x + b.w * (0.2 + k * 0.3)) * PX, glow = Math.max(0, Math.sin(fr * 0.22 - k * 1.1));
       G3.draw(F.chev, M4.chain(M4.T(x, top + 0.02, 0.4), M4.RY(b.dir > 0 ? 0 : Math.PI), M4.S(1.2, 1, 1.4)), { self: 0.25 + 0.75 * glow, tint: [1, 0.9, 0.3, 0.3 * glow] });
@@ -416,6 +452,8 @@ const V3D = (() => {
     const S = S3D.get(view.stage);
     // (a static can carry draw options, e.g. Rainbow Road glows: { mesh, o })
     for (const m of S.statics) G3.draw(m.mesh || m, I, m.o);
+    // pieces that turn by themselves (the Clocktower's gears and clock hands)
+    if (S.anim) for (const a of S.anim) G3.draw(a.mesh, a.m(view.frame || fr), a.o);
     if (S.movers.length) {
       // (a platform broken by El Minya is gone until it comes back, and pops back into place when it does;
       // one it has hit is turning to pink crystal)
@@ -523,7 +561,7 @@ const V3D = (() => {
     const R = view.haz && view.haz.rock;
     if (R && !R.on && R.warn > 0 && Math.floor(fr / 8) % 2) kartWarning(c, R.dir, 'BOULDER!');
     const w = view.haz && view.haz.wind;
-    if (w && w.ph === 'blow' && view.stage === 'gorge') {
+    if (w && w.ph === 'blow' && baseStage(view.stage) === 'gorge') {
       c.save(); c.lineCap = 'round';
       for (let k = 0; k < 16; k++) {
         const len = 90 + (k % 4) * 40, x = (((fr * 26 + k * 173) % 1500) + 1500) % 1500, xx = w.dir > 0 ? x - 110 : 1390 - x, y = 70 + ((k * 97) % 520);
@@ -532,7 +570,7 @@ const V3D = (() => {
       }
       c.restore();
     }
-    if (w && w.ph === 'warn' && view.stage === 'gorge' && Math.floor(fr / 8) % 2) {
+    if (w && w.ph === 'warn' && baseStage(view.stage) === 'gorge' && Math.floor(fr / 8) % 2) {
       c.save(); c.font = `40px ${FONT}`; c.textAlign = 'center'; c.lineJoin = 'round'; c.strokeStyle = INKC; c.lineWidth = 7;
       const txt = w.dir > 0 ? 'GUST >>>' : '<<< GUST', x = w.dir > 0 ? 200 : 1080;
       c.strokeText(txt, x, 140); c.fillStyle = '#dff3ff'; c.fillText(txt, x, 140); c.restore();
@@ -540,6 +578,13 @@ const V3D = (() => {
     if ((view.fx || []).some(e => e.k === 'freeze')) {
       const g = c.createRadialGradient(640, 360, 220, 640, 360, 760); g.addColorStop(0, 'rgba(190,240,255,0)'); g.addColorStop(1, 'rgba(190,240,255,0.55)');
       c.fillStyle = g; c.fillRect(0, 0, 1280, 720);
+    }
+    // Starlight Observatory's low gravity: a faint blue glow and sparkles drifting up the screen
+    const LG = view.haz && view.haz.grav;
+    if (LG && LG.ph === 'low' && STG[view.stage].haz.includes('lowgrav')) {
+      c.save(); c.fillStyle = 'rgba(90,120,255,0.08)'; c.fillRect(0, 0, 1280, 720);
+      for (let q = 0; q < 40; q++) { const x = (q * 211 + Math.sin(fr * 0.02 + q) * 30) % 1280, y = 720 - ((fr * (0.6 + (q % 5) * 0.25) + q * 97) % 760); c.globalAlpha = 0.35 + (q % 3) * 0.2; c.fillStyle = q % 2 ? '#ffffff' : '#bcd0ff'; c.fillRect(x, y, 3, 3); }
+      c.restore();
     }
     // the Beast of the End: the stage goes dark, ice grows in round the edges of the screen, and snow rages
     const BE = (view.fx || []).find(e => e.k === 'beast');

@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611101034';
+const GAME_BUILD = '202611101106';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -559,9 +559,55 @@ const STAGES = [
     solids: [{ x: -480, y: 0, w: 960, h: 210 }],
     plats: [{ x: -380, y: -150, w: 190 }, { x: 190, y: -150, w: 190 }, { x: -95, y: -290, w: 190 }],
     spawn: [[-300, -1], [300, -1], [-110, -1], [110, -1]] },
+  // ---- v1.15 stages (original designs). Every platform is its own moving piece, so El Minya can crystallize
+  // and break it like any other ----
+  { id: 'glacier', name: 'Frostbite Glacier', haz: ['icicles'], hazName: 'The ice floor is slippery, and icicles crash down from above',
+    solids: [{ x: -500, y: 0, w: 1000, h: 130, icy: true }],
+    plats: [{ x: -420, y: -150, w: 180, move: { ax: 26, ay: 10, per: 420, ph: 0 } }, { x: 240, y: -150, w: 180, move: { ax: 26, ay: 10, per: 420, ph: Math.PI } },
+      { x: -100, y: -290, w: 200, move: { ax: 110, ay: 0, per: 600, ph: 0 } }],
+    spawn: [[-320, -1], [320, -1], [-110, -1], [110, -1], [-220, -1], [220, -1], [-40, -1], [40, -1]] },
+  { id: 'clock', name: 'Gearworks Clocktower', haz: ['conveyor', 'pendulum'], hazName: 'Conveyor belts carry you along (and switch direction); a giant pendulum sweeps the floor',
+    solids: [{ x: -460, y: 0, w: 920, h: 150 }],
+    conveyors: [{ x: -440, w: 280, dir: 1 }, { x: 160, w: 280, dir: -1 }],
+    // three platforms ride round on a turning gear (circ: they go round in a circle instead of back and forth)
+    plats: [0, 1, 2].map(k => ({ x: -90, y: -230, w: 180, move: { ax: 175, ay: 82, per: 960, ph: (k * Math.PI * 2) / 3, circ: 1 } })),
+    spawn: [[-300, -1], [300, -1], [-100, -1], [100, -1], [-200, -1], [200, -1], [-30, -1], [30, -1]] },
+  { id: 'lagoon', name: 'Tidal Lagoon', haz: ['tide'], hazName: 'The tide rolls in over the sandbar: in the water you float and move slowly',
+    solids: [{ x: -440, y: 0, w: 880, h: 120 }],
+    plats: [{ x: -650, y: -34, w: 170, move: { ax: 0, ay: 9, per: 230, ph: 0 } }, { x: 480, y: -34, w: 170, move: { ax: 0, ay: 9, per: 230, ph: Math.PI } },
+      { x: -330, y: -175, w: 170 }, { x: 160, y: -175, w: 170 }, { x: -85, y: -300, w: 170, move: { ax: 60, ay: 0, per: 520, ph: 0 } }],
+    spawn: [[-300, -1], [300, -1], [-100, -1], [100, -1], [-200, -1], [200, -1], [-30, -1], [30, -1]] },
+  { id: 'observatory', name: 'Starlight Observatory', haz: ['lowgrav', 'stars'], hazName: 'Low-gravity moments let everyone float; falling stars streak across the sky',
+    solids: [{ x: -470, y: 0, w: 940, h: 160 }],
+    plats: [{ x: -380, y: -150, w: 180 }, { x: 200, y: -150, w: 180 }, { x: -90, y: -300, w: 180, move: { ax: 150, ay: 30, per: 640, ph: 0, circ: 1 } }],
+    spawn: [[-300, -1], [300, -1], [-110, -1], [110, -1], [-210, -1], [210, -1], [-35, -1], [35, -1]] },
 ];
 // the stage theme each newer stage plays when the music is set to "Stage theme"
-const STAGE_SONG = { island: 'hop', rainbow: 'turbo', mansion: 'jazz', castle: 'funk' };
+const STAGE_SONG = { island: 'hop', rainbow: 'turbo', mansion: 'jazz', castle: 'funk', glacier: 'jazz', clock: 'funk', lagoon: 'hop', observatory: 'turbo' };
+// The Double Length modifier: every stage also comes twice as long (id 'town@2x'). The floor doubles, platforms over
+// it are copied onto both halves, platforms out past its ends move out with them (and get a copy over the floor),
+// and the blast zones move out too. They're not in STAGES, so the lobby lists each stage once
+const baseStage = id => String(id).split('@')[0];
+function doubleStage(S) {
+  const s0 = S.solids[0], half = s0.w / 2, inner = p => p.x + p.w / 2 > s0.x && p.x + p.w / 2 < s0.x + s0.w;
+  const both = p => [Object.assign({}, p, { x: p.x - half }), Object.assign({}, p, { x: p.x + half })];
+  const plats = [];
+  for (const p of S.plats) {
+    if (inner(p)) plats.push(...both(p));
+    else { const out = p.x + p.w / 2 < 0 ? -1 : 1; plats.push(Object.assign({}, p, { x: p.x + out * half }), Object.assign({}, p, { x: p.x - out * half, y: p.y - 110 })); }
+  }
+  const dup = a => (a ? a.flatMap(both) : a);
+  return Object.assign({}, S, {
+    id: S.id + '@2x', base: S.id, big: true,
+    solids: [Object.assign({}, s0, { x: s0.x - half, w: s0.w * 2 })].concat(S.solids.slice(1)),
+    plats, spikes: dup(S.spikes), boost: dup(S.boost), conveyors: dup(S.conveyors),
+    spawn: S.spawn.map(p => [p[0] * 2, p[1]]),
+  });
+}
+const STAGES_2X = STAGES.map(doubleStage);
+// the blast zones for a stage (a double-length one pushes the sides out by half its floor)
+const BLAST0 = Object.assign({}, BLAST);
+function setBlast(S) { const ext = S && S.big ? S.solids[0].w / 4 : 0; BLAST.l = BLAST0.l - ext; BLAST.r = BLAST0.r + ext; }
 
 const ITEMS = {
   mush: { name: 'Super Mushroom!', w: 3 }, mini: { name: 'Mini Mushroom!', w: 2 }, poison: { name: 'Poison Mushroom!', w: 2 },
