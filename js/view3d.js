@@ -455,8 +455,10 @@ const V3D = (() => {
     for (const f of view.fighters || []) if (f.st !== 'dead' && !f.out) M3D.drawFighter(f, fr);
     for (const e of view.fx || []) drawFx3(e, view, fr);
   }
+  let view3dTeams = false; // (team mode: name tags wear the team colours)
   function frame(view, cam, fr, opts) {
     opts = opts || {};
+    view3dTeams = !!view.teams;
     const S = S3D.get(view.stage), z = cam.z || 0.8;
     const sh = cam.shake ? [((Math.random() - 0.5) * cam.shake) / z, ((Math.random() - 0.5) * cam.shake) / z] : [0, 0];
     const D = (FOC * PX) / z, E = S.env;
@@ -962,7 +964,7 @@ const V3D = (() => {
     }
   }
   function paperTag(c, f) {
-    const x = f.x, y = f.y - f.h - 16 - (f.hold ? 30 : 0), col = SLOT_COLORS[f.i];
+    const x = f.x, y = f.y - f.h - 16 - (f.hold ? 30 : 0), col = view3dTeams && f.team >= 0 ? TEAM_COLORS[f.team] : SLOT_COLORS[f.i];
     c.save(); c.font = `13px ${FONT}`;
     const w = Math.max(24, c.measureText(f.tag).width + 12);
     const tag = () => { c.beginPath(); c.moveTo(x - w / 2, y - 18); c.lineTo(x + w / 2, y - 18); c.lineTo(x + w / 2, y - 4); c.lineTo(x + 4, y - 4); c.lineTo(x, y + 2); c.lineTo(x - 4, y - 4); c.lineTo(x - w / 2, y - 4); c.closePath(); };
@@ -983,20 +985,38 @@ const V3D = (() => {
   }
 
   // ---------- paper HUD ----------
+  // a timed match's clock, top centre (it turns red and pulses for the last ten seconds)
+  function paperClock(c, view) {
+    const t = Math.max(0, view.timeLeft || 0), sec = Math.ceil(t / 60), str = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'), hot = sec <= 10;
+    const k = hot ? 1 + 0.08 * Math.sin(performance.now() / 90) : 1;
+    c.save(); c.translate(640, 44); c.scale(k, k);
+    c.fillStyle = 'rgba(58,36,20,.32)'; c.fillRect(-74 + 3, -30 + 4, 148, 56);
+    c.fillStyle = PAPER; c.fillRect(-74, -30, 148, 56);
+    c.fillStyle = hot ? '#ff4b4b' : '#3f8cff'; c.fillRect(-74, -30, 148, 6);
+    c.font = `38px ${FONT}`; c.textAlign = 'center'; c.lineJoin = 'round'; c.strokeStyle = INKC; c.lineWidth = 6;
+    c.strokeText(str, 0, 16); c.fillStyle = hot ? '#ff6a5a' : '#ffffff'; c.fillText(str, 0, 16);
+    c.restore();
+  }
   function paperHUD(c, view) {
-    const fs = view.fighters || [], n = fs.length, pw = 236, gap = 16, x0 = (1280 - (n * pw + (n - 1) * gap)) / 2, y = 720 - 96;
+    // up to four cards fit at full size; with more fighters (up to 8) every card shrinks to fit the screen
+    const fs = view.fighters || [], n = fs.length, pw = 236, gap = 16, full = n * pw + (n - 1) * gap, sc = Math.min(1, 1240 / full);
+    const x0 = (1280 - full * sc) / 2, y0 = 720 - 12 - 84 * sc, timed = view.mode === 'time';
+    if (timed && view.phase !== 'over') paperClock(c, view);
     fs.forEach((f, k) => {
-      const x = x0 + k * (pw + gap), m = hudMem[f.i] || (hudMem[f.i] = { dm: 0, shake: 0 });
+      const x = 0, y = 0, m = hudMem[f.i] || (hudMem[f.i] = { dm: 0, shake: 0 });
+      // (team mode: the card wears the team's colour)
+      const tc = view.teams && f.team >= 0 ? TEAM_COLORS[f.team] : SLOT_COLORS[f.i];
       if (f.dm > m.dm + 0.5) m.shake = 14;
       m.dm = f.dm; if (m.shake > 0) m.shake--;
-      c.save(); if (f.out) c.globalAlpha = 0.5;
+      c.save(); c.translate(x0 + k * (pw + gap) * sc, y0); c.scale(sc, sc);
+      if (f.out) c.globalAlpha = 0.5;
       const card = new Path2D(); card.moveTo(x, y); card.lineTo(x + pw - 18, y); card.lineTo(x + pw, y + 18); card.lineTo(x + pw, y + 84); card.lineTo(x, y + 84); card.closePath();
       c.save(); c.translate(3, 5); c.fillStyle = 'rgba(58,36,20,.32)'; c.fill(card); c.restore();
       c.fillStyle = PAPER; c.fill(card);
       c.fillStyle = '#e4d8c2'; c.beginPath(); c.moveTo(x + pw - 18, y); c.lineTo(x + pw - 18, y + 18); c.lineTo(x + pw, y + 18); c.closePath(); c.fill();
-      c.fillStyle = SLOT_COLORS[f.i]; c.fillRect(x, y, pw - 24, 7);
+      c.fillStyle = tc; c.fillRect(x, y, pw - 24, 7);
       c.save(); c.beginPath(); c.arc(x + 40, y + 47, 31, 0, Math.PI * 2); c.clip(); c.drawImage(portrait3(f.ch, 64), x + 8, y + 15, 64, 64); c.restore();
-      c.strokeStyle = SLOT_COLORS[f.i]; c.lineWidth = 3.5; c.beginPath(); c.arc(x + 40, y + 47, 31, 0, Math.PI * 2); c.stroke();
+      c.strokeStyle = tc; c.lineWidth = 3.5; c.beginPath(); c.arc(x + 40, y + 47, 31, 0, Math.PI * 2); c.stroke();
       // a Smash Mushroom finale is ready: rainbow ring and badge
       if (f.fs) {
         const h = (performance.now() / 6) % 360;
@@ -1011,8 +1031,10 @@ const V3D = (() => {
       c.strokeText(txt, x + 80 + ox + 2, y + 66 + oy + 2); c.strokeText(txt, x + 80 + ox, y + 66 + oy);
       c.fillStyle = f.out ? '#b0a090' : dmgColor(f.dm); c.fillText(txt, x + 80 + ox, y + 66 + oy);
       const col = CH[f.ch].look.spot && CH[f.ch].look.spot.toLowerCase() !== '#ffffff' ? CH[f.ch].look.spot : CH[f.ch].look.body || '#ff8cc6';
-      for (let s = 0; s < Math.min(f.sk, 5); s++) { const sx = x + pw - 18 - s * 18, sy = y + 72; c.fillStyle = '#f6ecd6'; c.fillRect(sx - 3, sy - 2, 6, 6); c.fillStyle = col; c.beginPath(); c.moveTo(sx - 8, sy - 1); c.lineTo(sx - 5, sy - 7); c.lineTo(sx, sy - 9); c.lineTo(sx + 5, sy - 7); c.lineTo(sx + 8, sy - 1); c.closePath(); c.fill(); }
-      if (f.sk > 5) { c.font = `14px ${FONT}`; c.textAlign = 'right'; c.fillStyle = '#6a4a34'; c.fillText('x' + f.sk, x + pw - 104, y + 77); }
+      // lives left (a timed match has endless lives, so it shows the KO count instead)
+      if (timed) { c.font = `18px ${FONT}`; c.textAlign = 'right'; c.fillStyle = '#6a4a34'; c.fillText(f.kos + (f.kos === 1 ? ' KO' : ' KOs'), x + pw - 10, y + 79); }
+      else for (let s = 0; s < Math.min(f.sk, 5); s++) { const sx = x + pw - 18 - s * 18, sy = y + 72; c.fillStyle = '#f6ecd6'; c.fillRect(sx - 3, sy - 2, 6, 6); c.fillStyle = col; c.beginPath(); c.moveTo(sx - 8, sy - 1); c.lineTo(sx - 5, sy - 7); c.lineTo(sx, sy - 9); c.lineTo(sx + 5, sy - 7); c.lineTo(sx + 8, sy - 1); c.closePath(); c.fill(); }
+      if (f.sk > 5 && !timed) { c.font = `14px ${FONT}`; c.textAlign = 'right'; c.fillStyle = '#6a4a34'; c.fillText('x' + f.sk, x + pw - 104, y + 77); }
       c.restore();
     });
   }
@@ -1022,6 +1044,7 @@ const V3D = (() => {
   function portrait3(ch, size) {
     const key = ch + ':' + size;
     if (PCACHE[key]) return PCACHE[key];
+    if (!CH[ch]) return (PCACHE[key] = randomPortrait(size)); // (the Random pick: a big question mark)
     const cv = document.createElement('canvas'); cv.width = cv.height = size;
     const c = cv.getContext('2d'), C = CH[ch], base = C.look.spot && C.look.spot.toLowerCase() !== '#ffffff' ? C.look.spot : C.look.body || C.look.cap;
     const g = c.createRadialGradient(size / 2, size * 0.45, size * 0.1, size / 2, size / 2, size * 0.75); g.addColorStop(0, '#fff8ec'); g.addColorStop(1, base);

@@ -53,11 +53,17 @@ function airJumps(f) { return CH[f.ch].jumps - 1 + (f.pe > 0 ? 1 : 0); }
 const alive = v => v.st !== 'dead' && !v.out;
 // can `v` be struck right now (by anything other than itself)?
 const hittable = v => alive(v) && v.inv <= 0 && v.ig <= 0 && v.rp <= 0;
+// team mode: teammates can't hurt each other, and neither can their shots, soldiers or ice. mineI: is fighter
+// number i the owner `o` or on the owner's team? ally: are fighters a and b two different teammates?
+const teamOf = (g, i) => { const f = fighterBy(g, i); return f ? f.team : -1; };
+const mineI = (g, o, i) => o === i || (!!g.teams && teamOf(g, o) >= 0 && teamOf(g, o) === teamOf(g, i));
+const ally = (g, a, b) => !!(g && g.teams && a && b && a !== b && a.team >= 0 && a.team === b.team);
 
 function makeFighter(s, sp, stocks) {
   const C = CH[s.ch];
   return {
-    i: s.slot, ch: s.ch, nm: s.name, tag: s.tag, ctrl: s.ctrl, pid: s.pid, lvl: s.lvl || 2,
+    // (CPU level 0 is a Dummy that never moves; team is -1 outside team mode)
+    i: s.slot, ch: s.ch, nm: s.name, tag: s.tag, ctrl: s.ctrl, pid: s.pid, lvl: s.lvl === undefined ? 2 : s.lvl, team: s.team === undefined ? -1 : s.team,
     x: sp[0], y: sp[1], vx: 0, vy: 0, fc: sp[0] < 0 ? 1 : -1, st: 'air', t: 0, t2: 0,
     dm: 0, sk: stocks, gi: -1, jl: C.jumps - 1, at: null, sp: null, hits: {}, sh2: {}, hs: 0, hl: 0, inv: 0,
     shd: 100, big: 0, small: 0, star: 0, pe: 0, frz: 0, psn: 0, pick: 0, hold: null, drop: 0, jbuf: 0,
@@ -73,13 +79,34 @@ function makeFighter(s, sp, stocks) {
   };
 }
 
+// how long until the next Smash Mushroom shows up. Items 'hyper' (Hyper Smash only): very often; 'smash' (Smash
+// only): a fifth as often as that; true (all items): now and then. when: 'first' (match start), 'gone' (one floated
+// away unclaimed) or 'used' (someone claimed one)
+function smashGap(items, when) {
+  const H = { first: [420, 300], gone: [300, 300], used: [720, 480] }, N = { first: [1500, 900], gone: [1200, 900], used: [2400, 1200] };
+  const [a, b] = (items === 'hyper' || items === 'smash' ? H : N)[when];
+  return (a + RND() * b) * (items === 'smash' ? 5 : 1);
+}
+// where the n-th fighter starts: the stage's own spots, then (5 to 8 players) spots in between them
+function spawnPoint(st, n) {
+  const S = st.spawn;
+  if (n < S.length) return S[n];
+  const k = (n - S.length) % 4, L = S.length >= 4 ? S : [S[0], S[1 % S.length], S[0], S[1 % S.length]];
+  const x = k < 2 ? (L[k][0] + L[k + 2][0]) / 2 : L[k][0] * 0.3;
+  return [Math.round(x), L[k][1]];
+}
+// respawn spots (in the air above the stage), one per player slot
+const RESPAWN_X = [-150, 150, -50, 50, -200, 200, -100, 100];
 function makeGame(cfg) {
-  const st = STG[cfg.stage];
+  const st = STG[cfg.stage], timed = cfg.mode === 'time';
   const g = {
+    // rules: 'stock' (lose your lives and you're out) or 'time' (endless lives; when the clock runs out, the most KOs
+    // wins; timeLeft is in frames), and team mode on or off
+    mode: timed ? 'time' : 'stock', timeLeft: timed ? Math.round((cfg.time || 3) * 3600) : 0, teams: !!cfg.teams,
     frame: 0, stage: st.id, fighters: [], proj: [], items: [], clouds: [], fx: [], ev: [], phase: 'count', pt: 200,
     itemsOn: cfg.items, hazOn: cfg.hazards, nextItem: 540, kart: null, surf: [], results: null, winner: -1, pid: 1,
     // items: true = everything, 'smash' = only Smash Mushrooms (and much more often), false = none
-    sbT: cfg.items === 'smash' ? 420 + RND() * 300 : 1500 + RND() * 900, haz: initHaz(st),
+    sbT: smashGap(cfg.items, 'first'), haz: initHaz(st),
     // platforms cracked (php: hits taken) and broken (brk: when each comes back) by Subaru's El Minya
     brk: {}, php: {},
     // Emilia Toad's ice pillars and barriers
@@ -88,7 +115,7 @@ function makeGame(cfg) {
   let n = 0;
   for (const s of cfg.slots) {
     if (!s) continue;
-    g.fighters.push(makeFighter(s, st.spawn[n++ % st.spawn.length], cfg.stocks));
+    g.fighters.push(makeFighter(s, spawnPoint(st, n++), timed ? 99 : cfg.stocks));
   }
   g.surf = computeSurfaces(g.stage, g.frame, g.clouds, g.brk, g.ice);
   return g;
@@ -117,6 +144,12 @@ function stepGame(g, getBits) {
     g.pt--;
     if (g.pt === 180 || g.pt === 120 || g.pt === 60) g.ev.push({ t: 'count', n: g.pt / 60 });
     if (g.pt <= 0) { g.phase = 'play'; g.ev.push({ t: 'go' }); }
+  }
+  // a timed match's clock (it beeps for the last ten seconds)
+  if (g.phase === 'play' && g.mode === 'time' && g.timeLeft > 0) {
+    g.timeLeft--;
+    if (g.timeLeft > 0 && g.timeLeft <= 600 && g.timeLeft % 60 === 0) g.ev.push({ t: 'clock', n: g.timeLeft / 60 });
+    if (g.timeLeft === 0) g.ev.push({ t: 'timeup' });
   }
   // broken platforms pop back into place when their time is up
   for (const pi in g.brk) if (g.brk[pi] === g.frame) { const S = STG[g.stage].plats[pi]; g.ev.push({ t: 'platback', x: S.x + S.w / 2, y: S.y, pi: +pi }); }
@@ -168,7 +201,7 @@ function updateFighter(g, f, bits) {
     if (f.st !== 'hit' && f.st !== 'stun' && f.st !== 'held') {
       const cx = f.x + E.x * f.fc, cy = f.y + E.y;
       for (const v of g.fighters) {
-        if (v === f || !hittable(v) || v.inv > 0 || v.star > 0 || v.ig > 0) continue;
+        if (v === f || ally(g, f, v) || !hittable(v) || v.inv > 0 || v.star > 0 || v.ig > 0) continue;
         if (!circRect(cx, cy, E.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
         const d = E.d * f.pm;
         if (v.st === 'shield') v.shd -= d; else { v.dm = Math.min(999, v.dm + d); f.dealt += d; }
@@ -474,7 +507,7 @@ function updGrab(g, f, c) {
   if (f.t >= 6 && f.t <= 9) {
     const reach = f.w / 2 + 30 * CH[f.ch].reach * f.sc;
     for (const v of g.fighters) {
-      if (v === f || !hittable(v) || v.st === 'held' || v.st === 'ledge' || v.gby >= 0) continue;
+      if (v === f || ally(g, f, v) || !hittable(v) || v.st === 'held' || v.st === 'ledge' || v.gby >= 0) continue;
       const dx = (v.x - f.x) * f.fc;
       if (dx < -6 || dx > reach + v.w / 2 || v.y < f.y - f.h * 0.9 || v.y - v.h > f.y + 4) continue;
       catchFoe(g, f, v);
@@ -685,7 +718,7 @@ function tetherLedge(g, f, reach) {
 }
 
 function respawn(g, f) {
-  f.x = [-150, 150, -50, 50][f.i % 4]; f.y = -330; f.vx = 0; f.vy = 0; f.dm = 0; f.st = 'air';
+  f.x = RESPAWN_X[f.i % 8]; f.y = -330; f.vx = 0; f.vy = 0; f.dm = 0; f.st = 'air';
   f.rp = 180; f.inv = 180; f.jl = airJumps(f); f.upUsed = false; f.adUsed = false; f.sUsed = false; f.uaUsed = false; f.wj = 0; f.hold = null;
   f.sp = null; f.at = null; f.gi = -1; f.shd = 100;
   g.ev.push({ t: 'respawn', x: f.x, y: f.y });
@@ -693,8 +726,10 @@ function respawn(g, f) {
 
 function ko(g, f) {
   g.ev.push({ t: 'ko', x: clamp(f.x, BLAST.l + 60, BLAST.r - 60), y: clamp(f.y - f.h / 2, BLAST.t + 60, BLAST.b - 60), i: f.i, ch: f.ch });
-  if (f.lastHit >= 0 && g.frame - f.lastHitT < 600) { const a = fighterBy(g, f.lastHit); if (a && a !== f) a.kos++; }
-  f.falls++; f.sk--; f.st = 'dead'; f.dead = 100; f.vx = 0; f.vy = 0;
+  const a = f.lastHit >= 0 && g.frame - f.lastHitT < 600 ? fighterBy(g, f.lastHit) : null;
+  if (a && a !== f) a.kos++; else f.sds = (f.sds || 0) + 1; // (no one to credit: a self-destruct)
+  // (in a timed match lives never run out)
+  f.falls++; if (g.mode !== 'time') f.sk--; f.st = 'dead'; f.dead = 100; f.vx = 0; f.vy = 0;
   f.big = f.small = f.star = f.pe = f.frz = f.psn = f.pick = 0; f.hold = null; f.glide = 0; f.lastHit = -1;
   f.fs = 0; f.fsLock = 0; f.hide = 0; f.ig = 0; f.tn = 0; f.boostT = 0; f.slow = 0;
   f.x = 0; f.y = -2000;
@@ -706,16 +741,34 @@ function ko(g, f) {
   }
 }
 
+// is the match over? Stock: one fighter (or one team) left. Timed: the clock ran out. Either way the Beast of the
+// End always finishes its storm first. Then the results: g.winner (a fighter, or -1 for a tie / no contest),
+// g.winTeam (team mode), and g.results in ranking order with everyone's stats
 function checkEnd(g) {
   if (g.phase !== 'play' || g.fighters.length < 2) return;
-  if (beastOn(g)) return; // (the Beast of the End always finishes its storm first)
-  const left = g.fighters.filter(f => !f.out);
-  if (left.length > 1) return;
-  g.phase = 'over'; g.pt = 0;
-  g.winner = left.length ? left[0].i : -1;
-  const order = g.fighters.slice().sort((a, b) => (b.out ? b.outAt : 1e9) - (a.out ? a.outAt : 1e9));
-  g.results = order.map(f => ({ i: f.i, ch: f.ch, nm: f.nm, tag: f.tag, kos: f.kos, falls: f.falls, dealt: Math.round(f.dealt) }));
-  g.ev.push({ t: 'game' });
+  if (beastOn(g)) return;
+  const left = g.fighters.filter(f => !f.out), timed = g.mode === 'time';
+  if (timed ? g.timeLeft > 0 : left.length > 1 && !(g.teams && left.every(f => f.team >= 0 && f.team === left[0].team))) return;
+  g.phase = 'over'; g.pt = 0; g.winTeam = -1;
+  const teamKos = t => g.fighters.reduce((n, f) => n + (f.team === t ? f.kos : 0), 0), teamFalls = t => g.fighters.reduce((n, f) => n + (f.team === t ? f.falls : 0), 0);
+  let order;
+  if (timed) {
+    // most KOs first (for teams, the team's KOs added up), then the fewest falls
+    const key = f => (g.teams && f.team >= 0 ? [teamKos(f.team), -teamFalls(f.team), f.kos, -f.falls] : [f.kos, -f.falls, 0, 0]);
+    order = g.fighters.slice().sort((a, b) => { const A = key(a), B = key(b); for (let k = 0; k < 4; k++) if (A[k] !== B[k]) return B[k] - A[k]; return b.dealt - a.dealt; });
+    const top = order[0], next = order.find(f => !(g.teams && f.team >= 0 && f.team === top.team) && f !== top), kt = key(top), kn = next ? key(next) : null;
+    const tie = kn && kt[0] === kn[0] && kt[1] === kn[1] && (g.teams || (kt[2] === kn[2] && kt[3] === kn[3]));
+    g.winner = tie ? -1 : top.i;
+    if (g.teams && !tie && top.team >= 0) g.winTeam = top.team;
+  } else {
+    order = g.fighters.slice().sort((a, b) => (b.out ? b.outAt : 1e9) - (a.out ? a.outAt : 1e9));
+    if (g.teams && left.length && left[0].team >= 0) {
+      g.winTeam = left[0].team; g.winner = left[0].i;
+      order = order.filter(f => f.team === g.winTeam).concat(order.filter(f => f.team !== g.winTeam));
+    } else g.winner = left.length ? left[0].i : -1;
+  }
+  g.results = order.map(f => ({ i: f.i, ch: f.ch, nm: f.nm, tag: f.tag, kos: f.kos, falls: f.falls, sds: f.sds || 0, dealt: Math.round(f.dealt), taken: Math.round(f.taken || 0), team: f.team }));
+  g.ev.push({ t: 'game', time: timed ? 1 : 0 });
 }
 
 // ---------- Combat ----------
@@ -727,7 +780,7 @@ function hitArea(g, f, ox, oy, r, d, k, gr, ang, o) {
   // which move this is (for stale-move tracking), unless the caller said
   if (o.mv === undefined) o = Object.assign({}, o, { mv: f.st === 'atk' ? 'a:' + f.at : f.st === 'spc' ? 's:' + f.sp : f.st === 'throw' ? 't:' + f.thr : '', use: f.use });
   for (const v of g.fighters) {
-    if (v === f || !hittable(v) || !fresh(v.i)) continue;
+    if (v === f || ally(g, f, v) || !hittable(v) || !fresh(v.i)) continue;
     if (!circRect(cx, cy, r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
     map[v.i] = g.frame;
     // an ice barrier between the attacker and the target takes the blow instead
@@ -739,11 +792,11 @@ function hitArea(g, f, ox, oy, r, d, k, gr, ang, o) {
   }
   // Emilia Toad's ice: foes' blows chip her pillars and barriers, and break her ice soldiers
   for (const s of g.ice.slice()) {
-    if (s.o === f.i || !fresh('ice' + s.id) || !iceCircle(s, cx, cy, r)) continue;
+    if (mineI(g, f.i, s.o) || !fresh('ice' + s.id) || !iceCircle(s, cx, cy, r)) continue;
     map['ice' + s.id] = g.frame; hurtIce(g, s, d * f.pm); any = true;
   }
   for (const q of g.proj) {
-    if (q.k !== 'minion' || q.sub !== 'icesoldier' || q.o === f.i || q.hp <= 0 || !fresh('m' + q.id)) continue;
+    if (q.k !== 'minion' || q.sub !== 'icesoldier' || mineI(g, f.i, q.o) || q.hp <= 0 || !fresh('m' + q.id)) continue;
     if (!circRect(cx, cy, r, q.x - 15, q.y - 52, 30, 52)) continue;
     map['m' + q.id] = g.frame; hurtSoldier(g, q, o.radial ? (q.x >= cx ? 1 : -1) : f.fc); any = true;
   }
@@ -762,7 +815,7 @@ function hitArea(g, f, ox, oy, r, d, k, gr, ang, o) {
 
 function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   o = o || {};
-  if (v.star > 0 || v.inv > 0 || v.ig > 0) return false;
+  if (v.star > 0 || v.inv > 0 || v.ig > 0 || ally(g, a, v)) return false;
   const S = v.st === 'spc' && SP[v.sp];
   if (!o.fs && S && S.counter && v.ctrT === 0 && v.t >= S.counter[0] && v.t <= S.counter[1] && a) {
     v.ctr = a.i; v.ctrT = 1; v.inv = 24;
@@ -803,7 +856,7 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
     d *= v.big ? 0.65 : v.small ? 1.4 : 1;
     v.dm = Math.min(999, v.dm + d);
     if (a) { a.dealt += d; v.lastHit = a.i; v.lastHitT = g.frame; }
-    g.ev.push({ t: 'chip', x: v.x, y: v.y - v.h * 0.55, v: v.i });
+    v.taken = (v.taken || 0) + d; g.ev.push({ t: 'chip', x: v.x, y: v.y - v.h * 0.55, v: v.i });
     return true;
   }
   // a fighter caught in a grab is dropped when either of the two gets hit by someone else
@@ -813,7 +866,7 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   d *= v.big ? 0.65 : v.small ? 1.4 : 1;
   v.dm = Math.min(999, v.dm + d);
   if (a) { a.dealt += d; v.lastHit = a.i; v.lastHitT = g.frame; }
-  if (o.psn) v.psn = 210;
+  v.taken = (v.taken || 0) + d; if (o.psn) v.psn = 210; // (damage taken, for the scoreboard)
   // Emilia Toad's ice weapons chill: slower on the move for a while
   if (o.slow) v.slow = Math.max(v.slow || 0, o.slow);
   const wt = CH[v.ch].weight * (v.big ? 1.5 : 1) * (v.small ? 0.55 : 1) * (v.st === 'crouch' ? 1.18 : 1);
@@ -857,7 +910,7 @@ function staleMul(a, mv) {
 
 function reflect(g, f, x, y, rad) {
   for (const p of g.proj) {
-    if (p.o === f.i || p.k === 'minion' || p.k === 'trap' || p.k === 'fsdrop' || (p.k === 'icespear' && p.vic >= 0)) continue;
+    if (mineI(g, f.i, p.o) || p.k === 'minion' || p.k === 'trap' || p.k === 'fsdrop' || (p.k === 'icespear' && p.vic >= 0)) continue;
     if (Math.hypot(p.x - x, p.y - y) < rad) {
       p.o = f.i; p.vx = -p.vx * 1.1; p.vy = -Math.abs(p.vy) - 2; p.hits = {}; p.t = Math.min(p.t, 10);
       if (p.k === 'boom') p.dir0 = -p.dir0;
@@ -874,8 +927,8 @@ function blastAt(g, x, y, owner, r, d, k, gr, ang, extra) {
     if (circRect(x, y, r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) applyHit(g, v, a, d, k, gr, ang, v.x >= x ? 1 : -1, Object.assign({ proj: true }, extra));
   }
   // blasts crack Emilia Toad's ice and break her soldiers too
-  for (const s of g.ice.slice()) if (s.o !== owner && iceCircle(s, x, y, r)) hurtIce(g, s, d);
-  for (const q of g.proj) if (q.k === 'minion' && q.sub === 'icesoldier' && q.o !== owner && q.hp > 0 && circRect(x, y, r, q.x - 15, q.y - 52, 30, 52)) hurtSoldier(g, q, q.x >= x ? 1 : -1);
+  for (const s of g.ice.slice()) if (!mineI(g, owner, s.o) && iceCircle(s, x, y, r)) hurtIce(g, s, d);
+  for (const q of g.proj) if (q.k === 'minion' && q.sub === 'icesoldier' && !mineI(g, owner, q.o) && q.hp > 0 && circRect(x, y, r, q.x - 15, q.y - 52, 30, 52)) hurtSoldier(g, q, q.x >= x ? 1 : -1);
 }
 
 // (`quiet`: no firing sound of its own, for shots fired in a bunch)
@@ -964,7 +1017,7 @@ function updateProj(g) {
       if (iced) { kill = true; boom = true; }
       for (const v of g.fighters) {
         if (iced) break;
-        if (v.i === p.o || !hittable(v)) continue;
+        if (mineI(g, p.o, v.i) || !hittable(v)) continue;
         if (p.hits[v.i] !== undefined && (!p.every || g.frame - p.hits[v.i] < p.every)) continue;
         if (circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) {
           p.hits[v.i] = g.frame;
@@ -1035,7 +1088,7 @@ function updTrap(g, p) {
   // Catholic Toad's piñata: the first foe to bump into it bursts it open, and candy flies everywhere
   if (p.sub === 'pinata') {
     for (const v of g.fighters) {
-      if (v.i === p.o || !hittable(v) || !circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
+      if (mineI(g, p.o, v.i) || !hittable(v) || !circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
       applyHit(g, v, fighterBy(g, p.o), 9 * p.pm, 9, 0.12, 80, v.x >= p.x ? 1 : -1, { proj: true });
       g.ev.push({ t: 'candy', x: p.x, y: p.y });
       return true;
@@ -1043,7 +1096,7 @@ function updTrap(g, p) {
     return false;
   }
   for (const v of g.fighters) {
-    if (v.i === p.o || !hittable(v)) continue;
+    if (mineI(g, p.o, v.i) || !hittable(v)) continue;
     if (Math.abs(v.x - p.x) > p.r + v.w / 2 || v.y < p.y - 30 || v.y > p.y + 8) continue;
     const own = fighterBy(g, p.o);
     if (p.sub === 'rune') {
@@ -1086,7 +1139,7 @@ function updTrap(g, p) {
 
 function minionTouch(g, p, d, kb, gr, ang, every) {
   for (const v of g.fighters) {
-    if (v.i === p.o || !hittable(v)) continue;
+    if (mineI(g, p.o, v.i) || !hittable(v)) continue;
     const last = p.hits[v.i];
     if (last !== undefined && (!every || g.frame - last < every)) continue;
     if (circRect(p.x, p.y - 22, 24, v.x - v.w / 2, v.y - v.h, v.w, v.h)) {
@@ -1121,7 +1174,7 @@ function updMinion(g, p) {
   } else if (p.sub === 'hint') {
     p.vx = 0;
     for (const q of g.proj) {
-      if (q === p || q.o === p.o || q.k === 'minion' || q.k === 'trap') continue;
+      if (q === p || mineI(g, p.o, q.o) || q.k === 'minion' || q.k === 'trap') continue;
       if (Math.abs(q.x - p.x) < 28 && q.y > p.y - 70 && q.y < p.y + 4) { q.t = q.life + 1; g.ev.push({ t: 'reflect', x: q.x, y: q.y }); }
     }
     minionTouch(g, p, 2, 8, 0.02, 35, 40);
@@ -1145,7 +1198,7 @@ function updateItems(g) {
       if (it.x > s.x + s.w + 40) it.vx = -Math.abs(it.vx) - 0.3;
       if (it.y < -430) it.vy = Math.abs(it.vy) + 0.2;
       if (it.y > -80) it.vy = -Math.abs(it.vy) - 0.2;
-      if (it.t > it.life) { g.items.splice(n, 1); g.sbT = g.itemsOn === 'smash' ? 300 + RND() * 300 : 1200 + RND() * 900; g.ev.push({ t: 'sbgone', x: it.x, y: it.y }); }
+      if (it.t > it.life) { g.items.splice(n, 1); g.sbT = smashGap(g.itemsOn, 'gone'); g.ev.push({ t: 'sbgone', x: it.x, y: it.y }); }
       continue;
     }
     it.vy = Math.min((it.vy || 0) + 0.5, 10);
@@ -1175,7 +1228,7 @@ function hitSmash(g, it, a, dir) {
   a.fs = 1;
   const idx = g.items.indexOf(it);
   if (idx >= 0) g.items.splice(idx, 1);
-  g.sbT = g.itemsOn === 'smash' ? 720 + RND() * 480 : 2400 + RND() * 1200;
+  g.sbT = smashGap(g.itemsOn, 'used');
   g.ev.push({ t: 'fsready', i: a.i, ch: a.ch, x: it.x, y: it.y });
 }
 
@@ -1480,7 +1533,7 @@ function fsLaunch(g, f) {
   g.ev.push({ t: 'fsgo', k: D.k, sub: e.sub, i: f.i, x: f.x, y: f.y });
 }
 
-function fsFoes(g, e) { return g.fighters.filter(v => v.i !== e.o && alive(v) && v.rp <= 0); }
+function fsFoes(g, e) { return g.fighters.filter(v => !mineI(g, e.o, v.i) && alive(v) && v.rp <= 0); }
 function fsHit(g, e, v, d, k, gr, ang, dir, extra) {
   if (v.inv > 0 && v.rp > 0) return;
   v.inv = 0; v.ig = 0;
@@ -1545,7 +1598,7 @@ const FXU = {
   // Emilia. Nothing stops it, not even Emilia getting KO'd or knocked out of the match. Then the beast sinks away
   // and Puck comes back (if she's still in the match)
   beast(g, e, own) {
-    const B = BEAST, foes = g.fighters.filter(v => v.i !== e.o && alive(v));
+    const B = BEAST, foes = g.fighters.filter(v => !mineI(g, e.o, v.i) && alive(v));
     if (own) own.noPk = 1; // (Puck is the beast now; if she gets KO'd, she comes back without him until it's over)
     if (e.t === 1) g.ev.push({ t: 'puckgone', i: e.o, x: own ? own.pkx : e.ox, y: own ? own.pky : e.oy - 80 });
     if (e.t === B.rise) g.ev.push({ t: 'beastrise', x: e.x, y: e.y });
@@ -1909,7 +1962,7 @@ function spPulse(o) {
       if (o.reflect && f.t >= o.reflect[0] && f.t <= o.reflect[1]) reflect(g, f, f.x, f.y - f.h * 0.5, 54);
       if (o.pull && f.t >= o.pull[0] && f.t < o.pull[1]) {
         for (const v of g.fighters) {
-          if (v === f || !hittable(v)) continue;
+          if (v === f || ally(g, f, v) || !hittable(v)) continue;
           const dx = f.x - v.x, dy = f.y - f.h / 2 - (v.y - v.h / 2), L = Math.hypot(dx, dy);
           if (L < o.pr && L > 14) { v.vx = clamp(v.vx + (dx / L) * 1.1, -8, 8); v.vy = clamp(v.vy + (dy / L) * 0.8, -8, 8); }
         }
@@ -1972,7 +2025,7 @@ function spTether(o) {
         // off the stage, the line hooks the ledge instead
         if (o.ledge && !c.onG && tetherLedge(g, f, Math.min(ext + 30 * f.sc, o.ledge * f.sc))) return 0;
         for (const v of g.fighters) {
-          if (v === f || !hittable(v)) continue;
+          if (v === f || ally(g, f, v) || !hittable(v)) continue;
           const dx = (v.x - f.x) * f.fc;
           if (dx < -10 || dx > ext + v.w / 2 || Math.abs(v.y - v.h / 2 - cy) > v.h / 2 + 16) continue;
           f.ctr = v.i; f.t2 = f.t; fsHold(v, v.x, v.y);
@@ -2106,7 +2159,7 @@ function fireVolley(g, f) {
 function pelTarget(g, p) {
   let best = null, bd = 1e9;
   for (const v of g.fighters) {
-    if (v.i === p.o || !alive(v) || v.rp > 0) continue;
+    if (mineI(g, p.o, v.i) || !alive(v) || v.rp > 0) continue;
     const d = Math.hypot(v.x - p.x, v.y - v.h / 2 - p.y);
     if (d < bd) { bd = d; best = v; }
   }
@@ -2194,7 +2247,7 @@ function updSpear(g, p, iceOut) {
     for (const s of g.surf) if (s.solid && !s.noLedge && p.x > s.x && p.x < s.x + s.w && p.y > s.y + 2 && p.y < s.y + s.h) { g.ev.push({ t: 'spearburst', x: p.x, y: p.y }); return true; }
     if (iceOut && shotVsIce(g, p)) { g.ev.push({ t: 'spearburst', x: p.x, y: p.y }); return true; }
     for (const v of g.fighters) {
-      if (v.i === p.o || !hittable(v) || !circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
+      if (mineI(g, p.o, v.i) || !hittable(v) || !circRect(p.x, p.y, p.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
       // a shield or a counter stops it cold
       if (!applyHit(g, v, own, p.d, 1, 0, 0, dir, { proj: true, mv: 'p:icespear', use: 'p' + p.id })) { g.ev.push({ t: 'spearburst', x: p.x, y: p.y }); return true; }
       p.vic = v.i; p.ct = 0; p.vx = dir * 7; p.life = p.t + 90;
@@ -2255,7 +2308,7 @@ function breakIce(g, s) {
 // an ice barrier standing between an attacker and their target takes the blow (Emilia's own blows pass)
 function iceShield(g, a, v) {
   for (const s of g.ice) {
-    if (s.k !== 'barrier' || s.o === a.i) continue;
+    if (s.k !== 'barrier' || mineI(g, a.i, s.o)) continue;
     for (const R of iceRects(s)) if (segRect(a.x, a.y - a.h * 0.5, v.x, v.y - v.h * 0.5, R.x, R.y, R.x + R.w, R.y + R.h) >= 0) return s;
   }
   return null;
@@ -2263,12 +2316,12 @@ function iceShield(g, a, v) {
 // a shot that runs into a foe's ice or ice soldier damages it (and stops, unless it pierces)
 function shotVsIce(g, p) {
   for (const s of g.ice) {
-    if (s.o === p.o || p.hits['ice' + s.id] !== undefined || !iceCircle(s, p.x, p.y, p.r)) continue;
+    if (mineI(g, p.o, s.o) || p.hits['ice' + s.id] !== undefined || !iceCircle(s, p.x, p.y, p.r)) continue;
     p.hits['ice' + s.id] = g.frame; hurtIce(g, s, p.d);
     return !p.pierce;
   }
   for (const q of g.proj) {
-    if (q.k !== 'minion' || q.sub !== 'icesoldier' || q.o === p.o || q.hp <= 0 || p.hits['m' + q.id] !== undefined) continue;
+    if (q.k !== 'minion' || q.sub !== 'icesoldier' || mineI(g, p.o, q.o) || q.hp <= 0 || p.hits['m' + q.id] !== undefined) continue;
     if (!circRect(p.x, p.y, p.r, q.x - 15, q.y - 52, 30, 52)) continue;
     p.hits['m' + q.id] = g.frame; hurtSoldier(g, q, p.vx >= 0 ? 1 : -1);
     return !p.pierce;
@@ -2315,7 +2368,7 @@ function hurtSoldier(g, q, dir) {
 function soldierTarget(g, p) {
   let best = null, bd = 1000;
   for (const v of g.fighters) {
-    if (v.i === p.o || !alive(v) || v.rp > 0) continue;
+    if (mineI(g, p.o, v.i) || !alive(v) || v.rp > 0) continue;
     const d = Math.abs(v.x - p.x) + Math.abs(v.y - p.y) * 0.7;
     if (d < bd) { bd = d; best = v; }
   }
@@ -2324,15 +2377,15 @@ function soldierTarget(g, p) {
 function soldierStrike(g, p, own, n, h) {
   const cx = p.x + h.x * p.fc, cy = p.y + h.y, key = n + ':';
   for (const v of g.fighters) {
-    if (v.i === p.o || !hittable(v) || p.hm[key + v.i] || !circRect(cx, cy, h.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
+    if (mineI(g, p.o, v.i) || !hittable(v) || p.hm[key + v.i] || !circRect(cx, cy, h.r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) continue;
     p.hm[key + v.i] = 1; p.lhT = 30; // (so it can chase a foe it just launched)
     applyHit(g, v, own, h.d * p.pm, h.k, h.g, h.ang, p.fc, { proj: true });
   }
   for (const q of g.proj) {
-    if (q === p || !isSoldier(q) || q.o === p.o || p.hm[key + 'm' + q.id] || !circRect(cx, cy, h.r, q.x - 15, q.y - 52, 30, 52)) continue;
+    if (q === p || !isSoldier(q) || mineI(g, p.o, q.o) || p.hm[key + 'm' + q.id] || !circRect(cx, cy, h.r, q.x - 15, q.y - 52, 30, 52)) continue;
     p.hm[key + 'm' + q.id] = 1; hurtSoldier(g, q, p.fc);
   }
-  for (const s of g.ice.slice()) if (s.o !== p.o && !p.hm[key + 'i' + s.id] && iceCircle(s, cx, cy, h.r)) { p.hm[key + 'i' + s.id] = 1; hurtIce(g, s, h.d * p.pm); }
+  for (const s of g.ice.slice()) if (!mineI(g, p.o, s.o) && !p.hm[key + 'i' + s.id] && iceCircle(s, cx, cy, h.r)) { p.hm[key + 'i' + s.id] = 1; hurtIce(g, s, h.d * p.pm); }
 }
 // a soldier's body: gravity, then the ground, platforms (it can drop through soft ones) and walls. Emilia's ice
 // pillars and barriers only hold it up from above, like platforms, so it never gets stuck against them
@@ -2361,12 +2414,12 @@ function soldierPhysics(g, p) {
 // answers with the side the danger comes from (-1 left, 1 right), or 0 when it's safe
 function soldierThreat(g, p) {
   for (const v of g.fighters) {
-    if (v.i === p.o || !alive(v) || v.rp > 0) continue;
+    if (mineI(g, p.o, v.i) || !alive(v) || v.rp > 0) continue;
     const dx = p.x - v.x, busy = v.st === 'atk' || v.st === 'charge' || v.st === 'grab' || (v.st === 'spc' && v.t < 20);
     if (busy && Math.abs(dx) < 90 && Math.abs(v.y - p.y) < 70 && dx * v.fc >= 0) return dx > 0 ? -1 : 1;
   }
   for (const q of g.proj) {
-    if (q.o === p.o || q.k === 'minion' || !(q.d > 0) || Math.abs(q.vx) < 1) continue;
+    if (mineI(g, p.o, q.o) || q.k === 'minion' || !(q.d > 0) || Math.abs(q.vx) < 1) continue;
     const dx = p.x - q.x, dy = p.y - 26 - q.y;
     if (Math.abs(dy) < 46 && Math.abs(dx) < 130 && dx * q.vx > 0) return dx > 0 ? -1 : 1;
   }
@@ -2708,7 +2761,7 @@ const SP = {
       if (f.t === 10) {
         g.ev.push({ t: 'flash', x: f.x + f.fc * 30, y: f.y - f.h * 0.85, dir: f.fc });
         for (const v of g.fighters) {
-          if (v === f || !hittable(v)) continue;
+          if (v === f || ally(g, f, v) || !hittable(v)) continue;
           const dx = (v.x - f.x) * f.fc, dy = Math.abs(v.y - v.h / 2 - (f.y - f.h * 0.75));
           if (dx > 0 && dx < 200 && dy < 34 + dx * 0.45) applyHit(g, v, f, 3 * f.pm, 1, 0, 30, f.fc, { daze: 55 });
         }
@@ -3149,12 +3202,15 @@ const FKEYS = ['i', 'ch', 'nm', 'tag', 'fc', 'st', 't', 'at', 'sp', 'sk', 'h', '
   // Emilia Toad: Puck's position and paw-raise timer, the ice weapon in her hand, the chill on a foe, and her cooldowns
   'pkx', 'pky', 'pkt', 'wpn', 'slow', 'cd',
   // how frozen a fighter is in the Beast of the End's storm (0 to 1)
-  'bfz'];
+  'bfz',
+  // team mode: which team a fighter is on (-1 = none)
+  'team'];
 const r1 = v => Math.round(v * 10) / 10;
 function snapshot(g, ev) {
   const Hz = g.haz;
   return {
     frame: g.frame, stage: g.stage, phase: g.phase, pt: g.pt, winner: g.winner, results: g.phase === 'over' ? g.results : null,
+    mode: g.mode, timeLeft: g.timeLeft, teams: g.teams, winTeam: g.winTeam,
     fighters: g.fighters.map(f => {
       const o = { x: r1(f.x), y: r1(f.y), dm: r1(f.dm), sc: Math.round(f.sc * 100) / 100 };
       for (const k of FKEYS) o[k] = f[k];

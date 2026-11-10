@@ -5,6 +5,8 @@ const cv = $('cv'), ctx = cv.getContext('2d');
 const STEP = 1000 / 60;
 // mode: 'start' (the press-start screen) -> 'title' (the main page) -> 'lobby' -> 'game'
 let mode = $('start') ? 'start' : 'title', role = 'local', G = null, paused = false, frameCount = 0, pendingEv = [], resultsShown = false, goT = 0;
+// online: the host paused the match for everyone (P, or Pause in the Esc menu)
+let hostPaused = false;
 let fsBanner = null; // the finale title card: { ch, i, t }
 const cam = { x: 0, y: -150, z: 0.8, shake: 0 };
 // origami 3D renderer when WebGL is available; the 2D vector renderer stays as a fallback
@@ -78,6 +80,8 @@ function loadKeys() {
 // keys that never count as "press start"
 const NOT_START = ['KeyM', 'Escape', 'Tab', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'CapsLock'];
 let rebinding = null; // Settings: { p, act, n } while waiting for the new key
+// the pause key, for local play and the host of an online room (changeable in Settings)
+let PAUSE_KEY = store('sst-pausekey') || 'KeyP';
 addEventListener('keydown', e => {
   Snd.init();
   if (rebinding) { e.preventDefault(); if (!e.repeat) setKey(e.code); return; }
@@ -87,6 +91,7 @@ addEventListener('keydown', e => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (e.code === 'Escape' && !e.repeat) onEsc();
   if (e.code === 'KeyM' && !e.repeat) toggleMute();
+  if (e.code === PAUSE_KEY && !e.repeat) togglePause();
 });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => { keys.clear(); tapped.clear(); });
@@ -135,7 +140,14 @@ function getBits(f) {
 }
 
 // ---------- Lobby state ----------
-const Lobby = { slots: [], stage: 'town', stocks: 3, items: true, hazards: true, music: 'shuffle', active: 0, mySlot: 0, bans: {}, banMode: false, need: 2 };
+// (rules: mode 'stock' or 'time' with `time` minutes, team mode, and opBan: OP / Early Access fighters turned off)
+const Lobby = { slots: [], stage: 'town', stocks: 3, items: true, hazards: true, music: 'shuffle', active: 0, mySlot: 0, bans: {}, banMode: false, need: 2,
+  mode: 'stock', time: 5, teams: false, opBan: false };
+const MAX_SLOTS = 8, TIMES = [3, 5, 10, 15];
+// items: everything, nothing, Smash Mushrooms only (now and then), or Hyper Smash (Smash Mushrooms very often)
+const ITEM_OPTS = [[true, 'On'], [false, 'Off'], ['smash', 'Smash only'], ['hyper', 'Hyper Smash only']];
+const itemsName = v => (ITEM_OPTS.find(o => o[0] === v) || ITEM_OPTS[0])[1];
+const nameOf = ch => (ch === 'random' ? 'Random' : (CH[ch] || CH.toad).name);
 // battle music: the four stage themes plus four extra fight tracks; "Shuffle" plays them all in a random order
 const BATTLE_SONGS = ['funk', 'hop', 'turbo', 'jazz', 'town', 'diorama', 'turnpike', 'gorge'];
 const MUSIC_OPTS = [['shuffle', 'Shuffle'], ['stage', 'Stage theme'], ['funk', 'Spore Funk'], ['hop', 'Toad Hop'], ['turbo', 'Turbo Toad'], ['jazz', 'Shroom Session'],
@@ -151,13 +163,20 @@ function battleOrder(stage) {
 }
 { const m = store('sst-music'); if (MUSIC_OPTS.some(o => o[0] === m)) Lobby.music = m; }
 let myChar = store('sst-char') || 'toad';
-if (!CH[myChar]) myChar = 'toad';
+if (!CH[myChar] && myChar !== 'random') myChar = 'toad';
+// eight player slots; each one starts on its own team (Red, Blue, Yellow, Green, then round again)
+const SLOT_PICKS = ['toadette', 'captain', 'yoshi', 'toadsworth', 'blue', 'yellow', 'green'];
+function blankSlots(first) {
+  const s = [Object.assign({ team: 0 }, first)];
+  for (let k = 1; k < MAX_SLOTS; k++) s.push({ type: 'off', ch: SLOT_PICKS[k - 1], lvl: 2, team: k % 4 });
+  return s;
+}
 function localDefaults() {
-  Lobby.slots = [{ type: 'p1', ch: myChar, lvl: 2 }, { type: 'cpu', ch: 'toadette', lvl: 2 }, { type: 'off', ch: 'captain', lvl: 2 }, { type: 'off', ch: 'yoshi', lvl: 2 }];
+  Lobby.slots = blankSlots({ type: 'p1', ch: myChar, lvl: 2 }); Lobby.slots[1].type = 'cpu';
   Lobby.active = 0; Lobby.mySlot = 0; Lobby.bans = {}; Lobby.banMode = false;
 }
 function hostDefaults() {
-  Lobby.slots = [{ type: 'host', ch: myChar, lvl: 2 }, { type: 'off', ch: 'toadette', lvl: 2 }, { type: 'off', ch: 'captain', lvl: 2 }, { type: 'off', ch: 'yoshi', lvl: 2 }];
+  Lobby.slots = blankSlots({ type: 'host', ch: myChar, lvl: 2 });
   Lobby.active = 0; Lobby.mySlot = 0; Lobby.bans = {}; Lobby.banMode = false;
 }
 
@@ -167,7 +186,9 @@ function hostDefaults() {
 // Lobby.bans = { fighter id: voters }. On the host the voters are guest connection ids; guests get slot numbers
 // instead, so each guest can see its own vote.
 const MIN_FIGHTERS = 4; // the host can't ban the roster below this many fighters
-const isBanned = id => !!(Lobby.bans && Lobby.bans[id]);
+// the host (or local play) can also turn off every fighter tagged OP or Early Access, in Modes & Modifiers
+const tagBanned = id => !!(Lobby.opBan && CH[id] && CH[id].badge);
+const isBanned = id => !!(Lobby.bans && Lobby.bans[id]) || tagBanned(id);
 function humansInRoom() { return Lobby.slots.filter(s => s.type === 'host' || s.type === 'net').length; }
 function unbanNeed() { return role === 'client' ? Lobby.need : Math.floor(humansInRoom() / 2) + 1; }
 function firstAllowed(pref) {
@@ -177,7 +198,8 @@ function firstAllowed(pref) {
 }
 function toggleBan(id) {
   if (role !== 'host' || !CH[id]) return;
-  if (isBanned(id)) {
+  if (tagBanned(id) && !Lobby.bans[id]) { Snd.play('block'); toast('OP and Early Access fighters are off. Turn them back on in Modes & Modifiers.'); return; }
+  if (Lobby.bans[id]) {
     delete Lobby.bans[id];
     Snd.play('grow'); toast(CH[id].name + ' is unbanned.');
     netBroadcast({ t: 'ban', ch: id, how: 'unban' });
@@ -206,7 +228,7 @@ function checkUnbans() {
 }
 // guest: clicking a banned fighter adds (or takes back) your vote to unban it
 function voteUnban(id) {
-  if (role !== 'client' || !isBanned(id)) return;
+  if (role !== 'client' || !Lobby.bans[id]) return;
   const v = Lobby.bans[id], i = v.indexOf(Lobby.mySlot);
   if (i >= 0) v.splice(i, 1); else v.push(Lobby.mySlot); // shown right away; the host's next update has the real count
   Snd.play('select');
@@ -268,6 +290,15 @@ function buildRoster() {
     d.onmouseleave = () => showCharInfo(null);
     r.appendChild(d);
   }
+  // the Random pick: a surprise fighter when the match starts
+  const rd = el('div', 'rc rand'); rd.dataset.ch = 'random';
+  const rc = document.createElement('canvas'); rc.width = rc.height = 130;
+  rc.getContext('2d').drawImage(portrait('random', 130), 0, 0);
+  rd.appendChild(rc); rd.appendChild(el('div', 'nm', 'Random')); rd.appendChild(el('div', 'pips'));
+  rd.onclick = () => pickChar('random');
+  rd.onmouseenter = () => showCharInfo('random');
+  rd.onmouseleave = () => showCharInfo(null);
+  r.appendChild(rd);
   const st = $('stages');
   st.innerHTML = '';
   for (const S of STAGES) {
@@ -282,7 +313,8 @@ function buildRoster() {
 
 function pickChar(id) {
   // ban mode: the host's clicks ban and unban fighters instead of picking them
-  if (role === 'host' && Lobby.banMode) { toggleBan(id); return; }
+  if (role === 'host' && Lobby.banMode) { if (id !== 'random') toggleBan(id); return; }
+  if (tagBanned(id)) { Snd.play('block'); toast(`${CH[id].name} is ${CH[id].badge === 'op' ? 'OP' : 'Early Access'}, and those fighters are turned off for this match.`); return; }
   if (isBanned(id)) {
     if (role === 'client') { voteUnban(id); return; }
     Snd.play('block'); toast(CH[id].name + ' is banned. Click "Ban fighters" to unban them.');
@@ -292,16 +324,25 @@ function pickChar(id) {
   if (!canEditChar(k)) return;
   Lobby.slots[k].ch = id;
   if (k === Lobby.mySlot || (role === 'local' && Lobby.slots[k].type === 'p1')) { myChar = id; store('sst-char', id); }
-  Snd.play('select'); voiceLine(90 + k, id, 'pick');
+  Snd.play('select'); if (CH[id]) voiceLine(90 + k, id, 'pick');
   if (role === 'client') netSend({ t: 'pick', ch: id });
   lobbyChanged();
 }
 
 function showCharInfo(id) {
-  const s = Lobby.slots[role === 'client' ? Lobby.mySlot : Lobby.active];
-  const C = CH[id || (s && s.ch) || 'toad'];
+  const s = Lobby.slots[role === 'client' ? Lobby.mySlot : Lobby.active], show = id || (s && s.ch) || 'toad';
   const box = $('charInfo');
   box.innerHTML = '';
+  if (show === 'random') {
+    box.classList.remove('hasBadge');
+    box.appendChild(el('h3', '', 'Random'));
+    box.appendChild(el('div', '', 'A surprise! You get a random fighter when the match starts (never a banned one).'));
+    return;
+  }
+  const C = CH[show] || CH.toad;
+  box.classList.toggle('hasBadge', !!C.badge);
+  // OP and Early Access fighters get a flashy tag at the far right of their description
+  if (C.badge) { const b = el('div', 'badge ' + C.badge, C.badge === 'op' ? 'OP' : 'EARLY ACCESS'); b.title = C.badge === 'op' ? 'Overpowered: stronger than the rest, on purpose' : 'Early Access: new, and still being balanced'; box.appendChild(b); }
   box.appendChild(el('h3', '', C.name));
   box.appendChild(el('div', '', C.blurb));
   // (Emilia Toad's Attack button is her ice volley, and Puck fights on his own)
@@ -344,13 +385,15 @@ function renderLobby() {
     Lobby.slots.forEach((s, k) => {
       if (s.type !== 'off' && s.ch === d.dataset.ch) { const p = el('i', '', String(k + 1)); p.style.background = SLOT_COLORS[k]; pips.appendChild(p); }
     });
-    const v = Lobby.bans[d.dataset.ch];
+    const v = Lobby.bans[d.dataset.ch], tb = !v && tagBanned(d.dataset.ch);
     let tag = d.querySelector('.ban');
-    d.classList.toggle('banned', !!v);
-    d.title = !v ? '' : role === 'client' ? 'Banned by the host: click to vote to unban' : 'Banned: unban with "Ban fighters"';
-    if (!v) { if (tag) tag.remove(); continue; }
+    d.classList.toggle('banned', !!v || tb);
+    d.title = tb ? 'Turned off in Modes & Modifiers' : !v ? '' : role === 'client' ? 'Banned by the host: click to vote to unban' : 'Banned: unban with "Ban fighters"';
+    if (!v && !tb) { if (tag) tag.remove(); continue; }
     if (!tag) { tag = el('div', 'ban'); d.appendChild(tag); }
     tag.innerHTML = '';
+    // (OP / Early Access fighters turned off for the match: no votes, just a stamp)
+    if (tb) { tag.appendChild(el('span', '', CH[d.dataset.ch].badge === 'op' ? 'OP' : 'EARLY')); tag.appendChild(el('small', '', 'turned off')); continue; }
     const mine = role === 'client' && v.includes(Lobby.mySlot);
     tag.appendChild(el('span', '', 'BANNED'));
     tag.appendChild(el('small', mine ? 'mine' : '', `Unban votes ${v.length}/${unbanNeed()}`));
@@ -362,7 +405,8 @@ function renderLobby() {
   box.innerHTML = '';
   Lobby.slots.forEach((s, k) => {
     const d = el('div', 'slot' + (s.type === 'off' ? ' off' : '') + (k === (role === 'client' ? Lobby.mySlot : Lobby.active) ? ' active' : ''));
-    d.style.borderColor = SLOT_COLORS[k];
+    const tcol = Lobby.teams ? TEAM_COLORS[s.team | 0] : SLOT_COLORS[k];
+    d.style.borderColor = tcol;
     const c2 = document.createElement('canvas'); c2.width = c2.height = 96;
     const cc = c2.getContext('2d');
     if (s.type === 'off') { cc.fillStyle = '#3a2d48'; cc.fillRect(0, 0, 96, 96); txt(cc, '?', 48, 66, 54, '#6b5a80', null); }
@@ -370,14 +414,23 @@ function renderLobby() {
     d.appendChild(c2);
     const info = el('div', 'info');
     const streak = role === 'client' ? s.streak | 0 : s.type !== 'off' ? streakOf(k) : 0;
-    const who = el('div', 'who', slotLabel(s, k) + (streak >= 2 ? '  🔥' + streak : '')); who.style.color = SLOT_COLORS[k];
+    const who = el('div', 'who', slotLabel(s, k) + (streak >= 2 ? '  🔥' + streak : '')); who.style.color = tcol;
     if (streak >= 2) who.title = streak + ' wins in a row';
     info.appendChild(who);
-    info.appendChild(el('div', 'cn', s.type === 'off' ? (role === 'local' ? 'Not playing' : 'Friends can join here') : CH[s.ch].name));
+    info.appendChild(el('div', 'cn', s.type === 'off' ? (role === 'local' ? 'Not playing' : 'Friends can join here') : nameOf(s.ch)));
     const row = el('div', 'row');
     if (canChangeType(k)) row.appendChild(btn(s.type === 'off' ? 'Add' : 'Change', 'gray', () => cycleType(k)));
-    if (s.type === 'cpu' && canChangeType(k)) row.appendChild(btn('Lv ' + s.lvl, 'blue', () => { s.lvl = (s.lvl % 3) + 1; lobbyChanged(); }));
-    else if (s.type === 'cpu') row.appendChild(el('div', 'cn', 'Level ' + s.lvl));
+    // CPU level 1 to 3, then a Dummy that never moves or attacks
+    const lvName = s.lvl === 0 ? 'Dummy' : 'Lv ' + s.lvl;
+    if (s.type === 'cpu' && canChangeType(k)) row.appendChild(btn(lvName, 'blue', () => { s.lvl = s.lvl === 3 ? 0 : s.lvl === 0 ? 1 : (s.lvl | 0) + 1; lobbyChanged(); }));
+    else if (s.type === 'cpu') row.appendChild(el('div', 'cn', s.lvl === 0 ? 'Dummy' : 'Level ' + s.lvl));
+    // team mode: the slot's team (click to switch)
+    if (Lobby.teams && s.type !== 'off') {
+      const t = s.team | 0, mine = role === 'local' || role === 'host' || k === Lobby.mySlot;
+      const tb = btn(TEAM_NAMES[t], 'team', () => { if (mine) cycleTeam(k); });
+      tb.style.background = TEAM_COLORS[t]; tb.disabled = !mine; tb.title = mine ? 'Click to switch teams' : TEAM_NAMES[t] + ' team';
+      row.appendChild(tb);
+    }
     // the host can remove an online guest from the room
     if (role === 'host' && s.type === 'net') row.appendChild(btn('Kick', '', () => kickPlayer(k)));
     info.appendChild(row);
@@ -386,41 +439,84 @@ function renderLobby() {
     box.appendChild(d);
   });
   for (const d of $('stages').children) d.classList.toggle('sel', d.dataset.st === Lobby.stage);
-  $('optStocks').textContent = Lobby.stocks;
-  $('optItems').textContent = Lobby.items === 'smash' ? 'SMASH ONLY' : Lobby.items ? 'ON' : 'OFF';
-  $('optItems').className = 'btn sm ' + (Lobby.items === 'smash' ? 'yellow' : Lobby.items ? 'green' : 'gray');
-  $('optItems').title = Lobby.items === 'smash' ? 'Only Smash Mushrooms show up, and much more often' : Lobby.items ? 'All items' : 'No items';
-  $('optHaz').textContent = Lobby.hazards ? 'ON' : 'OFF';
-  $('optHaz').className = 'btn sm ' + (Lobby.hazards ? 'green' : 'gray');
-  $('optMusic').textContent = musicName(Lobby.music);
+  // the lobby panel: stocks (or the match length) and a line with the rest of the rules
+  $('optCountL').textContent = Lobby.mode === 'time' ? 'Time' : 'Stocks';
+  $('optStocks').textContent = Lobby.mode === 'time' ? Lobby.time + ' min' : Lobby.stocks;
+  $('ruleSum').textContent = ruleSummary();
+  renderRules();
   for (const b of document.querySelectorAll('[data-opt]')) b.disabled = role === 'client';
   $('lbStart').classList.toggle('hidden', role === 'client');
   $('lbWait').classList.toggle('hidden', role !== 'client');
   $('lbStart').disabled = !Lobby.slots.some(s => s.type !== 'off');
   showCharInfo(null);
 }
-for (const b of document.querySelectorAll('[data-opt]')) {
-  b.addEventListener('click', () => {
-    if (role === 'client') return;
-    const o = b.dataset.opt;
-    if (o === 'stocks-') Lobby.stocks = Math.max(1, Lobby.stocks - 1);
-    if (o === 'stocks+') Lobby.stocks = Math.min(9, Lobby.stocks + 1);
-    // items: on -> Smash Mushrooms only -> off
-    if (o === 'items') Lobby.items = Lobby.items === true ? 'smash' : Lobby.items === 'smash' ? false : true;
-    if (o === 'hazards') Lobby.hazards = !Lobby.hazards;
-    if (o === 'music') {
-      const i = MUSIC_OPTS.findIndex(m => m[0] === Lobby.music);
-      Lobby.music = MUSIC_OPTS[(i + 1) % MUSIC_OPTS.length][0];
+// ---------- Modes & Modifiers ----------
+// every rule button says what it sets in data-opt: 'count-' / 'count+' (stocks, or the match length), 'mode:time',
+// 'time:5', 'teams:on', 'items:hyper', 'haz:off', 'music' / 'music-', 'op:off' (OP and Early Access fighters off)
+function setOpt(o) {
+  if (role === 'client') return;
+  const [k, v] = o.split(':'), ti = TIMES.indexOf(Lobby.time);
+  switch (k) {
+    case 'count-': if (Lobby.mode === 'time') Lobby.time = TIMES[Math.max(0, ti - 1)]; else Lobby.stocks = Math.max(1, Lobby.stocks - 1); break;
+    case 'count+': if (Lobby.mode === 'time') Lobby.time = TIMES[Math.min(TIMES.length - 1, ti + 1)]; else Lobby.stocks = Math.min(9, Lobby.stocks + 1); break;
+    case 'mode': Lobby.mode = v === 'time' ? 'time' : 'stock'; break;
+    case 'time': Lobby.time = TIMES.includes(+v) ? +v : 5; break;
+    case 'teams': Lobby.teams = v === 'on'; break;
+    case 'items': Lobby.items = v === 'on' ? true : v === 'off' ? false : v; break;
+    case 'haz': Lobby.hazards = v === 'on'; break;
+    case 'music': case 'music-': {
+      const i = MUSIC_OPTS.findIndex(m => m[0] === Lobby.music), n = MUSIC_OPTS.length;
+      Lobby.music = MUSIC_OPTS[(i + (k === 'music' ? 1 : n - 1)) % n][0];
       store('sst-music', Lobby.music);
+      break;
     }
-    Snd.play('select');
-    lobbyChanged();
-  });
+    case 'op':
+      Lobby.opBan = v === 'off';
+      if (Lobby.opBan) for (const s of Lobby.slots) if (tagBanned(s.ch)) s.ch = firstAllowed();
+      break;
+  }
+  Snd.play('select');
+  lobbyChanged();
+}
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-opt]'); if (b && !b.disabled) setOpt(b.dataset.opt); });
+function ruleSummary() {
+  const p = [Lobby.mode === 'time' ? `Timed (${Lobby.time} min)` : 'Stock'];
+  if (Lobby.teams) p.push('Teams');
+  p.push('Items: ' + itemsName(Lobby.items), 'Hazards ' + (Lobby.hazards ? 'on' : 'off'), 'Music: ' + musicName(Lobby.music));
+  if (Lobby.opBan) p.push('No OP / Early Access');
+  return p.join('  ·  ');
+}
+// the Modes & Modifiers box: light up the picked choices
+function renderRules() {
+  const box = $('rules');
+  if (!box) return;
+  for (const b of box.querySelectorAll('[data-opt]')) {
+    const [k, v] = b.dataset.opt.split(':');
+    if (v === undefined) continue;
+    const on = k === 'mode' ? Lobby.mode === v : k === 'time' ? Lobby.time === +v : k === 'teams' ? Lobby.teams === (v === 'on')
+      : k === 'items' ? Lobby.items === (v === 'on' ? true : v === 'off' ? false : v) : k === 'haz' ? Lobby.hazards === (v === 'on') : k === 'op' ? Lobby.opBan === (v === 'off') : false;
+    b.classList.toggle('on', on);
+  }
+  $('ruleCountL').textContent = Lobby.mode === 'time' ? 'Match length' : 'Stocks';
+  $('ruleStockRow').classList.toggle('hidden', Lobby.mode === 'time');
+  $('ruleTimeRow').classList.toggle('hidden', Lobby.mode !== 'time');
+  $('ruleStocks').textContent = Lobby.stocks;
+  $('ruleMusic').textContent = musicName(Lobby.music);
+  $('ruleOpList').textContent = ['op', 'ea'].map(t => `${t === 'op' ? 'OP' : 'Early Access'}: ${CHARS.filter(C => C.badge === t).map(C => C.name).join(', ') || 'none'}`).join('  ·  ');
+  $('ruleGuest').classList.toggle('hidden', role !== 'client');
+}
+function cycleTeam(k) {
+  const s = Lobby.slots[k];
+  if (!s) return;
+  s.team = ((s.team | 0) + 1) % 4;
+  Snd.play('select');
+  if (role === 'client') { netSend({ t: 'team', team: s.team }); renderLobby(); return; }
+  lobbyChanged();
 }
 
 function showScreen(id) {
   for (const s of ['start', 'title', 'lobby']) if ($(s)) $(s).classList.toggle('hidden', s !== id);
-  for (const s of ['pause', 'results']) $(s).classList.add('hidden');
+  for (const s of ['pause', 'results', 'rules']) $(s).classList.add('hidden');
   setTimeout(autoFit, 0);
 }
 // all the way back to the main page (where you host, join with a code, or start local play), leaving any online room
@@ -448,6 +544,9 @@ function toTitle(msg) {
 // ---------- Match flow ----------
 function buildCfg() {
   const hasP2 = Lobby.slots.some(s => s.type === 'p2');
+  // Random picks get their surprise fighter now (never a banned one)
+  const pool = CHARS.filter(C => !isBanned(C.id)).map(C => C.id);
+  const pickFor = ch => (ch === 'random' ? pool[Math.floor(Math.random() * pool.length)] || 'toad' : isBanned(ch) || !CH[ch] ? firstAllowed() : ch);
   const slots = Lobby.slots.map((s, k) => {
     if (s.type === 'off') return null;
     let ctrl, tag;
@@ -457,9 +556,9 @@ function buildCfg() {
     } else if (s.type === 'host') { ctrl = 'any'; tag = myName(); }
     else if (s.type === 'net') { ctrl = 'net'; tag = s.name || 'Player'; }
     else { ctrl = 'cpu'; tag = 'CPU'; }
-    return { slot: k, ch: isBanned(s.ch) ? firstAllowed() : s.ch, name: tag, tag, ctrl, pid: s.pid, lvl: s.lvl };
+    return { slot: k, ch: pickFor(s.ch), name: tag, tag, ctrl, pid: s.pid, lvl: s.lvl, team: Lobby.teams ? s.team | 0 : -1 };
   });
-  return { stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, slots };
+  return { stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, mode: Lobby.mode, time: Lobby.time, teams: Lobby.teams, slots };
 }
 function enterGame(stage, songs) {
   mode = 'game'; paused = false; resultsShown = false; goT = 0;
@@ -467,10 +566,15 @@ function enterGame(stage, songs) {
   PT.length = 0;
   cam.x = 0; cam.y = -150; cam.z = 0.8; cam.shake = 0;
   for (const k in hudMem) delete hudMem[k];
+  for (const k in CDM) delete CDM[k];
+  for (const k in CDL) delete CDL[k];
   Snd.playlist(songs && songs.length ? songs : [stage], 100); Snd.duck(false);
 }
 function startMatch() {
-  Lobby.banMode = false;
+  // team mode needs players on at least two teams
+  const on = Lobby.slots.filter(s => s.type !== 'off');
+  if (Lobby.teams && on.length > 1 && on.every(s => (s.team | 0) === (on[0].team | 0))) { Snd.play('block'); toast('Everyone is on the same team! Put someone on another team first.'); return; }
+  Lobby.banMode = false; hostPaused = false;
   G = makeGame(buildCfg());
   pendingEv = [];
   const songs = battleOrder(G.stage);
@@ -495,24 +599,31 @@ function streakOf(k) { return Streaks[streakKey(Lobby.slots[k], k)] || 0; }
 // a match just ended (host or local): the winner's streak grows, everyone else's resets; results carry the numbers
 function updateStreaks(g) {
   for (const f of g.fighters) {
-    const key = streakKey(Lobby.slots[f.i], f.i);
-    Streaks[key] = f.i === g.winner ? (Streaks[key] || 0) + 1 : 0;
+    // (in team mode the whole winning team keeps its streak going)
+    const key = streakKey(Lobby.slots[f.i], f.i), won = g.winTeam >= 0 ? f.team === g.winTeam : f.i === g.winner;
+    Streaks[key] = won ? (Streaks[key] || 0) + 1 : 0;
   }
   for (const r of g.results || []) r.streak = Streaks[streakKey(Lobby.slots[r.i], r.i)] || 0;
-  const me = Lobby.slots.findIndex(s => s.type === 'p1' || s.type === 'host');
-  if (me >= 0 && g.winner === me) { const n = streakOf(me); if (n > (+store('sst-best') || 0)) store('sst-best', String(n)); }
+  const me = Lobby.slots.findIndex(s => s.type === 'p1' || s.type === 'host'), meF = g.fighters.find(f => f.i === me);
+  if (me >= 0 && (g.winTeam >= 0 ? meF && meF.team === g.winTeam : g.winner === me)) { const n = streakOf(me); if (n > (+store('sst-best') || 0)) store('sst-best', String(n)); }
 }
 
-function showResults(res, winner) {
+// the end-of-match scoreboard. info (the game, or a guest's snapshot) says the mode and the winning team
+function showResults(res, winner, info) {
   resultsShown = true;
   Snd.music('results'); Snd.duck(false);
   const box = $('resBox');
   box.innerHTML = '';
   if (!res || !res.length) return;
+  info = info || {};
+  const timed = info.mode === 'time', wt = info.winTeam >= 0 ? info.winTeam : -1, teams = !!info.teams;
   const w = res[0], C = CH[w.ch] || CH.toad;
   if (winner >= 0) setTimeout(() => voiceLine(80, w.ch, 'win'), 400);
   const who = !w.tag || w.tag === 'CPU' ? `CPU ${C.name}` : w.tag;
-  box.appendChild(el('h2', '', winner >= 0 ? `${who} wins!` : 'No contest!'));
+  const head = wt >= 0 ? `${TEAM_NAMES[wt]} Team wins!` : winner >= 0 ? `${who} wins!` : timed ? "It's a tie!" : 'No contest!';
+  const h2 = box.appendChild(el('h2', '', head));
+  if (wt >= 0) h2.style.color = TEAM_COLORS[wt];
+  if (timed) box.appendChild(el('div', 'resSub', winner >= 0 ? `Time's up! ${wt >= 0 ? 'The team' : who} finished with ${wt >= 0 ? res.filter(r => r.team === wt).reduce((n, r) => n + r.kos, 0) : w.kos} KOs.` : "Time's up, and nobody pulled ahead."));
   if (winner >= 0) {
     const row = el('div', 'win');
     const c2 = document.createElement('canvas'); c2.width = c2.height = 160;
@@ -529,17 +640,36 @@ function showResults(res, winner) {
   }
   const best = +store('sst-best') || 0;
   if (best >= 2) box.appendChild(el('div', 'bestStreak', `Your best win streak: ${best}`));
+  // team totals
+  if (teams) {
+    const line = el('div', 'teamSum');
+    for (let t = 0; t < 4; t++) {
+      const m = res.filter(r => r.team === t);
+      if (!m.length) continue;
+      const s = el('span', t === wt ? 'won' : '', `${TEAM_NAMES[t]}: ${m.reduce((n, r) => n + r.kos, 0)} KOs, ${m.reduce((n, r) => n + r.falls, 0)} falls`);
+      s.style.borderColor = TEAM_COLORS[t]; s.style.color = TEAM_COLORS[t];
+      line.appendChild(s);
+    }
+    box.appendChild(line);
+  }
   const tb = el('table', 'res');
   const hr = el('tr');
-  for (const h of ['#', 'Player', 'Fighter', 'KOs', 'Falls', 'Damage dealt', 'Win streak']) hr.appendChild(el('th', '', h));
+  for (const h of ['#', 'Player', 'Fighter', 'KOs', 'Falls', 'Self-KOs', 'Damage dealt', 'Damage taken', 'Win streak']) hr.appendChild(el('th', '', h));
   tb.appendChild(hr);
   res.forEach((r, n) => {
-    const tr = el('tr');
-    const cells = [String(n + 1), r.tag || '', (CH[r.ch] || CH.toad).name, String(r.kos), String(r.falls), r.dealt + '%', r.streak ? (r.streak >= 2 ? '🔥 ' : '') + r.streak : '0'];
-    cells.forEach((v, j) => { const td = el('td', '', v); if (j === 1) td.style.color = SLOT_COLORS[r.i]; tr.appendChild(td); });
+    const tr = el('tr', (wt >= 0 ? r.team === wt : n === 0 && winner >= 0) ? 'top' : '');
+    const cells = [String(n + 1), r.tag || '', (CH[r.ch] || CH.toad).name, String(r.kos), String(r.falls), String(r.sds | 0), r.dealt + '%', (r.taken | 0) + '%', r.streak ? (r.streak >= 2 ? '🔥 ' : '') + r.streak : '0'];
+    cells.forEach((v, j) => { const td = el('td', '', v); if (j === 1) td.style.color = teams && r.team >= 0 ? TEAM_COLORS[r.team] : SLOT_COLORS[r.i]; tr.appendChild(td); });
     tb.appendChild(tr);
   });
   box.appendChild(tb);
+  // a few awards
+  if (res.length > 1) {
+    const best = (f, low) => res.slice().sort((a, b) => (low ? f(a) - f(b) : f(b) - f(a)))[0], nm = r => (!r.tag || r.tag === 'CPU' ? 'CPU ' + (CH[r.ch] || CH.toad).name : r.tag);
+    const aw = el('div', 'awards'), K = best(r => r.kos), D = best(r => r.dealt), F = best(r => r.falls, true);
+    for (const [t, r, v] of [['Most KOs', K, K.kos], ['Most damage', D, D.dealt + '%'], ['Fewest falls', F, F.falls]]) aw.appendChild(el('span', '', `${t}: ${nm(r)} (${v})`));
+    box.appendChild(aw);
+  }
   const rowB = el('div'); rowB.style.cssText = 'display:flex;gap:14px';
   if (role === 'client') {
     rowB.appendChild(el('div', '', 'Waiting for the host…'));
@@ -559,6 +689,7 @@ function showResults(res, winner) {
 function onEsc() {
   if (!$('help').classList.contains('hidden')) { $('help').classList.add('hidden'); return; }
   if (!$('settings').classList.contains('hidden')) { $('settings').classList.add('hidden'); return; }
+  if (!$('rules').classList.contains('hidden')) { $('rules').classList.add('hidden'); return; }
   if (mode !== 'game' || resultsShown) return;
   const p = $('pause');
   if (!p.classList.contains('hidden')) { p.classList.add('hidden'); paused = false; Snd.duck(false); return; }
@@ -567,11 +698,28 @@ function onEsc() {
   // the host and local players can also go all the way back to the main page
   $('pMenu').classList.toggle('hidden', role === 'client');
   $('pMenu').textContent = role === 'host' ? 'Close room (main menu)' : 'Main menu';
+  // the host can pause the match for everyone
+  $('pPause').classList.toggle('hidden', role !== 'host');
+  $('pPause').textContent = paused ? 'Unpause for everyone' : 'Pause for everyone';
   p.classList.remove('hidden');
   Snd.duck(true);
   if (role === 'local') paused = true;
 }
-$('pResume').onclick = () => { $('pause').classList.add('hidden'); paused = false; Snd.duck(false); };
+$('pResume').onclick = () => { $('pause').classList.add('hidden'); if (role === 'host' && paused) setHostPause(false); paused = false; Snd.duck(false); };
+$('pPause').onclick = () => { $('pause').classList.add('hidden'); setHostPause(!paused); };
+// the pause key (P unless changed in Settings): local play pauses and unpauses at once; online only the host can
+function togglePause() {
+  if (mode !== 'game' || resultsShown) return;
+  if (role === 'client') { toast('Only the host can pause.'); return; }
+  if (role === 'host') { setHostPause(!paused); return; }
+  paused = !paused; Snd.duck(paused);
+  if (!paused) $('pause').classList.add('hidden');
+}
+function setHostPause(on) {
+  paused = !!on; Snd.duck(paused);
+  netBroadcast({ t: 'pause', on: paused });
+  toast(paused ? `Paused for everyone. Press ${keyName(PAUSE_KEY)} again to go on.` : 'Back to the fight!');
+}
 $('pQuit').onclick = () => {
   $('pause').classList.add('hidden');
   Snd.duck(false);
@@ -600,7 +748,7 @@ function kickPlayer(k) {
   }
   if (s.name) Net.bannedNames.add(s.name.toLowerCase());
   toast((s.name || 'The player') + ' was removed from the room.');
-  Lobby.slots[k] = { type: 'off', ch: s.ch, lvl: 2 };
+  Lobby.slots[k] = { type: 'off', ch: s.ch, lvl: 2, team: s.team | 0 };
   lobbyChanged();
 }
 const SN = { prev: null, cur: null, at: 0 };
@@ -608,8 +756,9 @@ function netSend(m) { if (Net.conn && Net.conn.open) try { Net.conn.send(m); } c
 function netBroadcast(m) { for (const e of Net.conns.values()) if (e.conn.open) try { e.conn.send(m); } catch (err) { /* dropped */ } }
 function lobbyPublic() {
   return {
-    slots: Lobby.slots.map((s, k) => ({ type: s.type, ch: s.ch, name: s.type === 'host' ? myName() : s.name || '', lvl: s.lvl, streak: s.type !== 'off' ? streakOf(k) : 0 })),
+    slots: Lobby.slots.map((s, k) => ({ type: s.type, ch: s.ch, name: s.type === 'host' ? myName() : s.name || '', lvl: s.lvl, team: s.team | 0, streak: s.type !== 'off' ? streakOf(k) : 0 })),
     stage: Lobby.stage, stocks: Lobby.stocks, items: Lobby.items, hazards: Lobby.hazards, music: Lobby.music, code: Net.code,
+    mode: Lobby.mode, time: Lobby.time, teams: Lobby.teams, opBan: Lobby.opBan,
     // banned fighters with the slot numbers of the guests voting to unban each one, and how many votes it takes
     bans: Object.keys(Lobby.bans).map(id => ({ ch: id, v: Lobby.bans[id].map(pid => (Net.conns.get(pid) || { slot: -1 }).slot).filter(k => k >= 0) })),
     need: unbanNeed(),
@@ -690,7 +839,7 @@ function onClientJoin(conn) {
   let k = Lobby.slots.findIndex((s, i) => i > 0 && s.type === 'off');
   if (k < 0) k = Lobby.slots.findIndex((s, i) => i > 0 && s.type === 'cpu');
   if (k < 0) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 400); return; }
-  Lobby.slots[k] = { type: 'net', pid: conn.peer, ch: firstAllowed('toad'), name: 'Player', lvl: 2 };
+  Lobby.slots[k] = { type: 'net', pid: conn.peer, ch: firstAllowed('toad'), name: 'Player', lvl: 2, team: Lobby.slots[k].team | 0 };
   Net.conns.set(conn.peer, { conn, slot: k });
   Snd.play('join');
   lobbyChanged();
@@ -707,14 +856,16 @@ function onHostData(conn, d) {
   }
   if (mode !== 'lobby' || !s || s.type !== 'net') return;
   if (d.t === 'hello') {
-    s.name = cleanName(d.name) || 'Player'; if (CH[d.ch] && !isBanned(d.ch)) s.ch = d.ch;
+    s.name = cleanName(d.name) || 'Player'; if ((CH[d.ch] && !isBanned(d.ch)) || d.ch === 'random') s.ch = d.ch;
     if (Net.bannedNames.has(s.name.toLowerCase())) { kickPlayer(e.slot); return; } // kicked earlier: still not welcome
     toast(s.name + ' joined!'); lobbyChanged();
   }
   // a banned pick is refused; the update sent back puts the guest's old fighter back on their screen
-  else if (d.t === 'pick' && CH[d.ch]) { if (!isBanned(d.ch)) s.ch = d.ch; lobbyChanged(); }
+  else if (d.t === 'pick' && (CH[d.ch] || d.ch === 'random')) { if (!isBanned(d.ch)) s.ch = d.ch; lobbyChanged(); }
+  // a guest switching its own team (team mode)
+  else if (d.t === 'team') { s.team = (((d.team | 0) % 4) + 4) % 4; lobbyChanged(); }
   // a guest's vote to unban a banned fighter (sending it again takes the vote back)
-  else if (d.t === 'unban' && isBanned(d.ch)) {
+  else if (d.t === 'unban' && Lobby.bans[d.ch]) {
     const v = Lobby.bans[d.ch], i = v.indexOf(conn.peer);
     if (i >= 0) v.splice(i, 1); else v.push(conn.peer);
     if (i < 0) toast(`${s.name || 'A player'} votes to unban ${CH[d.ch].name} (${v.length}/${unbanNeed()})`);
@@ -730,7 +881,7 @@ function onClientLeave(conn) {
   const s = Lobby.slots[e.slot];
   toast((s.name || 'A player') + ' left.');
   if (G) for (const f of G.fighters) if (f.pid === conn.peer) { f.ctrl = 'cpu'; f.tag = 'CPU'; f.nm = 'CPU'; }
-  Lobby.slots[e.slot] = { type: 'cpu', ch: s.ch, lvl: 2 };
+  Lobby.slots[e.slot] = { type: 'cpu', ch: s.ch, lvl: 2, team: s.team | 0 };
   if (mode === 'lobby') lobbyChanged();
 }
 
@@ -769,21 +920,23 @@ function onClientData(d) {
   switch (d.t) {
     case 'lobby': {
       const L = d.L || {};
-      Lobby.slots = (L.slots || []).slice(0, 4).map(s => ({ type: s.type, ch: CH[s.ch] ? s.ch : 'toad', name: cleanName(s.name), lvl: s.lvl | 0, streak: Math.max(0, s.streak | 0) }));
+      Lobby.slots = (L.slots || []).slice(0, MAX_SLOTS).map(s => ({ type: s.type, ch: CH[s.ch] || s.ch === 'random' ? s.ch : 'toad', name: cleanName(s.name), lvl: s.lvl | 0, team: ((s.team | 0) % 4 + 4) % 4, streak: Math.max(0, s.streak | 0) }));
       Lobby.stage = STG[L.stage] ? L.stage : 'town';
-      Lobby.stocks = L.stocks | 0; Lobby.items = L.items === 'smash' ? 'smash' : !!L.items; Lobby.hazards = !!L.hazards;
+      Lobby.stocks = L.stocks | 0; Lobby.items = L.items === 'smash' || L.items === 'hyper' ? L.items : !!L.items; Lobby.hazards = !!L.hazards;
+      Lobby.mode = L.mode === 'time' ? 'time' : 'stock'; Lobby.time = TIMES.includes(L.time) ? L.time : 5; Lobby.teams = !!L.teams; Lobby.opBan = !!L.opBan;
+      hostPaused = false;
       Lobby.music = MUSIC_OPTS.some(m => m[0] === L.music) ? L.music : 'shuffle';
       Lobby.bans = {};
       if (Array.isArray(L.bans)) for (const b of L.bans.slice(0, CHARS.length)) {
-        if (b && CH[b.ch]) Lobby.bans[b.ch] = Array.isArray(b.v) ? b.v.filter(k => Number.isInteger(k) && k >= 0 && k < 4).slice(0, 4) : [];
+        if (b && CH[b.ch]) Lobby.bans[b.ch] = Array.isArray(b.v) ? b.v.filter(k => Number.isInteger(k) && k >= 0 && k < MAX_SLOTS).slice(0, MAX_SLOTS) : [];
       }
-      Lobby.need = Math.min(4, Math.max(1, L.need | 0 || 2));
+      Lobby.need = Math.min(MAX_SLOTS, Math.max(1, L.need | 0 || 2));
       Lobby.mySlot = d.you | 0; Lobby.active = Lobby.mySlot;
       if (mode !== 'lobby') { titleMsg(''); showLobby(); } else renderLobby();
       break;
     }
     case 'start': {
-      SN.prev = SN.cur = null;
+      SN.prev = SN.cur = null; hostPaused = false;
       const songs = Array.isArray(d.songs) ? d.songs.filter(s => BATTLE_SONGS.includes(s)).slice(0, BATTLE_SONGS.length) : null;
       enterGame(STG[d.stage] ? d.stage : 'town', songs);
       break;
@@ -798,6 +951,8 @@ function onClientData(d) {
       else { Snd.play('grow'); toast(d.how === 'vote' ? `${C.name} was unbanned by vote!` : `The host unbanned ${C.name}.`); }
       break;
     }
+    // the host paused (or unpaused) the match for everyone
+    case 'pause': hostPaused = !!d.on; Snd.duck(hostPaused); toast(hostPaused ? 'The host paused the match.' : 'The host unpaused the match. Fight!'); break;
     case 'busy': leaveOnline(); toTitle('That room is mid-match. Try again in a moment.'); break;
     case 'kicked': leaveOnline(); toTitle('The host removed you from the room.'); break;
     case 'full': leaveOnline(); toTitle('That room is full.'); break;
@@ -986,6 +1141,9 @@ function handleEvents(evs) {
       case 'count': Snd.play('count'); break;
       case 'go': Snd.play('go'); goT = 50; break;
       case 'game': Snd.play('game'); Snd.music(null); break;
+      // a timed match: a beep for each of the last ten seconds, and a horn when time runs out
+      case 'clock': Snd.play('count'); break;
+      case 'timeup': Snd.play('horn'); break;
       case 'respawn': Snd.play('item'); burst(e.x, e.y - 30, 10, '#ffe866', 5, 'star', 6, 30); break;
       case 'ledge': Snd.play('ledge'); break;
       case 'reflect': Snd.play('reflect'); addP({ type: 'ring', x: e.x, y: e.y, size: 30, color: '#9fe4ff', life: 12 }); break;
@@ -1180,7 +1338,7 @@ function tick() {
       if (G) {
         updateCam(cam, G); ambientFx(G);
         if (G.phase === 'over' && !G.streaked) { G.streaked = true; updateStreaks(G); }
-        if (G.phase === 'over' && G.pt >= 150 && !resultsShown) showResults(G.results, G.winner);
+        if (G.phase === 'over' && G.pt >= 150 && !resultsShown) showResults(G.results, G.winner, G);
       }
     } else {
       const b = $('pause').classList.contains('hidden') ? localBits(-1) : 0;
@@ -1188,7 +1346,7 @@ function tick() {
       const v = clientView();
       if (v) {
         updateCam(cam, v); ambientFx(v);
-        if (v.phase === 'over' && v.pt >= 150 && !resultsShown) showResults(v.results, v.winner);
+        if (v.phase === 'over' && v.pt >= 150 && !resultsShown) showResults(v.results, v.winner, v);
       }
     }
     if (goT > 0) goT--;
@@ -1213,6 +1371,39 @@ function drawAttract() {
   if (mode === 'lobby') { ctx.fillStyle = 'rgba(20,10,30,0.62)'; ctx.fillRect(0, 0, W, H); }
 }
 
+// ---------- the cooldown panel: your own moves recharging, on the side of your own screen (only you see it) ----------
+// A move shows up once it has had a cooldown this match; the bar fills as it recharges. P1's panel is on the right,
+// a local P2's on the left
+const CDM = {}, CDL = {}; // per fighter: the longest each cooldown has been, and its last value
+function myFighters(v) {
+  const fs = v.fighters || [];
+  if (role === 'client') return fs.filter(f => f.i === Lobby.mySlot);
+  return fs.filter(f => f.ctrl === 'p1' || f.ctrl === 'p2' || f.ctrl === 'any');
+}
+function drawCooldowns(v) {
+  if (v.phase !== 'play' && v.phase !== 'count') return;
+  myFighters(v).slice(0, 2).forEach((f, n) => {
+    if (!f.cd || f.out || !CH[f.ch]) return;
+    const M = CDM[f.i] || (CDM[f.i] = {}), L = CDL[f.i] || (CDL[f.i] = {}), C = CH[f.ch];
+    for (const k in f.cd) { const c = f.cd[k] || 0; if (c > (L[k] || 0) + 0.5) M[k] = c; L[k] = c; }
+    const rows = [['a', C.volley ? 'Ice Volley' : 'Attack'], ['n', SPNAME[C.sp.n]], ['s', SPNAME[C.sp.s]], ['u', SPNAME[C.sp.u]], ['d', SPNAME[C.sp.d]]].filter(r => M[r[0]] > 0);
+    if (!rows.length) return;
+    const w = 196, rh = 28, x = n === 0 ? W - w - 16 : 16, y0 = 236 - (rows.length * rh) / 2;
+    ctx.save();
+    ctx.fillStyle = 'rgba(43,26,18,.6)'; ctx.beginPath();
+    const bx = x - 7, by = y0 - 28, bw = w + 14, bh = rows.length * rh + 34, r = 12;
+    ctx.moveTo(bx + r, by); ctx.arcTo(bx + bw, by, bx + bw, by + bh, r); ctx.arcTo(bx + bw, by + bh, bx, by + bh, r); ctx.arcTo(bx, by + bh, bx, by, r); ctx.arcTo(bx, by, bx + bw, by, r); ctx.closePath(); ctx.fill();
+    txt(ctx, 'COOLDOWNS', x + w / 2, y0 - 9, 14, '#ffe066', OUT, 'center', 4);
+    rows.forEach(([k, name], j) => {
+      const y = y0 + j * rh, c = f.cd[k] || 0, m = M[k] || 1, ready = c <= 0, q = ready ? 1 : Math.max(0, 1 - c / m);
+      ctx.fillStyle = 'rgba(255,247,230,.18)'; ctx.fillRect(x, y + 3, w, rh - 6);
+      ctx.fillStyle = ready ? '#3bd16b' : '#3f8cff'; ctx.fillRect(x, y + 3, w * q, rh - 6);
+      txt(ctx, name, x + 6, y + rh / 2 + 5, 14, '#ffffff', OUT, 'left', 3);
+      txt(ctx, ready ? 'READY' : (c / 60).toFixed(1) + 's', x + w - 6, y + rh / 2 + 5, 14, ready ? '#c8ffd4' : '#fff6c2', OUT, 'right', 3);
+    });
+    ctx.restore();
+  });
+}
 function drawGameText(v) {
   if (v.phase === 'count' && v.pt > 0) {
     const n = Math.ceil(v.pt / 60), k = (v.pt % 60) / 60;
@@ -1220,8 +1411,14 @@ function drawGameText(v) {
     else txt(ctx, STG[v.stage].name, W / 2, H / 2, 60, '#ffffff', OUT, 'center', 8);
   }
   if (goT > 0) txt(ctx, 'GO!', W / 2, H / 2 + 50, 170, '#ffe066', OUT, 'center', 14);
-  if (v.phase === 'over' && v.pt < 150) txt(ctx, 'GAME!', W / 2, H / 2 + 50, 170, '#ff4b4b', OUT, 'center', 14);
-  if (paused) txt(ctx, 'PAUSED', W / 2, 110, 60, '#ffffff', OUT, 'center', 8);
+  if (v.phase === 'over' && v.pt < 150) txt(ctx, v.mode === 'time' ? 'TIME!' : 'GAME!', W / 2, H / 2 + 50, 170, '#ff4b4b', OUT, 'center', 14);
+  // a timed match's last five seconds count down in the middle of the screen
+  if (v.mode === 'time' && v.phase === 'play' && v.timeLeft > 0 && v.timeLeft <= 300) {
+    const n = Math.ceil(v.timeLeft / 60), k = (v.timeLeft % 60) / 60;
+    ctx.save(); ctx.globalAlpha = 0.35 + 0.55 * k; txt(ctx, String(n), W / 2, 250, 90 + 50 * k, '#ff6a5a', OUT, 'center', 10); ctx.restore();
+  }
+  if (paused || hostPaused) txt(ctx, role === 'client' ? 'PAUSED BY THE HOST' : 'PAUSED', W / 2, v.mode === 'time' ? 150 : 110, 60, '#ffffff', OUT, 'center', 8);
+  drawCooldowns(v);
   if (fsBanner) {
     // the finale's title card sweeps across the top of the screen while the power gathers, gone before the finale hits
     const b = fsBanner, k = b.t < 10 ? b.t / 10 : b.t > 40 ? 1 - (b.t - 40) / 16 : 1, ease = 1 - Math.pow(1 - Math.max(0, k), 3);
@@ -1299,6 +1496,13 @@ function renderSettings() {
     }
     t.appendChild(tr);
   }
+  // one pause key for everyone (online, it only works for the host)
+  const tr = el('tr'), td = el('td'), wait = rebinding && rebinding.act === 'pause';
+  tr.appendChild(el('td', '', 'Pause (online: host only)'));
+  td.colSpan = 2;
+  const b = el('button', 'kb' + (wait ? ' wait' : ''), wait ? 'Press a key…' : keyName(PAUSE_KEY));
+  b.onclick = () => { rebinding = { p: -1, act: 'pause' }; renderSettings(); };
+  td.appendChild(b); tr.appendChild(td); t.appendChild(tr);
 }
 // the key just pressed becomes the binding being changed; a key only ever does one thing, so it leaves any other action
 function setKey(code) {
@@ -1306,7 +1510,9 @@ function setKey(code) {
   rebinding = null;
   if (!R || code === 'Escape') { renderSettings(); return; }
   if (code === 'KeyM' || code === 'Tab') { toast(code === 'KeyM' ? 'M is the mute key. Pick another one.' : 'Pick another key.'); renderSettings(); return; }
+  if (R.act !== 'pause' && code === PAUSE_KEY) { toast(keyName(code) + ' is the pause key. Pick another one (or change the pause key first).'); renderSettings(); return; }
   for (const s of KEYSETS) { for (const a of KEY_ACTS) s[a] = s[a].filter(k => k !== code); s.T = s.T.map(k => (k === code ? '' : k)); }
+  if (R.act === 'pause') { PAUSE_KEY = code; store('sst-pausekey', code); store('sst-keys', JSON.stringify(KEYSETS)); Snd.play('select'); renderSettings(); return; }
   const s = KEYSETS[R.p];
   if (R.act[0] === 'T') s.T[+R.act[1]] = code; else s[R.act] = [code];
   store('sst-keys', JSON.stringify(KEYSETS));
@@ -1315,7 +1521,7 @@ function setKey(code) {
 }
 $('btnSettings').onclick = () => { $('settings').classList.remove('hidden'); renderSettings(); };
 $('setClose').onclick = () => { rebinding = null; $('settings').classList.add('hidden'); };
-$('setReset').onclick = () => { rebinding = null; KEYSETS = JSON.parse(JSON.stringify(DEFAULT_KEYS)); store('sst-keys', JSON.stringify(KEYSETS)); toast('Controls reset'); renderSettings(); };
+$('setReset').onclick = () => { rebinding = null; KEYSETS = JSON.parse(JSON.stringify(DEFAULT_KEYS)); PAUSE_KEY = 'KeyP'; store('sst-pausekey', PAUSE_KEY); store('sst-keys', JSON.stringify(KEYSETS)); toast('Controls reset'); renderSettings(); };
 
 // ---------- Title wiring ----------
 if ($('start')) $('start').onclick = pressStart;
@@ -1327,6 +1533,8 @@ $('btnHelp').onclick = () => $('help').classList.remove('hidden');
 $('helpClose').onclick = () => $('help').classList.add('hidden');
 $('lbBack').onclick = () => { leaveOnline(); toTitle(''); };
 $('lbStart').onclick = () => { if (role !== 'client') startMatch(); };
+$('lbRules').onclick = () => { $('rules').classList.remove('hidden'); renderRules(); for (const b of $('rules').querySelectorAll('[data-opt]')) b.disabled = role === 'client'; setTimeout(autoFit, 0); };
+$('rulesClose').onclick = () => $('rules').classList.add('hidden');
 $('lbBans').onclick = () => { if (role !== 'host') return; Lobby.banMode = !Lobby.banMode; Snd.play('select'); if (Lobby.banMode) toast('Ban mode: click fighters to ban or unban them.'); renderLobby(); };
 document.fonts && document.fonts.ready.then(() => { for (const k in PORT) delete PORT[k]; buildRoster(); if (mode === 'lobby') renderLobby(); });
 buildRoster();

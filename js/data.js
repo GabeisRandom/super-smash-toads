@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611100044';
+const GAME_BUILD = '202611101034';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -16,7 +16,9 @@ const GRAV = 0.62, MAXFALL = 11, FASTFALL = 16;
 // B_U is the up direction (it also jumps, "tap jump"); B_J is a jump-only button (Space, gamepad Y) that never aims moves up
 const B_L = 1, B_R = 2, B_U = 4, B_D = 8, B_A = 16, B_B = 32, B_S = 64, B_T1 = 128, B_T2 = 256, B_T3 = 512, B_T4 = 1024, B_G = 2048, B_J = 4096;
 const B_TAUNTS = [B_T1, B_T2, B_T3, B_T4], B_ALL = 8191;
-const SLOT_COLORS = ['#ff4b4b', '#3f8cff', '#ffc21f', '#3bd16b'];
+// player slot colors (8 slots), and the four team colors for team mode
+const SLOT_COLORS = ['#ff4b4b', '#3f8cff', '#ffc21f', '#3bd16b', '#ff8a2a', '#b06bff', '#ff6fc8', '#2fd8d8'];
+const TEAM_COLORS = ['#ff4b4b', '#3f8cff', '#ffc21f', '#3bd16b'], TEAM_NAMES = ['Red', 'Blue', 'Yellow', 'Green'];
 const PEER_PREFIX = 'supersmashtoads-';
 const TAUNTS = [{ n: 'Booty Shake', dur: 72 }, { n: 'Laugh', dur: 64 }, { n: 'Yawn', dur: 84 }, { n: 'Backflip', dur: 46 }];
 
@@ -160,7 +162,7 @@ const CHARS = [
   // pellets instead of normal attacks (`volley`), and Puck shoots ice of his own every 7 seconds (`puck`)
   defChar({ id: 'emilia', name: 'Emilia Toad', look: { cap: '#fbfaff', spot: '#cdb8f4', vest: '#8a5ad0', trim: '#c9aaf4', shirt: '#8a5ad0', pants: '#7a4ac4', sleeves: '#f7f5fc', cuff: '#ff9cc8',
     hat: 'hood', braid: '#ebe6f6', eyes: 'violet', bigEyes: 1.15, cape: '#f7f5fc', capeIn: '#d9cdf3', brooch: true, shoe: '#f7f5fc', sole: '#a477e0', puck: true },
-    weight: 0.9, run: 6.3, air: 5.3, jump: 15, djump: 13.5, pow: 1.0, volley: true, puck: true, swoosh: '#dff4ff', sp: { n: 'icesoldiers', s: 'icebrand', u: 'icepillar', d: 'icebarrier' },
+    badge: 'ea', weight: 0.9, run: 6.3, air: 5.3, jump: 15, djump: 13.5, pow: 1.0, volley: true, puck: true, swoosh: '#dff4ff', sp: { n: 'icesoldiers', s: 'icebrand', u: 'icepillar', d: 'icebarrier' },
     elemInfo: 'Ice: her weapons chill foes, her spear can freeze them',
     blurb: 'An ice mage with the great spirit Puck floating behind her. Homing ice pellets, ice weapons made on the spot, ice soldiers, and pillars and walls of ice.',
     quote: 'I\'m Emilia. Just Emilia! (Puck: "That\'s my girl!")' }),
@@ -210,7 +212,7 @@ const CHARS = [
     blurb: 'Tiny, speedy and always hungry. Gobbles foes up, rolls around and throws real tantrums.',
     quote: 'Yoshi! Yoshi! (Snack time!)' }),
   defChar({ id: 'dashyoshi', name: 'Dash Yoshi', yoshi: true, look: { body: '#ff5a26', saddle: '#ffd23a', shoe: '#ffe066', spines: '#ffe066', belly: '#ffe2b8', dash: true },
-    weight: 1.05, run: 11.5, air: 7.2, jump: 16, djump: 16.5, h: 66, pow: 1.12, fall: 1.12, sp: { n: 'boomkick', s: 'blitzdash', u: 'cycloneclimb', d: 'afterimage' },
+    badge: 'op', weight: 1.05, run: 11.5, air: 7.2, jump: 16, djump: 16.5, h: 66, pow: 1.12, fall: 1.12, sp: { n: 'boomkick', s: 'blitzdash', u: 'cycloneclimb', d: 'afterimage' },
     blurb: 'The fastest fighter there is. Blurring kicks, a sonic-boom kick, a blitz dash, a cyclone climb and an afterimage that strikes from behind.',
     quote: 'Yoshi! (Blink and you\'ll miss me!)' }),
   // a Yoshi in a battle-robot suit, styled after Ray MK III: white armour, blue parts, a gold V-fin, green energy shots

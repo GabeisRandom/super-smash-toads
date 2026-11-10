@@ -14,6 +14,8 @@ const AI_TETHER = { lasso: 160, canehook: 105, venomlash: 140 };
 const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1, storm: 1 };
 
 function aiBits(g, f) {
+  // a Dummy (CPU level 0) never moves or does anything
+  if (f.lvl === 0) return 0;
   const a = f.ai || (f.ai = { prev: 0, shieldT: 0, seq: [], tauntCd: 300 });
   const lvl = f.lvl || 2;
   const C = CH[f.ch];
@@ -78,7 +80,7 @@ function aiBits(g, f) {
 
   let tg = null, bd = 1e9;
   for (const o of g.fighters) {
-    if (o === f || o.st === 'dead' || o.out) continue;
+    if (o === f || o.st === 'dead' || o.out || ally(g, f, o)) continue; // (never a teammate)
     const d = Math.abs(o.x - f.x) + Math.abs(o.y - f.y) * 0.7;
     if (d < bd) { bd = d; tg = o; }
   }
@@ -152,7 +154,7 @@ function aiBits(g, f) {
   // parry: guard right as a nearby attack is about to land
   if (f.gi >= 0 && !(a.prev & B_S) && lvl >= 2) {
     for (const o of g.fighters) {
-      if (o === f || o.st !== 'atk' || !o.at || Math.abs(o.x - f.x) > 120) continue;
+      if (o === f || ally(g, f, o) || o.st !== 'atk' || !o.at || Math.abs(o.x - f.x) > 120) continue;
       const A = ATK[o.ch][o.at];
       if (A && A.hb.length && o.t >= A.hb[0].a - 3 && o.t < A.hb[0].a && RND() < [0, 0, 0.22, 0.45][lvl]) { a.shieldT = 8; return out(B_S); }
     }

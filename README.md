@@ -1,6 +1,6 @@
 # Super Smash Toads
 
-A free, fan-made **platform fighter** you play right in your web browser. Forty-five fighters, thirty-two Toads (one riding a cow, one carrying a tiny spirit in his backpack, one with a spirit cat floating behind her) and thirteen Yoshis, brawl across eight Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 4 players**.
+A free, fan-made **platform fighter** you play right in your web browser. Forty-five fighters, thirty-two Toads (one riding a cow, one carrying a tiny spirit in his backpack, one with a spirit cat floating behind her) and thirteen Yoshis, brawl across eight Mushroom Kingdom stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 8 players**.
 
 ### ▶ [Play now in your browser](https://gabeisrandom.github.io/super-smash-toads/)
 
@@ -9,6 +9,18 @@ You can also download **Super-Smash-Toads.html** from the [latest release](https
 ## How to win
 
 Every hit raises a fighter's damage **%**, and the higher it gets, the farther they fly. Knock someone past the edge of the screen to take one of their lives (stocks). The last Toad standing wins.
+
+## Modes & Modifiers
+
+Up to **8 fighters** can play at once (local play: two players on one keyboard plus CPUs; online: up to 8 people). Click **⚙ Modes & Modifiers** in the lobby to set the rules (online, the host sets them and everyone else can look):
+
+- **Stock** (lose all your lives and you're out) or **Timed** (3, 5, 10 or 15 minutes with endless lives: whoever has the most KOs when time runs out wins, then the fewest falls). After a timed match the scoreboard shows everyone's KOs, falls, self-KOs, damage dealt and taken, plus a few awards.
+- **Teams:** up to four teams (Red, Blue, Yellow, Green), picked on each player's card. Teammates can't hurt each other (not even with shots, ice soldiers or finales). Works with Stock and Timed: the last team standing wins, or the team with the most KOs added up.
+- **Items:** On, Off, **Smash only** (only Smash Mushrooms, now and then) or **Hyper Smash only** (Smash Mushrooms all the time).
+- **Stage hazards** on or off, and the battle **music**.
+- **OP & Early Access fighters:** fighters tagged **OP** (Dash Yoshi) or **Early Access** (Emilia Toad, still being balanced) can be turned off for the match. The tag shows at the right of the fighter's description.
+
+In the lobby you can also pick **Random** (a surprise fighter when the match starts) and set a CPU to **Dummy**, which just stands there (great for practising combos). During a match a small **Cooldowns** panel on the side of your screen shows your own moves recharging (only you see it). Press **P** to pause (online, only the host can, and it pauses everyone); change the key in Settings.
 
 ## Controls
 
@@ -23,7 +35,7 @@ Every hit raises a fighter's damage **%**, and the higher it gets, the farther t
 | Guard · parry · dodge | `F` | `H` | Left bumper / triggers |
 | Grab | `G` (or Guard + Attack) | `Y` | Right bumper |
 | Taunts | `1` `2` `3` `4` | `7` `8` `9` `0` | Right stick |
-| Pause · mute | `Esc` · `M` | | |
+| Pause menu · pause · mute | `Esc` · `P` · `M` | | |
 
 These are the default keys. Change them in **Settings** on the main menu (saved in your browser).
 
@@ -50,7 +62,7 @@ These are the default keys. Change them in **Settings** on the main menu (saved 
 
 Every so often a glowing rainbow **Smash Mushroom** drifts onto the stage. Hit it three times to claim its power (you'll start to glow), then press **Special** to unleash your fighter's own finale.
 
-Set **Items** in the lobby to **Smash only** for a mode where the Smash Mushroom is the only item, and it shows up much more often.
+Set **Items** to **Smash only** in Modes & Modifiers for a mode where the Smash Mushroom is the only item, or **Hyper Smash only** to have one on the stage all the time.
 
 ## Win streaks
 
@@ -151,7 +163,7 @@ The title screen, lobby and results screen each have their own music too.
 
 Tips:
 
-- Up to 4 players can be in a room. The host's computer runs the match, so whoever has the steadiest internet should host.
+- Up to 8 players can be in a room (empty slots can be CPUs). The host's computer runs the match, so whoever has the steadiest internet should host.
 - The host can remove someone from the room with the **Kick** button on their slot in the lobby.
 - Online play connects your browsers directly to each other. If a friend can't join, have them try again. Some school or work networks block these connections, so a home network or a phone hotspot can help.
 - Once you're in a room you can play match after match. After each game, press **Rematch!** or go back to the lobby to pick new fighters.

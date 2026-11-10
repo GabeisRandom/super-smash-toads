@@ -688,9 +688,23 @@ function burst(x, y, n, col, spd, type, size, life) {
 
 // ---------- HUD ----------
 const PORT = {};
+// the Random pick's card: a big question mark over stripes of fighter colors
+function randomPortrait(size) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const c = cv.getContext('2d'), cols = ['#ff4b4b', '#ffc21f', '#3bd16b', '#3f8cff', '#b06bff', '#ff6fc8'];
+  c.save(); c.translate(size / 2, size / 2); c.rotate(-0.5);
+  cols.forEach((col, k) => { c.fillStyle = col; c.fillRect(-size + (k * size * 2) / cols.length, -size, (size * 2) / cols.length + 1, size * 2); });
+  c.restore();
+  c.fillStyle = 'rgba(20,10,30,.3)'; c.fillRect(0, 0, size, size);
+  c.font = `${Math.round(size * 0.7)}px 'Lilita One', sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+  c.lineWidth = Math.max(3, size * 0.07); c.strokeStyle = '#2b1a12'; c.strokeText('?', size / 2, size * 0.55);
+  c.fillStyle = '#ffffff'; c.fillText('?', size / 2, size * 0.55);
+  return cv;
+}
 function portrait(ch, size) {
   const key = ch + size;
   if (PORT[key]) return PORT[key];
+  if (ch === 'random') return (PORT[key] = randomPortrait(size));
   const cv = document.createElement('canvas'); cv.width = cv.height = size;
   const c = cv.getContext('2d'), C = CH[ch];
   const g = c.createRadialGradient(size / 2, size / 2, 4, size / 2, size / 2, size * 0.7);
@@ -703,26 +717,29 @@ function portrait(ch, size) {
 }
 const hudMem = {};
 function drawHUD(c, view, fr) {
-  const fs = view.fighters, n = fs.length, pw = 236, gap = 16;
-  const x0 = (W - (n * pw + (n - 1) * gap)) / 2;
+  // (more than four fighters: every card shrinks to fit; team mode: cards wear the team colour)
+  const fs = view.fighters, n = fs.length, pw = 236, gap = 16, full = n * pw + (n - 1) * gap, sc = Math.min(1, (W - 40) / full);
+  const x0 = (W - full * sc) / 2;
+  if (view.mode === 'time' && view.phase !== 'over') { const s = Math.ceil(Math.max(0, view.timeLeft || 0) / 60); txt(c, Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'), W / 2, 56, 40, s <= 10 ? '#ff6a5a' : '#ffffff', OUT, 'center', 6); }
   fs.forEach((f, k) => {
-    const x = x0 + k * (pw + gap), y = H - 90;
+    const x = 0, y = 0;
     const m = hudMem[f.i] || (hudMem[f.i] = { dm: 0, shake: 0 });
     if (f.dm > m.dm + 0.5) m.shake = 14;
     m.dm = f.dm;
     if (m.shake > 0) m.shake--;
-    c.save();
+    c.save(); c.translate(x0 + k * (pw + gap) * sc, H - 10 - 80 * sc); c.scale(sc, sc);
     if (f.out) c.globalAlpha = 0.45;
-    RR(c, x, y, pw, 80, 18, 'rgba(24,14,36,0.8)', SLOT_COLORS[f.i], 3);
+    RR(c, x, y, pw, 80, 18, 'rgba(24,14,36,0.8)', view.teams && f.team >= 0 ? TEAM_COLORS[f.team] : SLOT_COLORS[f.i], 3);
     c.save(); RR(c, x + 6, y + 5, 70, 70, 12); c.clip(); c.drawImage(portrait(f.ch, 70), x + 6, y + 5); c.restore();
     RR(c, x + 6, y + 5, 70, 70, 12, null, OUT, 2);
     txt(c, (f.tag || '') + '  ' + CH[f.ch].name, x + 84, y + 22, 15, '#ffffff', OUT, 'left', 3);
     const ox = m.shake ? (Math.random() - 0.5) * 6 : 0, oy = m.shake ? (Math.random() - 0.5) * 6 : 0;
     txt(c, f.out ? 'OUT' : Math.floor(f.dm) + '%', x + 84 + ox, y + 68 + oy, 40, f.out ? '#999' : dmgColor(f.dm), OUT, 'left', 5);
     const col = CH[f.ch].look.spot && CH[f.ch].look.spot !== '#ffffff' ? CH[f.ch].look.spot : CH[f.ch].look.body || '#ff8cc6';
-    const shown = Math.min(f.sk, 5);
+    const shown = view.mode === 'time' ? 0 : Math.min(f.sk, 5);
+    if (view.mode === 'time') txt(c, f.kos + ' KO', x + pw - 12, y + 50, 16, '#ffffff', OUT, 'right');
     for (let s = 0; s < shown; s++) { const sx = x + pw - 16 - s * 17, sy = y + 40; E(c, sx, sy + 6, 4, 4, '#fff3dc', OUT, 1.2); cap(c, sx, sy + 3, 8, 6, col, '#ffffff', [[0, -0.9, 0.3]]); }
-    if (f.sk > 5) txt(c, 'x' + f.sk, x + pw - 100, y + 50, 16, '#ffffff', OUT, 'right');
+    if (f.sk > 5 && view.mode !== 'time') txt(c, 'x' + f.sk, x + pw - 100, y + 50, 16, '#ffffff', OUT, 'right');
     const icons = [];
     if (f.big > 0) icons.push('BIG'); if (f.small > 0) icons.push('MINI'); if (f.star > 0) icons.push('STAR'); if (f.pe > 0) icons.push('PEACHETTE'); if (f.pick > 0) icons.push('PICKAXE'); if (f.hold) icons.push('TURNIP');
     if (icons.length) txt(c, icons.join(' '), x + pw - 12, y + 72, 11, '#ffe866', OUT, 'right', 2);
