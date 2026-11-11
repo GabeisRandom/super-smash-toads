@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611101106';
+const GAME_BUILD = '202611111454';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;

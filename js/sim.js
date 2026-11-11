@@ -1628,8 +1628,8 @@ const FSDEF = {
   cowtoad: { k: 'wave', sub: 'cows', both: 1 },
   samurai: { k: 'sweep', sub: 'petals' }, viking: { k: 'rush', sub: 'ship' }, pharaoh: { k: 'meteor', sub: 'pyramid', r: 240, d: 32 },
   gladiator: { k: 'wave', sub: 'legion' }, buddhist: { k: 'burst', sub: 'lotus' }, muslim: { k: 'rain', sub: 'lantern', n: 16, cols: 1 },
-  // El Minya rains crystals at the same pace as the other rains, but 30% longer (23 crystals instead of 18)
-  mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 23, every: 8.15 },
+  // El Minya rains crystals twice as fast as the other rains (one every 4.075 frames), for 40% longer than it used to
+  mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 64, every: 4.075 },
   dashyoshi: { k: 'rush', sub: 'dash', spd: 26, laps: 3 }, mechyoshi: { k: 'beam', sub: 'mech' },
   emilia: { k: 'storm', sub: 'absolute' },
   catholic: { k: 'wave', sub: 'parranda' }, hindu: { k: 'vortex', sub: 'color', move: 2.6, life: 210, r: 240 },
@@ -1866,10 +1866,10 @@ const FXU = {
         Object.assign(P, { x: x0, y: y0, vx: (tx - x0) / T, vy: (s.y - y0 - 0.5 * 0.32 * T * T) / T });
       } else {
         let tx = e.cols ? s.x + 30 + ((e.cnt * 97) % (s.w - 60)) : s.x - 80 + RND() * (s.w + 160);
-        // El Minya aims half its crystals at the platforms, so they slowly crack and break. Its crystals hit 30%
-        // softer than the other raining finales' drops
+        // El Minya aims half its crystals at the platforms, so they slowly crack and break. Each crystal hits for
+        // 8.19 (30% more than the 6.3 it was)
         if (e.sub === 'crystal') {
-          P.d = 6.3; P.explode = { r: 72, d: 6.3, k: 9, g: 0.12 };
+          P.d = 8.19; P.explode = { r: 72, d: 8.19, k: 9, g: 0.12 };
           const up = g.surf.filter(q => !q.solid && !q.gone && !q.cloud && q.pi !== undefined);
           if (up.length && RND() < 0.55) { const q = up[Math.floor(RND() * up.length)]; tx = q.x + 20 + RND() * (q.w - 40); }
         }
