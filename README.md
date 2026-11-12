@@ -21,7 +21,7 @@ Up to **8 fighters** can play at once (local play: two players on one keyboard p
 - **Double length:** the stage is twice as long, with twice as many platforms (and the edges of the screen move out to match). Works on every stage.
 - **OP & Early Access fighters:** fighters tagged **OP** (Dash Yoshi) or **Early Access** (Emilia Toad, still being balanced) can be turned off for the match. The tag shows at the right of the fighter's description.
 
-In the lobby you can also pick **Random** (a surprise fighter when the match starts) and set a CPU to **Dummy**, which just stands there (great for practising combos). During a match a small **Cooldowns** panel on the side of your screen shows your own moves recharging (only you see it). Press **P** to pause (online, only the host can, and it pauses everyone); change the key in Settings.
+In the lobby you can also pick **Random** (a surprise fighter when the match starts). CPUs come in **levels 1 to 9** (click a CPU's level to make it harder, right-click to make it easier): 1 barely fights back, 5 is a fair match, 9 parries, punishes and guards the ledge. Above 9 is **GOD**, which reads every attack, parries almost everything, punishes every slip and is a little tougher and stronger than everyone else: good luck. Below 1 is **Dummy**, which just stands there (great for practising combos). During a match a small **Cooldowns** panel on the side of your screen shows your own moves recharging (only you see it). Press **P** to pause (online, only the host can, and it pauses everyone); change the key in Settings.
 
 ## Controls
 

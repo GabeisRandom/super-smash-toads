@@ -64,8 +64,8 @@ const ally = (g, a, b) => !!(g && g.teams && a && b && a !== b && a.team >= 0 &&
 function makeFighter(s, sp, stocks) {
   const C = CH[s.ch];
   return {
-    // (CPU level 0 is a Dummy that never moves; team is -1 outside team mode)
-    i: s.slot, ch: s.ch, nm: s.name, tag: s.tag, ctrl: s.ctrl, pid: s.pid, lvl: s.lvl === undefined ? 2 : s.lvl, team: s.team === undefined ? -1 : s.team,
+    // (CPU levels run 1 to 9, 10 is GOD, 0 is a Dummy that never moves; team is -1 outside team mode)
+    i: s.slot, ch: s.ch, nm: s.name, tag: s.tag, ctrl: s.ctrl, pid: s.pid, lvl: s.lvl === undefined ? 5 : s.lvl, team: s.team === undefined ? -1 : s.team,
     x: sp[0], y: sp[1], vx: 0, vy: 0, fc: sp[0] < 0 ? 1 : -1, st: 'air', t: 0, t2: 0,
     dm: 0, sk: stocks, gi: -1, jl: C.jumps - 1, at: null, sp: null, hits: {}, sh2: {}, hs: 0, hl: 0, inv: 0,
     shd: 100, big: 0, small: 0, star: 0, pe: 0, frz: 0, psn: 0, pick: 0, hold: null, drop: 0, jbuf: 0,
@@ -866,6 +866,9 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
     if (a.useHit !== o.use) { a.useSm = staleMul(a, o.mv); a.stq.unshift(o.mv); if (a.stq.length > 9) a.stq.length = 9; a.useHit = o.use; }
     d *= a.useSm; k *= 0.7 + 0.3 * a.useSm;
   }
+  // a GOD-level CPU is a little tougher (20% less damage, 15% less knockback) and hits 15% harder
+  if (v.ctrl === 'cpu' && v.lvl === 10) { d *= 0.8; k *= 0.85; }
+  if (a && a.ctrl === 'cpu' && a.lvl === 10) d *= 1.15;
   // chip damage (Emilia Toad's ice pellets): damage only. No flinch, no knockback, nothing interrupted
   if (o.chip) {
     d *= v.big ? 0.65 : v.small ? 1.4 : 1;

@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611111454';
+const GAME_BUILD = '202611111528';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -10,7 +10,8 @@ const GAME_BUILD = '202611111454';
 })();
 const W = 1280, H = 720;
 // blast lines: cross one and you lose a stock (there's plenty of room below the stages to recover)
-const BLAST = { l: -1150, r: 1150, t: -800, b: 760 };
+// the blast zones (past these you're KO'd). The top one is 960 px above the stage (20% higher than the old 800)
+const BLAST = { l: -1150, r: 1150, t: -960, b: 760 };
 const GRAV = 0.62, MAXFALL = 11, FASTFALL = 16;
 // buttons: move, jump, down/crouch, attack (Q), special (E), guard (F) and the four taunts
 // B_U is the up direction (it also jumps, "tap jump"); B_J is a jump-only button (Space, gamepad Y) that never aims moves up

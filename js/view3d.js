@@ -1009,7 +1009,8 @@ const V3D = (() => {
     }
   }
   function paperTag(c, f) {
-    const x = f.x, y = f.y - f.h - 16 - (f.hold ? 30 : 0), col = view3dTeams && f.team >= 0 ? TEAM_COLORS[f.team] : SLOT_COLORS[f.i];
+    // (a GOD-level CPU's tag cycles through the rainbow, unless it wears a team colour)
+    const x = f.x, y = f.y - f.h - 16 - (f.hold ? 30 : 0), col = view3dTeams && f.team >= 0 ? TEAM_COLORS[f.team] : f.tag === 'GOD' ? `hsl(${Math.round(performance.now() / 4) % 360},95%,52%)` : SLOT_COLORS[f.i];
     c.save(); c.font = `13px ${FONT}`;
     const w = Math.max(24, c.measureText(f.tag).width + 12);
     const tag = () => { c.beginPath(); c.moveTo(x - w / 2, y - 18); c.lineTo(x + w / 2, y - 18); c.lineTo(x + w / 2, y - 4); c.lineTo(x + 4, y - 4); c.lineTo(x, y + 2); c.lineTo(x - 4, y - 4); c.lineTo(x - w / 2, y - 4); c.closePath(); };

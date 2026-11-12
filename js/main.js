@@ -168,15 +168,15 @@ if (!CH[myChar] && myChar !== 'random') myChar = 'toad';
 const SLOT_PICKS = ['toadette', 'captain', 'yoshi', 'toadsworth', 'blue', 'yellow', 'green'];
 function blankSlots(first) {
   const s = [Object.assign({ team: 0 }, first)];
-  for (let k = 1; k < MAX_SLOTS; k++) s.push({ type: 'off', ch: SLOT_PICKS[k - 1], lvl: 2, team: k % 4 });
+  for (let k = 1; k < MAX_SLOTS; k++) s.push({ type: 'off', ch: SLOT_PICKS[k - 1], lvl: AI_DEFAULT, team: k % 4 });
   return s;
 }
 function localDefaults() {
-  Lobby.slots = blankSlots({ type: 'p1', ch: myChar, lvl: 2 }); Lobby.slots[1].type = 'cpu';
+  Lobby.slots = blankSlots({ type: 'p1', ch: myChar, lvl: AI_DEFAULT }); Lobby.slots[1].type = 'cpu';
   Lobby.active = 0; Lobby.mySlot = 0; Lobby.bans = {}; Lobby.banMode = false;
 }
 function hostDefaults() {
-  Lobby.slots = blankSlots({ type: 'host', ch: myChar, lvl: 2 });
+  Lobby.slots = blankSlots({ type: 'host', ch: myChar, lvl: AI_DEFAULT });
   Lobby.active = 0; Lobby.mySlot = 0; Lobby.bans = {}; Lobby.banMode = false;
 }
 
@@ -420,10 +420,16 @@ function renderLobby() {
     info.appendChild(el('div', 'cn', s.type === 'off' ? (role === 'local' ? 'Not playing' : 'Friends can join here') : nameOf(s.ch)));
     const row = el('div', 'row');
     if (canChangeType(k)) row.appendChild(btn(s.type === 'off' ? 'Add' : 'Change', 'gray', () => cycleType(k)));
-    // CPU level 1 to 3, then a Dummy that never moves or attacks
-    const lvName = s.lvl === 0 ? 'Dummy' : 'Lv ' + s.lvl;
-    if (s.type === 'cpu' && canChangeType(k)) row.appendChild(btn(lvName, 'blue', () => { s.lvl = s.lvl === 3 ? 0 : s.lvl === 0 ? 1 : (s.lvl | 0) + 1; lobbyChanged(); }));
-    else if (s.type === 'cpu') row.appendChild(el('div', 'cn', s.lvl === 0 ? 'Dummy' : 'Level ' + s.lvl));
+    // CPU levels 1 to 9, then GOD, then a Dummy that never moves or attacks (click: harder, right-click: easier)
+    const lvName = lvlName(s.lvl);
+    if (s.type === 'cpu' && canChangeType(k)) {
+      const lb = btn(lvName, s.lvl === AI_GOD ? 'god' : 'blue', () => setLvl(s, 1));
+      lb.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); Snd.play('select'); setLvl(s, -1); };
+      lb.title = 'Click: harder  ·  Right-click: easier  (levels 1 to 9, then GOD; a Dummy just stands there)';
+      row.appendChild(lb);
+    } else if (s.type === 'cpu') row.appendChild(el('div', 'cn' + (s.lvl === AI_GOD ? ' godTxt' : ''), s.lvl === 0 ? 'Dummy' : s.lvl === AI_GOD ? 'GOD' : 'Level ' + s.lvl));
+    d.classList.toggle('god', s.type === 'cpu' && s.lvl === AI_GOD);
+
     // team mode: the slot's team (click to switch)
     if (Lobby.teams && s.type !== 'off') {
       const t = s.team | 0, mine = role === 'local' || role === 'host' || k === Lobby.mySlot;
@@ -507,6 +513,21 @@ function renderRules() {
   $('ruleOpList').textContent = ['op', 'ea'].map(t => `${t === 'op' ? 'OP' : 'Early Access'}: ${CHARS.filter(C => C.badge === t).map(C => C.name).join(', ') || 'none'}`).join('  ·  ');
   $('ruleGuest').classList.toggle('hidden', role !== 'client');
 }
+// CPU levels: 1 to 9, then GOD (10), then a Dummy (0), and round again (right-click goes the other way)
+const LV_ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9, AI_GOD, 0];
+const lvlName = l => (l === 0 ? 'Dummy' : l === AI_GOD ? 'GOD' : 'Lv ' + l);
+function setLvl(s, dir) {
+  const i = LV_ORDER.indexOf(s.lvl | 0), n = LV_ORDER.length;
+  s.lvl = LV_ORDER[((i < 0 ? LV_ORDER.indexOf(AI_DEFAULT) : i) + dir + n) % n];
+  if (s.lvl === AI_GOD) godFlash();
+  lobbyChanged();
+}
+// choosing GOD: spinning rainbow light floods the screen and GOD pops up (calmer if the system asks for less motion)
+function godFlash() {
+  for (const id of ['godFlash', 'godWord']) { const d = $(id); if (d) { d.classList.remove('go'); void d.offsetWidth; d.classList.add('go'); } }
+  Snd.play('fsready'); Snd.play('star');
+  setTimeout(() => Snd.play('choir'), 200);
+}
 function cycleTeam(k) {
   const s = Lobby.slots[k];
   if (!s) return;
@@ -554,10 +575,10 @@ function buildCfg() {
     let ctrl, tag;
     if (role === 'local') {
       ctrl = s.type === 'p1' && !hasP2 ? 'any' : s.type;
-      tag = s.type === 'p1' ? 'P1' : s.type === 'p2' ? 'P2' : 'CPU';
+      tag = s.type === 'p1' ? 'P1' : s.type === 'p2' ? 'P2' : s.lvl === AI_GOD ? 'GOD' : 'CPU';
     } else if (s.type === 'host') { ctrl = 'any'; tag = myName(); }
     else if (s.type === 'net') { ctrl = 'net'; tag = s.name || 'Player'; }
-    else { ctrl = 'cpu'; tag = 'CPU'; }
+    else { ctrl = 'cpu'; tag = s.lvl === AI_GOD ? 'GOD' : 'CPU'; }
     return { slot: k, ch: pickFor(s.ch), name: tag, tag, ctrl, pid: s.pid, lvl: s.lvl, team: Lobby.teams ? s.team | 0 : -1 };
   });
   // (the Double Length modifier plays the stage's twice-as-long version)
@@ -623,7 +644,7 @@ function showResults(res, winner, info) {
   const timed = info.mode === 'time', wt = info.winTeam >= 0 ? info.winTeam : -1, teams = !!info.teams;
   const w = res[0], C = CH[w.ch] || CH.toad;
   if (winner >= 0) setTimeout(() => voiceLine(80, w.ch, 'win'), 400);
-  const who = !w.tag || w.tag === 'CPU' ? `CPU ${C.name}` : w.tag;
+  const who = !w.tag || w.tag === 'CPU' || w.tag === 'GOD' ? `${w.tag === 'GOD' ? 'GOD' : 'CPU'} ${C.name}` : w.tag;
   const head = wt >= 0 ? `${TEAM_NAMES[wt]} Team wins!` : winner >= 0 ? `${who} wins!` : timed ? "It's a tie!" : 'No contest!';
   const h2 = box.appendChild(el('h2', '', head));
   if (wt >= 0) h2.style.color = TEAM_COLORS[wt];
@@ -669,7 +690,7 @@ function showResults(res, winner, info) {
   box.appendChild(tb);
   // a few awards
   if (res.length > 1) {
-    const best = (f, low) => res.slice().sort((a, b) => (low ? f(a) - f(b) : f(b) - f(a)))[0], nm = r => (!r.tag || r.tag === 'CPU' ? 'CPU ' + (CH[r.ch] || CH.toad).name : r.tag);
+    const best = (f, low) => res.slice().sort((a, b) => (low ? f(a) - f(b) : f(b) - f(a)))[0], nm = r => (!r.tag || r.tag === 'CPU' || r.tag === 'GOD' ? (r.tag === 'GOD' ? 'GOD ' : 'CPU ') + (CH[r.ch] || CH.toad).name : r.tag);
     const aw = el('div', 'awards'), K = best(r => r.kos), D = best(r => r.dealt), F = best(r => r.falls, true);
     for (const [t, r, v] of [['Most KOs', K, K.kos], ['Most damage', D, D.dealt + '%'], ['Fewest falls', F, F.falls]]) aw.appendChild(el('span', '', `${t}: ${nm(r)} (${v})`));
     box.appendChild(aw);
@@ -752,7 +773,7 @@ function kickPlayer(k) {
   }
   if (s.name) Net.bannedNames.add(s.name.toLowerCase());
   toast((s.name || 'The player') + ' was removed from the room.');
-  Lobby.slots[k] = { type: 'off', ch: s.ch, lvl: 2, team: s.team | 0 };
+  Lobby.slots[k] = { type: 'off', ch: s.ch, lvl: AI_DEFAULT, team: s.team | 0 };
   lobbyChanged();
 }
 const SN = { prev: null, cur: null, at: 0 };
@@ -885,7 +906,7 @@ function onClientLeave(conn) {
   const s = Lobby.slots[e.slot];
   toast((s.name || 'A player') + ' left.');
   if (G) for (const f of G.fighters) if (f.pid === conn.peer) { f.ctrl = 'cpu'; f.tag = 'CPU'; f.nm = 'CPU'; }
-  Lobby.slots[e.slot] = { type: 'cpu', ch: s.ch, lvl: 2, team: s.team | 0 };
+  Lobby.slots[e.slot] = { type: 'cpu', ch: s.ch, lvl: AI_DEFAULT, team: s.team | 0 };
   if (mode === 'lobby') lobbyChanged();
 }
 
