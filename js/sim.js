@@ -34,7 +34,11 @@ function computeSurfaces(stageId, frame, clouds, brk, ice) {
     out.push({ x, y, w: p.w, h: 0, solid: false, bounce: !!p.bounce, mv: !!p.move, pi, dx, dy });
   }
   if (clouds) for (const c of clouds) out.push({ x: c.x, y: c.y, w: c.w, h: 0, solid: false, cloud: true, dx: 0, dy: 0 });
-  if (ice) for (const s of ice) for (const R of iceRects(s)) out.push({ x: R.x, y: R.y, w: R.w, h: R.h, solid: true, ice: s.id, noLedge: true, dx: 0, dy: R.dy });
+  // (Emilia's ice is solid; a Sea Dragon's Cradle only adds its roof, a platform to stand on, once it has one)
+  if (ice) for (const s of ice) {
+    if (s.k === 'cradle') { if (s.lv >= 3 && s.h >= WATER.cradle.H) out.push({ x: s.x - s.r, y: s.y - s.h, w: s.r * 2, h: 0, solid: false, ice: s.id, roof: 1, dx: 0, dy: 0 }); continue; }
+    for (const R of iceRects(s)) out.push({ x: R.x, y: R.y, w: R.w, h: R.h, solid: true, ice: s.id, noLedge: true, dx: 0, dy: R.dy });
+  }
   return out;
 }
 
@@ -74,6 +78,9 @@ function makeFighter(s, sp, stocks) {
     ctr: -1, ctrT: 0, lx: 0, lcx: 0, lcy: 0, lsi: 0, out: false, outAt: 0,
     fs: 0, fsLock: 0, tn: 0, chg: 0, chgMul: 1, parryAt: -99, prT: 0, dirAt: -99, dTap: -99, ig: 0, hide: 0, boostT: 0,
     uaUsed: false, wallT: 0, wall: 0, wj: 0, bfz: 0, bacc: 0, noPk: 0,
+    // Water Yoshi: his Current (0-100) and which Ebb & Flow move he's doing; anyone's Scalded / Sunk timers, a puddle's
+    // slipperiness, and lying flat after slipping in one
+    cur: 0, ebv: '', ebc: 0, scald: 0, sunk: 0, slick: 0, flat: 0,
     // grabs: gv = the foe I'm holding, gby = who holds me, gt = how long the hold lasts, pmT = pummel cooldown, thr = throw
     gv: -1, gby: -1, gt: 0, pmT: 0, thr: '',
     // anti-spam: parry cooldown, tiring dodges, and the queue of recent moves that landed (stale moves hit softer)
@@ -205,6 +212,11 @@ function updateFighter(g, f, bits) {
   if (f.wallT > 0) f.wallT--;
   if (f.parryCd > 0) f.parryCd--;
   if (f.slow > 0) f.slow--; // chilled by Emilia Toad's ice weapons: slower on the move
+  // Water Yoshi's statuses: Scalded burns 2% a second; Sunk wears off; a puddle's slipperiness fades as you leave it
+  if (f.scald > 0) { f.scald--; if (f.scald % 60 === 0) { f.dm = Math.min(999, f.dm + 2); g.ev.push({ t: 'scald', x: f.x, y: f.y - f.h * 0.7 }); } }
+  if (f.sunk > 0) f.sunk--;
+  if (f.slick > 0) f.slick--;
+  if (f.flat > 0 && f.st !== 'stun') f.flat = 0;
   // Beatrice's follow-up spark (Subaru Toad), a moment after his hit lands; it fizzles if he gets hit first.
   // It only adds damage (it never knocks anyone, so it can't cut short the launch his hit just gave them)
   if (f.echo && --f.echo.t <= 0) {
@@ -286,20 +298,21 @@ function updateFighter(g, f, bits) {
 function control(g, f, c) {
   const C = c.C, dirX = c.dirX, pr = c.pressed, bits = c.bits;
   let onG = c.onG;
-  const help = f.st === 'help', iceG = onG && g.surf[f.gi] && g.surf[f.gi].icy; // (Frostbite Glacier's slippery floor)
+  // (slippery footing: 2 = Frostbite Glacier's ice floor, 1 = a Water Yoshi puddle, a little less slippery)
+  const help = f.st === 'help', slip = !onG ? 0 : g.surf[f.gi] && g.surf[f.gi].icy ? 2 : f.slick > 0 ? 1 : 0;
   if (pr & (B_L | B_R | B_U | B_D)) f.dirAt = g.frame;
   // Super Mushroom: slow and mighty; Mini Mushroom: quick and fragile; chilled by ice: slowed down
-  const spd = (f.small ? 1.35 : 1) * (f.star ? 1.2 : 1) * (f.big ? 0.72 : 1) * (f.slow > 0 ? 0.55 : 1);
+  const spd = (f.small ? 1.35 : 1) * (f.star ? 1.2 : 1) * (f.big ? 0.72 : 1) * (f.slow > 0 ? 0.55 : 1) * (f.sunk > 0 ? 0.75 : 1);
   if (onG) {
     if (!help) for (let n = 0; n < 4; n++) if (pr & B_TAUNTS[n]) { startTaunt(g, f, n + 1); return; }
     if (f.boostT > 0) { f.vx += dirX * 0.3; f.st = 'run'; } // riding a dash panel keeps its speed
     else if (dirX) {
-      f.vx += dirX * C.run * (iceG ? 0.075 : 0.22); // (on ice you get going slowly)
+      f.vx += dirX * C.run * (slip === 2 ? 0.075 : slip ? 0.13 : 0.22); // (on ice you get going slowly)
       const m = C.run * spd;
       f.vx = clamp(f.vx, -m, m);
       f.fc = dirX; f.st = 'run';
     } else {
-      f.vx *= iceG ? 0.965 : 0.72; // (and you slide to a stop)
+      f.vx *= slip === 2 ? 0.965 : slip ? 0.9 : 0.72; // (and you slide to a stop)
       if (Math.abs(f.vx) < 0.1) f.vx = 0;
       f.st = bits & B_D ? 'crouch' : 'idle';
     }
@@ -393,7 +406,7 @@ function control(g, f, c) {
 function doJump(g, f) {
   const C = CH[f.ch];
   if (f.pick > 0) return;
-  const jm = (f.small ? 1.18 : f.big ? 0.88 : 1) * (f.slow > 0 ? 0.88 : 1);
+  const jm = (f.small ? 1.18 : f.big ? 0.88 : 1) * (f.slow > 0 ? 0.88 : 1) * (f.sunk > 0 ? 0.9 : 1);
   if (f.gi >= 0) {
     f.vy = -C.jump * jm; f.gi = -1; f.st = 'air';
     g.ev.push({ t: 'jump', x: f.x, y: f.y });
@@ -746,7 +759,7 @@ function ko(g, f) {
   // (in a timed match lives never run out)
   f.falls++; if (g.mode !== 'time') f.sk--; f.st = 'dead'; f.dead = 100; f.vx = 0; f.vy = 0;
   f.big = f.small = f.star = f.pe = f.frz = f.psn = f.pick = 0; f.hold = null; f.glide = 0; f.lastHit = -1;
-  f.fs = 0; f.fsLock = 0; f.hide = 0; f.ig = 0; f.tn = 0; f.boostT = 0; f.slow = 0;
+  f.fs = 0; f.fsLock = 0; f.hide = 0; f.ig = 0; f.tn = 0; f.boostT = 0; f.slow = 0; f.scald = 0; f.sunk = 0; f.slick = 0; f.flat = 0;
   f.x = 0; f.y = -2000;
   if (f.sk <= 0) {
     f.out = true; f.outAt = g.frame;
@@ -808,6 +821,7 @@ function hitArea(g, f, ox, oy, r, d, k, gr, ang, o) {
   // Emilia Toad's ice: foes' blows chip her pillars and barriers, and break her ice soldiers
   for (const s of g.ice.slice()) {
     if (mineI(g, f.i, s.o) || !fresh('ice' + s.id) || !iceCircle(s, cx, cy, r)) continue;
+    if (s.k === 'cradle' && insideCradle(s, f)) continue; // (blows from inside a Cradle don't wear its wall)
     map['ice' + s.id] = g.frame; hurtIce(g, s, d * f.pm); any = true;
   }
   for (const q of g.proj) {
@@ -869,6 +883,9 @@ function applyHit(g, v, a, d, k, gr, ang, dir, o) {
   // a GOD-level CPU is a little tougher (20% less damage, 15% less knockback) and hits 15% harder
   if (v.ctrl === 'cpu' && v.lvl === 10) { d *= 0.8; k *= 0.85; }
   if (a && a.ctrl === 'cpu' && a.lvl === 10) d *= 1.15;
+  // Water Yoshi's statuses: a Scalded attacker hits 20% softer (damage and knockback); a Sunk victim takes 10% more
+  if (a && a.scald > 0) { d *= 0.8; k *= 0.8; }
+  if (v.sunk > 0) d *= 1.1;
   // chip damage (Emilia Toad's ice pellets): damage only. No flinch, no knockback, nothing interrupted
   if (o.chip) {
     d *= v.big ? 0.65 : v.small ? 1.4 : 1;
@@ -945,7 +962,7 @@ function blastAt(g, x, y, owner, r, d, k, gr, ang, extra) {
     if (circRect(x, y, r, v.x - v.w / 2, v.y - v.h, v.w, v.h)) applyHit(g, v, a, d, k, gr, ang, v.x >= x ? 1 : -1, Object.assign({ proj: true }, extra));
   }
   // blasts crack Emilia Toad's ice and break her soldiers too
-  for (const s of g.ice.slice()) if (!mineI(g, owner, s.o) && iceCircle(s, x, y, r)) hurtIce(g, s, d);
+  for (const s of g.ice.slice()) if (s.k !== 'cradle' && !mineI(g, owner, s.o) && iceCircle(s, x, y, r)) hurtIce(g, s, d);
   for (const q of g.proj) if (q.k === 'minion' && q.sub === 'icesoldier' && !mineI(g, owner, q.o) && q.hp > 0 && circRect(x, y, r, q.x - 15, q.y - 52, 30, 52)) hurtSoldier(g, q, q.x >= x ? 1 : -1);
 }
 
@@ -1026,6 +1043,12 @@ function updateProj(g) {
               kill = true; boom = true;
               // El Minya's crystals chip away at the platforms they land on
               if (p.k === 'fsdrop' && p.sub === 'crystal' && s.pi !== undefined) damagePlat(g, s.pi);
+              // Water Yoshi's spout leaves a slippery puddle where it splashes down (for 3 seconds)
+              if (p.k === 'wspout') {
+                const own = fighterBy(g, p.o);
+                if (own) spawnProj(g, own, { k: 'trap', sub: 'wpuddle', x: p.x, y: s.y, vx: 0, vy: 0, d: 0, kb: 0, gr: 0, ang: 0, r: WATER.puddle.r, life: WATER.puddle.life, landed: 1, in: {}, quiet: 1 });
+                g.ev.push({ t: 'splash', x: p.x, y: s.y });
+              }
             }
           }
         }
@@ -1101,6 +1124,33 @@ function updTrap(g, p) {
   }
   if (p.sub === 'amp') {
     if (p.t === 20 || p.t === 50 || p.t === 80) { blastAt(g, p.x, p.y - 24, p.o, 110, 5 * p.pm, 7, 0.07, 55); g.ev.push({ t: 'amp', x: p.x, y: p.y - 24 }); }
+    return false;
+  }
+  // Water Yoshi's puddle: slippery underfoot for everyone; a foe who steps in has a 1 in 100 chance to slip and fall
+  // flat on their face (40% and 6 seconds stunned)
+  if (p.sub === 'wpuddle') {
+    const P = WATER.puddle;
+    for (const v of g.fighters) {
+      const inside = alive(v) && v.gi >= 0 && Math.abs(v.x - p.x) < p.r && Math.abs(v.y - p.y) < 6;
+      if (inside) v.slick = 2;
+      if (inside && !p.in[v.i] && !mineI(g, p.o, v.i) && hittable(v) && v.st !== 'stun' && RND() < P.slip) {
+        applyHit(g, v, fighterBy(g, p.o), P.slipD, 0, 0, 0, 1, { proj: true, chip: true });
+        v.st = 'stun'; v.t = P.slipStun; v.flat = P.slipStun; v.vx = 0; v.at = null; v.sp = null;
+        g.ev.push({ t: 'slip', x: v.x, y: v.y - 30 });
+      }
+      p.in[v.i] = inside ? 1 : 0;
+    }
+    return false;
+  }
+  // ... and his whirlpool: it drags foes who touch it toward the middle and wears them down (no flinching)
+  if (p.sub === 'whirl') {
+    const Wh = WATER.whirl, own = fighterBy(g, p.o);
+    for (const v of g.fighters) {
+      if (mineI(g, p.o, v.i) || !alive(v) || v.rp > 0 || Math.abs(v.x - p.x) > p.r + v.w / 2 || v.y < p.y - 30 || v.y > p.y + 8 || v.st === 'ledge') continue;
+      const dx = p.x - v.x;
+      v.x += Math.sign(dx) * Math.min(Math.abs(dx), Wh.pull);
+      if (p.hits[v.i] === undefined || g.frame - p.hits[v.i] >= Wh.every) { p.hits[v.i] = g.frame; applyHit(g, v, own, p.d, 0, 0, 0, 1, { proj: true, chip: true }); }
+    }
     return false;
   }
   // Catholic Toad's piñata: the first foe to bump into it bursts it open, and candy flies everywhere
@@ -1635,6 +1685,8 @@ const FSDEF = {
   mormon: { k: 'pulses', sub: 'choir' }, hasidic: { k: 'lasso', sub: 'hora' }, subaru: { k: 'rain', sub: 'crystal', n: 64, every: 4.075 },
   dashyoshi: { k: 'rush', sub: 'dash', spd: 26, laps: 3 }, mechyoshi: { k: 'beam', sub: 'mech' },
   emilia: { k: 'storm', sub: 'absolute' },
+  // Water Yoshi's finale is a placeholder for now: a healing tide (70%)
+  wateryoshi: { k: 'heal', sub: 'tide' },
   catholic: { k: 'wave', sub: 'parranda' }, hindu: { k: 'vortex', sub: 'color', move: 2.6, life: 210, r: 240 },
 };
 // finales that keep their user busy until they finish (the Beast of the End only for its opening)
@@ -1669,6 +1721,7 @@ function fsLaunch(g, f) {
     case 'fist': e.life = 200; e.vx = 2; e.y = f.y - 44; break;
     case 'storm': e.life = 320; e.ox = f.x; e.oy = f.y; break;
     case 'beast': e.life = BEAST.gone + 20; e.ox = f.x; e.oy = f.y; e.x = s.x + s.w / 2; e.y = s.y; e.pos = {}; break;
+    case 'heal': e.life = 60; break;
   }
   g.fx.push(e);
   if (FS_LOCK[D.k]) f.fsLock = e.id;
@@ -1764,6 +1817,11 @@ const FXU = {
     for (const v of g.fighters) v.bfz = 0;
     if (own) { own.noPk = 0; if (!own.out) g.ev.push({ t: 'puckback', i: e.o }); }
     return true;
+  },
+  // a healing tide washes over the user: 70% of their damage, gone (Water Yoshi's placeholder finale)
+  heal(g, e, own) {
+    if (e.t === 2 && own && alive(own)) { own.dm = Math.max(0, own.dm - 70); g.ev.push({ t: 'fsheal', x: own.x, y: own.y - own.h, i: own.i }); }
+    return e.t >= 50;
   },
   // everyone else freezes solid, then shatters
   freeze(g, e) {
@@ -2417,15 +2475,19 @@ function updSpear(g, p, iceOut) {
 // ---- Emilia's ice pillar (lifts her up) and ice barrier (a wall that curves over her head). Both are solid while
 // they stand. Foes' blows and shots chip away their HP (50 and 30), then they shatter. One of each per Emilia
 function iceRects(s) {
+  if (s.k === 'cradle') return [];
   if (s.k === 'pillar') return [{ x: s.x - s.w / 2, y: s.y - s.h, w: s.w, h: s.h, dy: s.t < EMI.pillar.grow ? -EMI.pillar.H / EMI.pillar.grow : 0 }];
   const H = s.h, R = [{ x: s.fc > 0 ? s.x + 30 : s.x - 48, y: s.y - H, w: 18, h: H, dy: 0 }];
   if (H > EMI.barrier.H * 0.85) R.push({ x: s.fc > 0 ? s.x - 26 : s.x - 52, y: s.y - H, w: 78, h: 16, dy: 0 });
   return R;
 }
-const iceCircle = (s, cx, cy, r) => iceRects(s).some(R => circRect(cx, cy, r, R.x, R.y, R.w, R.h));
+// (a Cradle is struck anywhere on its round wall, once it has risen)
+const iceCircle = (s, cx, cy, r) => (s.k === 'cradle' ? s.h > 0 && circRect(cx, cy, r, s.x - s.r, s.y - s.h, s.r * 2, s.h) : iceRects(s).some(R => circRect(cx, cy, r, R.x, R.y, R.w, R.h)));
 function updIce(g) {
+  for (const s of g.ice.slice()) if (s.k === 'cradle') updCradle(g, s);
   for (const s of g.ice) {
     s.t++;
+    if (s.k === 'cradle') { const C = WATER.cradle; s.h = s.t < C.rise ? 0 : C.H * Math.min(1, (s.t - C.rise) / 10); continue; }
     s.h = s.k === 'pillar' ? EMI.pillar.H * Math.min(1, s.t / EMI.pillar.grow) : EMI.barrier.H * Math.min(1, s.t / 10);
   }
 }
@@ -2439,18 +2501,23 @@ function makeIce(g, f, k, x, y) {
 function hurtIce(g, s, d) {
   if (s.hp <= 0) return;
   s.hp = Math.max(0, s.hp - d);
-  g.ev.push({ t: 'icehit', x: s.k === 'pillar' ? s.x : s.x + s.fc * 39, y: s.y - s.h * 0.6, k: s.k });
+  g.ev.push({ t: 'icehit', x: s.k === 'pillar' || s.k === 'cradle' ? s.x : s.x + s.fc * 39, y: s.y - s.h * 0.6, k: s.k });
   if (s.hp <= 0) breakIce(g, s);
 }
-function breakIce(g, s) {
+// (how: 'drain' = a Cradle running out or replaced, 'crystal' = shattered by El Minya)
+function breakIce(g, s, how) {
   const i = g.ice.indexOf(s);
   if (i >= 0) g.ice.splice(i, 1);
+  if (s.k === 'cradle') { g.ev.push({ t: 'cradleend', x: s.x, y: s.y, r: s.r, h: s.h, how: how || 'break' }); return; }
   g.ev.push({ t: 'iceshatter', x: s.k === 'pillar' ? s.x : s.x + s.fc * 18, y: s.y - s.h * 0.5, w: s.w, h: s.h, k: s.k });
 }
 // an ice barrier standing between an attacker and their target takes the blow (Emilia's own blows pass)
 function iceShield(g, a, v) {
   for (const s of g.ice) {
-    if (s.k !== 'barrier' || mineI(g, a.i, s.o)) continue;
+    if (mineI(g, a.i, s.o)) continue;
+    // a Cradle stops blows between someone inside it and someone outside
+    if (s.k === 'cradle') { if (s.h >= WATER.cradle.H * 0.8 && insideCradle(s, a) !== insideCradle(s, v)) return s; continue; }
+    if (s.k !== 'barrier') continue;
     for (const R of iceRects(s)) if (segRect(a.x, a.y - a.h * 0.5, v.x, v.y - v.h * 0.5, R.x, R.y, R.x + R.w, R.y + R.h) >= 0) return s;
   }
   return null;
@@ -2459,6 +2526,13 @@ function iceShield(g, a, v) {
 function shotVsIce(g, p) {
   for (const s of g.ice) {
     if (mineI(g, p.o, s.o) || p.hits['ice' + s.id] !== undefined || !iceCircle(s, p.x, p.y, p.r)) continue;
+    // a Cradle soaks up foes' shots and heals 2 (El Minya's crystals crystallize it instead)
+    if (s.k === 'cradle') {
+      p.hits['ice' + s.id] = g.frame;
+      if (p.k === 'fsdrop' && p.sub === 'crystal') { crystalCradle(g, s); return true; }
+      s.hp = Math.min(s.max, s.hp + 2); g.ev.push({ t: 'cradleheal', x: p.x, y: p.y });
+      return true;
+    }
     p.hits['ice' + s.id] = g.frame; hurtIce(g, s, p.d);
     return !p.pierce;
   }
@@ -2720,6 +2794,95 @@ function spHeal(o) {
       return f.t >= o.frames + 8 ? 1 : 0;
     },
   };
+}
+
+// ---------- Water Yoshi (Early Access) ----------
+// Ebb & Flow builds Current (f.cur, 0 to 100). With none, holding Special charges it (5 seconds to full; you keep
+// what you have when you let go or get hit). With any Current, Special releases ALL of it as one of five moves,
+// picked by how much there is. Sea Dragon's Cradle uses it up too, for extra effects. Statuses: Scalded (10 s:
+// burns 2% a second, and the victim's own hits do 20% less damage and knockback) and Sunk (5 s: 25% slower, and
+// takes 10% more damage)
+const WATER = {
+  charge: 300, // frames from 0 to 100% Current
+  spout: { vx: 11, vy: 0.8, grav: 0.16, d: 4, kb: 3, gr: 0.02, ang: 30, r: 9, life: 100 },
+  puddle: { life: 180, r: 36, slip: 0.01, slipD: 40, slipStun: 360 },
+  blast: { vx: 8.5, d: 12, kb: 4.5, gr: 0.035, ang: 12, r: 24, life: 80 },
+  beam: { at: 12, on: 5, end: 34, len: 620, h: 22, d0: 18, d1: 25, kb: 6.5, gr: 0.07, grHi: 0.17, hiAt: 140, ang: 10 },
+  whirl: { life: 420, d: 30, every: 15, pull: 1.7 },
+  kame: { wind: 90, fire: 240, every: 6, d: 50, fin: 3.2, kb: 10, gr: 0.13, ang: 8, exec: 150, top: 142, scald: 600 },
+  cradle: { r: 62, H: 112, rise: 30, life: 600, cd: 900, hp: 10, heal: 4, sunk: 300 },
+  scald: 600, sunk: 300,
+};
+// the Release move for an amount of Current
+const waterTier = c => (c >= 100 ? 'kame' : c >= 75 ? 'whirl' : c >= 50 ? 'beam' : c >= 25 ? 'blast' : 'spout');
+// the 100% beam's box: from his hands, 1.2 times the main platform long, from the floor up to just under Toad Town's
+// side platforms (used by the sim and the view)
+function kameBox(g, f) {
+  const s = STG[g.stage].solids[0], len = s.w * 1.2, x0 = f.x + f.fc * 26 * (f.sc || 1), K = WATER.kame;
+  return { x: f.fc > 0 ? x0 : x0 - len, y: f.y - K.top, w: len, h: K.top + 4 };
+}
+// the 50-74% jet: a thin line straight out in front of him
+function wbeamBox(f) {
+  const B = WATER.beam, x0 = f.x + f.fc * 22 * (f.sc || 1), y0 = f.y - f.h * 0.56;
+  return { x: f.fc > 0 ? x0 : x0 - B.len, y: y0 - B.h / 2, w: B.len, h: B.h };
+}
+const boxHits = (B, v) => v.x + v.w / 2 > B.x && v.x - v.w / 2 < B.x + B.w && v.y > B.y && v.y - v.h < B.y + B.h;
+// 100% Current: he plants his feet for 1.5 s with his hands drawn back to his right hip, then pushes both palms forward
+// and fires a huge, glowing, steaming beam for 4 s. It hits every 0.1 s (each tick stuns and holds foes in the beam),
+// up to 50% in all, then a last blast sends them flying, and a foe over 150% by then is knocked out on the spot.
+// Anyone it hurts is left Scalded
+function kameUpd(g, f) {
+  const K = WATER.kame, ft = f.t - K.wind;
+  f.vx = 0; f.vy = 0;
+  if (f.t === K.wind) g.ev.push({ t: 'kamefire', x: f.x, y: f.y - 70, dir: f.fc, i: f.i });
+  if (ft < 0) return 0;
+  const B = kameBox(g, f), ticks = Math.floor(K.fire / K.every), per = (K.d - K.fin) / ticks;
+  if (ft < K.fire && ft % K.every === 0) {
+    for (const v of g.fighters) {
+      if (mineI(g, f.i, v.i) || !alive(v) || v.rp > 0 || !boxHits(B, v)) continue;
+      if (applyHit(g, v, f, per * f.pm, 2.2, 0, 6, f.fc, { proj: true, fixed: true, mv: '', use: f.use }) !== false) {
+        v.vx = f.fc * 0.9; v.vy = Math.min(v.vy, 0) * 0.3; v.scald = Math.max(v.scald || 0, K.scald);
+        (f.kvic || (f.kvic = {}))[v.i] = 1;
+      }
+    }
+  }
+  if (ft === K.fire) {
+    for (const i in f.kvic || {}) {
+      const v = fighterBy(g, +i);
+      if (!v || !alive(v)) continue;
+      applyHit(g, v, f, K.fin * f.pm, K.kb, K.gr, K.ang, f.fc, { proj: true, mv: '', use: f.use });
+      v.scald = Math.max(v.scald || 0, K.scald);
+      if (v.dm > K.exec) { v.lastHit = f.i; v.lastHitT = g.frame; g.ev.push({ t: 'execute', x: v.x, y: v.y - v.h / 2 }); ko(g, v); }
+    }
+    f.kvic = null;
+  }
+  return ft >= K.fire + 16 ? 1 : 0;
+}
+// the lowest floor under someone in the air (or where they stand), for the whirlpool
+function lowestBelow(g, f) {
+  if (f.gi >= 0 && g.surf[f.gi]) return g.surf[f.gi].y;
+  let best = null;
+  for (const s of g.surf) if (!s.gone && !s.ice && !s.cloud && s.w > 0 && f.x >= s.x && f.x <= s.x + s.w && s.y >= f.y - 2 && (best === null || s.y > best)) best = s.y;
+  return best;
+}
+// a Sea Dragon's Cradle: is this fighter inside its circle?
+const insideCradle = (s, v) => Math.abs(v.x - s.x) < s.r && v.y > s.y - s.h - 4 && v.y <= s.y + 12;
+function updCradle(g, s) {
+  const C = WATER.cradle;
+  if (s.t >= s.life) { breakIce(g, s, 'drain'); return; }
+  if (s.h < C.H * 0.5) return;
+  for (const v of g.fighters) {
+    if (!alive(v) || Math.abs(v.x - s.x) > s.r + v.w / 2 || v.y < s.y - s.h - 4 || v.y - v.h > s.y + 4) continue;
+    // (25%+ Current: foes who touch it are Sunk; 100%: healing water for Water Yoshi inside, 4% a second)
+    if (s.lv >= 2 && !mineI(g, s.o, v.i)) v.sunk = Math.max(v.sunk || 0, C.sunk);
+    if (s.lv >= 5 && v.i === s.o && (s.t - C.rise) % 60 === 0 && insideCradle(s, v) && v.dm > 0) { v.dm = Math.max(0, v.dm - C.heal); g.ev.push({ t: 'heal', x: v.x, y: v.y - v.h }); }
+  }
+}
+// El Minya's crystals crystallize the Cradle the way they do platforms: the third one shatters it
+function crystalCradle(g, s) {
+  s.cr = (s.cr || 0) + 1;
+  if (s.cr >= PLAT_HP) breakIce(g, s, 'crystal');
+  else g.ev.push({ t: 'cradlecrack', x: s.x, y: s.y - s.h, n: s.cr });
 }
 
 // ---------- Specials ----------
@@ -3322,6 +3485,113 @@ const SP = {
   airdash: spDash({ cd: 30, speed: 15, startup: 3, frames: 12, hb: { x: 18, y: 0.5, r: 28, d: 7, k: 6, g: 0.09, ang: 40 }, lag: 8, trail: 'jet' }),
   booster: spRise({ vy: 13.5, hold: 24, end: 30, drift: 5.5, trail: 'jet', hb: { a: 0, b: 22, y: -0.1, r: 26, d: 3, k: 3, g: 0.04, ang: -70, every: 8 } }),
   bomblob: spShot({ slot: 'd', cd: 70, at: 10, end: 24, p: { k: 'mbomb', vx: 6, vy: -8, grav: 0.45, d: 8, kb: 7, gr: 0.1, ang: 50, r: 14, life: 150, explode: { r: 60, d: 7, k: 8, g: 0.1 } } }),
+  // --- Water Yoshi (Early Access) ---
+  // Ebb & Flow. With no Current: Rising Tide, hold Special to charge it (his hands sweep like the sea; let go to
+  // stop). With any Current: Release, all of it at once: 1-24% a water spout that leaves a slippery puddle, 25-49%
+  // a round water blast, 50-74% a piercing high-pressure jet, 75-99% a whirlpool, 100% the giant beam
+  ebbflow: {
+    start(g, f, c) {
+      f.kvic = null;
+      f.ebv = f.cur > 0 ? waterTier(f.cur) : 'charge';
+      if (f.ebv === 'charge') { if (c.onG) f.vx *= 0.4; return; }
+      f.ebc = f.cur; f.cur = 0;
+      if (c.onG) f.vx *= 0.3;
+      if (f.ebv === 'kame' || f.ebv === 'beam') { f.vx = 0; f.vy = 0; }
+      g.ev.push({ t: 'wrelease', x: f.x, y: f.y - f.h * 0.5, k: f.ebv, i: f.i, dir: f.fc });
+    },
+    upd(g, f, c) {
+      const W = WATER;
+      switch (f.ebv) {
+        case 'charge': {
+          if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2.5);
+          if (!(c.bits & B_B) || f.cur >= 100) return 1;
+          const was = f.cur;
+          f.cur = Math.min(100, f.cur + 100 / W.charge);
+          for (const q of [25, 50, 75, 100]) if (was < q && f.cur >= q) g.ev.push({ t: 'wtick', i: f.i, q, x: f.x, y: f.y - f.h * 0.6 });
+          return 0;
+        }
+        case 'spout':
+          if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2);
+          if (f.t === 8) spawnProj(g, f, Object.assign({ k: 'wspout', x: f.x + f.fc * 24 * f.sc, y: f.y - f.h * 0.62 }, W.spout, { vx: f.fc * W.spout.vx, fc: f.fc }));
+          return f.t >= 20 ? 1 : 0;
+        case 'blast':
+          if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2);
+          if (f.t === 10) spawnProj(g, f, Object.assign({ k: 'wblast', x: f.x + f.fc * 30 * f.sc, y: f.y - f.h * 0.55, vy: 0, grav: 0, ghost: 1 }, W.blast, { vx: f.fc * W.blast.vx, fc: f.fc }));
+          return f.t >= 24 ? 1 : 0;
+        case 'beam': {
+          // locked in place (even in the air) while the high-pressure jet fires straight through everyone in its path
+          f.vx = 0; f.vy = 0;
+          const B = W.beam;
+          if (f.t >= B.at && f.t < B.at + B.on) {
+            const box = wbeamBox(f), d = B.d0 + (B.d1 - B.d0) * clamp((f.ebc - 50) / 24, 0, 1);
+            for (const v of g.fighters) {
+              if (mineI(g, f.i, v.i) || !hittable(v) || f.hits[v.i] || !boxHits(box, v)) continue;
+              f.hits[v.i] = 1;
+              // (its knockback grows a lot more once a foe is past 140%)
+              applyHit(g, v, f, d * f.pm, B.kb, v.dm > B.hiAt ? B.grHi : B.gr, B.ang, f.fc, { proj: true, mv: 's:wbeam', use: f.use });
+            }
+          }
+          return f.t >= B.end ? 1 : 0;
+        }
+        case 'whirl':
+          if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2);
+          if (f.t === 12) {
+            // a quarter of the main platform across, on the floor he stands on (or, in the air, the lowest one below)
+            const s = STG[g.stage].solids[0], r = s.w / 8, ws = W.whirl;
+            let gy = lowestBelow(g, f), x = f.x;
+            if (gy === null) { x = clamp(f.x, s.x + r, s.x + s.w - r); gy = s.y; }
+            spawnProj(g, f, { k: 'trap', sub: 'whirl', x, y: gy, vx: 0, vy: 0, d: ws.d / (ws.life / ws.every), kb: 0, gr: 0, ang: 0, r, life: ws.life, landed: 1, quiet: 1 });
+            g.ev.push({ t: 'whirlpool', x, y: gy });
+          }
+          return f.t >= 26 ? 1 : 0;
+        case 'kame': return kameUpd(g, f);
+      }
+      return 1;
+    },
+  },
+  // Undertow (a placeholder side special): a wave rolls out in front of him, then the tide turns and it washes back,
+  // pushing foes away on the way out and dragging them back toward him on the way in. With 25% Current or more it
+  // takes 25% of it for a wave twice as big that hits harder
+  undertow: {
+    start(g, f, c) {
+      if (!useCd(f, 's', 60)) return false;
+      if (!c.onG) { if (f.sUsed) return false; f.sUsed = true; f.vy = Math.min(f.vy, -3); }
+      f.vx *= 0.3;
+    },
+    upd(g, f, c) {
+      if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2.5);
+      if (f.t === 9) {
+        const big = f.cur >= 25;
+        if (big) f.cur -= 25;
+        spawnProj(g, f, { k: 'boom', sub: 'wave', x: f.x + f.fc * 26 * f.sc, y: f.y - f.h * 0.35, vx: f.fc * 12, vy: 0, d: big ? 7 : 4, kb: big ? 5 : 3.5, gr: 0.04, ang: 25,
+          r: big ? 34 : 22, grav: 0, life: 110, dir0: f.fc, big: big ? 1 : 0 });
+      }
+      return f.t >= 22 ? 1 : 0;
+    },
+  },
+  // Geyser Rise (a placeholder up special): a geyser bursts up under him and carries him high, splashing anyone at
+  // his feet. A big, steerable climb back to the stage
+  geyserrise: spRise({ vy: 14, hold: 10, drift: 5.5, end: 30, ev: 'wgeyser', trail: 'wtrail', hb: { a: 0, b: 8, y: 0.15, r: 36, d: 6, k: 7, g: 0.07, ang: 80 } }),
+  // Sea Dragon's Cradle: a ring of water on the floor; half a second later water rises from it into a round wall for
+  // 10 seconds (15 s to recharge). Blows from outside (or out from inside) hit the wall instead of whoever is behind
+  // it, and wear it down (10 HP); shots soak into it and heal it 2. It uses up ALL his Current for extras, which
+  // stack: 1%+ +10 HP, 25%+ foes who touch it are Sunk, 50%+ a roof you can stand on, 75%+ +30 HP, 100% healing
+  // water (4% a second while he's inside). El Minya's crystals shatter it like a platform
+  cradle: {
+    start(g, f, c) {
+      const C = WATER.cradle, gy = c.onG ? f.y : groundBelow(g, f.x, f.y - 2, 320);
+      if (gy === null) return fizzle(g, f, 'No floor to put it on!');
+      if (!useCd(f, 'd', C.cd)) return false;
+      f.vx *= 0.3;
+      const cur = f.cur, lv = cur >= 100 ? 5 : cur >= 75 ? 4 : cur >= 50 ? 3 : cur >= 25 ? 2 : cur > 0 ? 1 : 0;
+      f.cur = 0;
+      for (const s of g.ice.slice()) if (s.o === f.i && s.k === 'cradle') breakIce(g, s, 'drain');
+      const hp = C.hp + (lv >= 1 ? 10 : 0) + (lv >= 4 ? 30 : 0);
+      g.ice.push({ id: g.pid++, k: 'cradle', o: f.i, x: f.x, y: gy, fc: f.fc, w: C.r * 2, r: C.r, h: 0, t: 0, hp, max: hp, life: C.life, lv, cr: 0 });
+      g.ev.push({ t: 'cradle', x: f.x, y: gy, lv });
+    },
+    upd(g, f, c) { if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2); return f.t >= 20 ? 1 : 0; },
+  },
   // --- the Smash Mushroom finale (every fighter; see FSDEF) ---
   fs: {
     fall: 2,
@@ -3346,7 +3616,9 @@ const FKEYS = ['i', 'ch', 'nm', 'tag', 'fc', 'st', 't', 'at', 'sp', 'sk', 'h', '
   // how frozen a fighter is in the Beast of the End's storm (0 to 1)
   'bfz',
   // team mode: which team a fighter is on (-1 = none)
-  'team'];
+  'team',
+  // Water Yoshi: his Current and Ebb & Flow move, and anyone's Scalded / Sunk / flat-on-their-face timers
+  'cur', 'ebv', 'scald', 'sunk', 'flat'];
 const r1 = v => Math.round(v * 10) / 10;
 function snapshot(g, ev) {
   const Hz = g.haz;
@@ -3365,7 +3637,7 @@ function snapshot(g, ev) {
     items: g.items.map(it => ({ k: it.k, x: Math.round(it.x), y: Math.round(it.y), t: it.t, sprout: it.sprout, life: it.life, hp: it.hp })),
     clouds: g.clouds.map(c => ({ x: Math.round(c.x), y: Math.round(c.y), w: c.w, life: c.life })),
     brk: g.brk, php: g.php,
-    ice: g.ice.map(s => ({ id: s.id, k: s.k, o: s.o, x: Math.round(s.x), y: Math.round(s.y), w: s.w, h: Math.round(s.h), hp: Math.ceil(s.hp), max: s.max, fc: s.fc, t: s.t })),
+    ice: g.ice.map(s => ({ id: s.id, k: s.k, o: s.o, x: Math.round(s.x), y: Math.round(s.y), w: s.w, h: Math.round(s.h), hp: Math.ceil(s.hp), max: s.max, fc: s.fc, t: s.t, r: s.r, lv: s.lv, cr: s.cr, life: s.life })),
     kart: g.kart ? { x: Math.round(g.kart.x), dir: g.kart.dir, warn: g.kart.warn, c: g.kart.c } : null,
     fx: g.fx.map(e => ({ id: e.id, k: e.k, sub: e.sub, o: e.o, t: e.t, life: e.life, x: Math.round(e.x), y: Math.round(e.y), x2: e.x2 !== undefined ? Math.round(e.x2) : undefined,
       dir: e.dir, r: e.r, lv: e.lv !== undefined ? Math.round(e.lv) : undefined, vic: e.vic, b: e.b ? e.b.map(b => [Math.round(b[0]), Math.round(b[1])]) : undefined,

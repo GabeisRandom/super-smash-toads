@@ -742,6 +742,14 @@ function drawHUD(c, view, fr) {
     const ox = m.shake ? (Math.random() - 0.5) * 6 : 0, oy = m.shake ? (Math.random() - 0.5) * 6 : 0;
     txt(c, f.out ? 'OUT' : Math.floor(f.dm) + '%', x + 84 + ox, y + 68 + oy, 40, f.out ? '#999' : dmgColor(f.dm), OUT, 'left', 5);
     const col = CH[f.ch].look.spot && CH[f.ch].look.spot !== '#ffffff' ? CH[f.ch].look.spot : CH[f.ch].look.body || '#ff8cc6';
+    // Water Yoshi's Current meter over his card (a simple version for this no-WebGL view)
+    if (CH[f.ch] && CH[f.ch].current) {
+      const k = Math.min(1, (f.cur || 0) / 100), bw = pw - 40;
+      c.fillStyle = 'rgba(30,80,140,0.3)'; c.fillRect(x + 20, y - 18, bw, 11); c.fillStyle = 'rgba(120,220,255,0.8)'; c.fillRect(x + 20, y - 18, bw * k, 11);
+      c.strokeStyle = '#e8fbff'; c.lineWidth = 1.5; c.strokeRect(x + 20, y - 18, bw, 11);
+      for (const q of [25, 50, 75]) { c.fillStyle = (f.cur || 0) >= q ? '#ffffff' : 'rgba(220,240,255,0.6)'; c.fillRect(x + 20 + (bw * q) / 100 - 1, y - 20, 2, 15); }
+      txt(c, 'CURRENT', x + 20 + bw / 2, y - 9, 10, '#ffffff', OUT, 'center', 2);
+    }
     const shown = view.mode === 'time' ? 0 : Math.min(f.sk, 5);
     if (view.mode === 'time') txt(c, f.kos + ' KO', x + pw - 12, y + 50, 16, '#ffffff', OUT, 'right');
     for (let s = 0; s < shown; s++) { const sx = x + pw - 16 - s * 17, sy = y + 40; E(c, sx, sy + 6, 4, 4, '#fff3dc', OUT, 1.2); cap(c, sx, sy + 3, 8, 6, col, '#ffffff', [[0, -0.9, 0.3]]); }

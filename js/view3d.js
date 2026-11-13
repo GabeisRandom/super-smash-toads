@@ -45,6 +45,41 @@ const V3D = (() => {
   const ink = (s, o) => Object.assign({ inkW: 0.06 / s }, o || {});
   function drawProj(p, fr) {
     const X = p.x * PX, Y = -p.y * PX, dir = p.vx >= 0 ? 1 : -1, t = p.t || 0, P = M3D.PROJ;
+    // ---- Water Yoshi ----
+    if (p.k === 'trap' && p.sub === 'wpuddle') {
+      // a puddle: a flat, shiny splash of water that shrinks as it dries
+      const k = clamp01(((p.life || 180) - t) / 40), R = (p.r || 36) * PX * (0.6 + 0.4 * k);
+      // (tipped a little toward the camera so it reads on the floor)
+      G3.draw(P.ball, M4.chain(M4.T(X, Y + 0.03, 0.45), M4.RX(0.5), M4.S(R, 0.03, R * 0.55)), { alpha: 0.7 * k, tint: [0.35, 0.75, 1, 0.85], self: 0.4 + 0.1 * Math.sin(fr * 0.2 + p.id) });
+      return;
+    }
+    if (p.k === 'trap' && p.sub === 'whirl') {
+      // the whirlpool spins (it shrinks away in its last half second)
+      const k = clamp01(((p.life || 420) - t) / 30) * clamp01(t / 10), R = (p.r || 110) * PX * k;
+      // (tipped toward the camera so the spiral shows)
+      G3.draw(P.ball, M4.chain(M4.T(X, Y + 0.02, 0.3), M4.RX(0.55), M4.S(R * 1.02, 0.025, R * 0.62)), { alpha: 0.75, tint: [0.1, 0.32, 0.66, 0.9], self: 0.3 });
+      G3.draw(M3D.FXM.whirl, M4.chain(M4.T(X, Y + 0.05, 0.32), M4.RX(0.55), M4.S(R, 1, R * 0.62), M4.RY(-fr * 0.12)), { self: 0.6, alpha: 0.95 });
+      return;
+    }
+    if (p.k === 'wspout') {
+      // a spout of water: a droplet stretched the way it flies
+      const a = Math.atan2(-(p.vy || 0), p.vx || 1e-6);
+      G3.draw(P.ball, M4.chain(M4.T(X, Y, 0.3), M4.RZ(a), M4.S(0.42, 0.24, 0.24)), { alpha: 0.85, tint: [0.4, 0.82, 1, 0.9], self: 0.45 });
+      return;
+    }
+    if (p.k === 'wblast') {
+      const R = (p.r || 24) * PX * (1 + 0.06 * Math.sin(t * 0.5));
+      G3.draw(P.ball, M4.chain(M4.T(X, Y, 0.3), M4.S(R, R, R)), { alpha: 0.6, tint: [0.35, 0.78, 1, 0.85], self: 0.5 });
+      G3.draw(P.ball, M4.chain(M4.T(X, Y, 0.32), M4.S(R * 0.55, R * 0.55, R * 0.55)), { alpha: 0.75, tint: [0.88, 0.98, 1, 0.9], self: 0.8 });
+      return;
+    }
+    if (p.k === 'boom' && p.sub === 'wave') {
+      // Undertow: a curling wave with a white crest, leaning the way it rolls
+      const R = (p.r || 22) * PX, lean = (p.vx || 0) >= 0 ? -0.25 : 0.25;
+      G3.draw(P.ball, M4.chain(M4.T(X, Y, 0.3), M4.RZ(lean), M4.S(R * 1.25, R * 0.95, R * 0.7)), { alpha: 0.68, tint: [0.3, 0.72, 1, 0.85], self: 0.4 });
+      G3.draw(P.ball, M4.chain(M4.T(X + Math.sign(p.vx || 1) * R * 0.35, Y + R * 0.6, 0.34), M4.S(R * 0.75, R * 0.32, R * 0.5)), { alpha: 0.85, tint: [0.95, 1, 1, 0.9], self: 0.7 });
+      return;
+    }
     if (p.k === 'trap') {
       const T = M3D.TRAP[p.sub]; if (!T) return;
       if (p.sub === 'soup') G3.draw(T, M4.chain(M4.T(X, Y, 0.35), M4.S(1.26, 1.26, 1.26)), ink(1.26));
@@ -425,7 +460,55 @@ const V3D = (() => {
   }
   // Emilia Toad's ice: a pillar (with crystals round its top) or a barrier curving over where she stood. Both get
   // whiter as they take damage (the cracks and HP bar are drawn on the overlay, in paperFx)
-  function drawIce(s, fr) {
+  // Water Yoshi's Sea Dragon's Cradle: a glowing ring on the floor, then a round wall of water (its front fades to 95%
+  // see-through over 0.2 s while anyone is inside), a roof with 50%+ Current, healing water with 100%. El Minya's
+  // crystals turn it lavender bit by bit
+  const cradleMem = {};
+  function drawCradle(s, fr, view) {
+    const X = s.x * PX, Y = -s.y * PX, R = (s.r || 62) * PX, h = (s.h || 0) * PX, crys = clamp01((s.cr || 0) / 3), lv = s.lv || 0;
+    const tint = crys > 0 ? [0.78, 0.63, 1, 0.3 + 0.35 * crys] : undefined;
+    G3.draw(M3D.FXM.cradleRing, M4.chain(M4.T(X, Y + 0.02, 0), M4.S(R, 1, R * 0.55)), { self: 0.6 + 0.3 * Math.sin(fr * 0.3), alpha: 0.9, tint });
+    if (h <= 0.01) return;
+    const inside = (view.fighters || []).some(f => f.st !== 'dead' && !f.out && Math.abs(f.x - s.x) < (s.r || 62) && f.y > s.y - s.h - 4 && f.y <= s.y + 12);
+    const mem = cradleMem[s.id] || (cradleMem[s.id] = { a: 1 });
+    mem.a += ((inside ? 0.05 : 1) - mem.a) * 0.25;
+    const wob = 1 + 0.02 * Math.sin(fr * 0.12 + s.id), M = M4.chain(M4.T(X, Y, 0), M4.S(R, h * wob, R * 0.55));
+    G3.draw(M3D.FXM.cradleBack, M, { alpha: 0.5, self: 0.35, tint });
+    G3.draw(M3D.FXM.cradleFront, M, { alpha: 0.48 * mem.a, self: 0.35, tint });
+    if (lv >= 3) G3.draw(M3D.FXM.cradleRoof, M4.chain(M4.T(X, Y + h, 0), M4.S(R, 1, R * 0.55)), { alpha: 0.8, self: 0.4, tint });
+    if (lv >= 5) G3.draw(M3D.PROJ.ball, M4.chain(M4.T(X, Y + h * 0.5, 0), M4.S(R * 0.85, h * 0.5, R * 0.45)), { alpha: 0.16 + 0.06 * Math.sin(fr * 0.1), tint: [0.55, 1, 0.8, 0.8], self: 0.9 });
+  }
+  // Water Yoshi's beams: the thin high-pressure jet (50-74% Current), and the giant beam (100%): a ball of glowing
+  // water gathers at his hip, then the beam roars out in layers, brightest at its core
+  function drawWaterBeam(view, f, fr) {
+    const t = f.t || 0, ice3 = M3D.PROJ.ice3, ball = M3D.PROJ.ball;
+    if (f.ebv === 'beam') {
+      const B = WATER.beam;
+      if (t < B.at || t >= B.at + B.on + 5) return;
+      const k = 1 - clamp01((t - B.at - B.on) / 5), box = wbeamBox(f), cx = (box.x + box.w / 2) * PX, cy = -(box.y + box.h / 2) * PX, hw = (box.w / 2) * PX, hh = (box.h / 2) * PX;
+      G3.draw(ice3, M4.chain(M4.T(cx, cy, 0.35), M4.S(hw, hh * 0.6 * k, 0.22 * k)), { alpha: 0.75, tint: [0.4, 0.85, 1, 0.9], self: 1 });
+      G3.draw(ice3, M4.chain(M4.T(cx, cy, 0.37), M4.S(hw, hh * 0.22 * k, 0.1 * k)), { alpha: 0.92, tint: [1, 1, 1, 0.9], self: 1 });
+      return;
+    }
+    const K = WATER.kame;
+    if (t < K.wind) {
+      const k = clamp01(t / K.wind), hx = (f.x - (f.fc || 1) * 16) * PX, hy = -(f.y - 34) * PX, r = 0.25 + 0.75 * k;
+      G3.draw(ball, M4.chain(M4.T(hx, hy, 0.5), M4.S(r, r, r)), { alpha: 0.65, tint: [0.55, 0.92, 1, 0.9], self: 1 });
+      G3.draw(ball, M4.chain(M4.T(hx, hy, 0.52), M4.S(r * 0.55, r * 0.55, r * 0.55)), { alpha: 0.9, tint: [1, 1, 1, 0.9], self: 1 });
+      return;
+    }
+    const ft = t - K.wind;
+    if (ft > K.fire + 16) return;
+    const box = kameBox(view, f), k = Math.min(clamp01(ft / 8), 1 - clamp01((ft - K.fire) / 16)), wob = 1 + 0.05 * Math.sin(fr * 0.9);
+    const cx = (box.x + box.w / 2) * PX, cy = -(box.y + box.h / 2) * PX, hw = (box.w / 2) * PX, hh = (box.h / 2) * PX * k * wob;
+    G3.draw(ice3, M4.chain(M4.T(cx, cy, 0.3), M4.S(hw, hh, 1.4 * k)), { alpha: 0.55, tint: [0.5, 0.9, 1, 0.9], self: 1 });
+    G3.draw(ice3, M4.chain(M4.T(cx, cy, 0.4), M4.S(hw, hh * 0.55, 0.9 * k)), { alpha: 0.75, tint: [0.85, 0.98, 1, 0.9], self: 1 });
+    G3.draw(ice3, M4.chain(M4.T(cx, cy, 0.45), M4.S(hw, hh * 0.22, 0.5 * k)), { alpha: 0.95, tint: [1, 1, 1, 0.95], self: 1 });
+    const ex = (f.fc > 0 ? box.x + box.w : box.x) * PX;
+    G3.draw(ball, M4.chain(M4.T(ex, cy, 0.45), M4.S(hh * 1.1, hh * 1.1, hh * 0.8)), { alpha: 0.6, tint: [0.7, 0.95, 1, 0.9], self: 1 });
+  }
+  function drawIce(s, fr, view) {
+    if (s.k === 'cradle') return drawCradle(s, fr, view || {});
     const X = s.x * PX, Y = -s.y * PX, dmg = 1 - clamp01((s.hp || 0) / (s.max || 1));
     const o = { self: 0.3 + 0.08 * Math.sin(fr * 0.05 + s.id), tint: dmg > 0.05 ? [0.92, 0.98, 1, dmg * 0.4] : undefined };
     if (s.k === 'pillar') {
@@ -469,7 +552,7 @@ const V3D = (() => {
     }
     if (SHARDS.length) drawShards(view, S);
     // Emilia Toad's ice pillars and barriers
-    for (const s of view.ice || []) drawIce(s, fr);
+    for (const s of view.ice || []) drawIce(s, fr, view);
     for (const cl of view.clouds || []) G3.draw(M3D.PROJ.cloud, M4.chain(M4.T((cl.x + cl.w / 2) * PX, -(cl.y + 8) * PX, 0), M4.S(cl.w / 120, 0.8, 0.8)), cl.life < 60 ? { alpha: cl.life / 60 } : null);
     const k = view.kart;
     // karts burst onto the road at its ends rather than floating in from the sky beyond it
@@ -491,6 +574,7 @@ const V3D = (() => {
     }
     for (const p of view.proj || []) { if (p.k === 'minion') M3D.drawMinion(p, fr); else drawProj(p, fr); }
     for (const f of view.fighters || []) if (f.st !== 'dead' && !f.out) M3D.drawFighter(f, fr);
+    for (const f of view.fighters || []) if (f.st === 'spc' && f.sp === 'ebbflow' && (f.ebv === 'beam' || f.ebv === 'kame') && !f.out) drawWaterBeam(view, f, fr);
     for (const e of view.fx || []) drawFx3(e, view, fr);
   }
   let view3dTeams = false; // (team mode: name tags wear the team colours)
@@ -667,6 +751,16 @@ const V3D = (() => {
     // Emilia Toad's ice: cracks that spread as it takes damage, and a little health bar with the HP left
     for (const s of view.ice || []) {
       const frac = clamp01((s.hp || 0) / (s.max || 1)), n = Math.round((1 - frac) * 7), fc = s.fc || 1;
+      // (a Sea Dragon's Cradle just shows a small HP bar over its top, like "10/10")
+      if (s.k === 'cradle') {
+        if (s.h > 30) {
+          const bw = 40, bx = s.x - bw / 2, by = s.y - s.h - 16;
+          c.fillStyle = 'rgba(20,32,56,0.7)'; c.fillRect(bx - 2, by - 2, bw + 4, 8);
+          c.fillStyle = frac > 0.5 ? '#8fe6ff' : frac > 0.25 ? '#ffd23a' : '#ff6a5a'; c.fillRect(bx, by, bw * frac, 4);
+          inkText(c, Math.ceil(s.hp || 0) + '/' + (s.max || 10), s.x, by - 4, 12, '#e8f8ff');
+        }
+        continue;
+      }
       const L = s.k === 'pillar' ? s.x - s.w / 2 + 8 : s.x + fc * 39 - 7, W = s.k === 'pillar' ? s.w - 16 : 14, T = s.y - s.h + 10, Hh = s.h - 16;
       c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
       for (let k = 0; k < n && Hh > 10; k++) {
@@ -1043,6 +1137,34 @@ const V3D = (() => {
     c.strokeText(str, 0, 16); c.fillStyle = hot ? '#ff6a5a' : '#ffffff'; c.fillText(str, 0, 16);
     c.restore();
   }
+  // Water Yoshi's Current meter, just above his card (everyone sees it): see-through apart from the word CURRENT,
+  // filling left to right. Ticks at 25 / 50 / 75 / 100% (labelled underneath) glow once crossed, and when it's full a
+  // little water aura shimmers off the bar
+  function currentBar(c, x, y, w, cur) {
+    const h = 13, k = clamp01(cur / 100), now = performance.now();
+    c.save();
+    c.fillStyle = 'rgba(30,80,140,0.16)'; c.fillRect(x, y, w, h);
+    if (k > 0) { const gr = c.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, 'rgba(80,190,255,0.5)'); gr.addColorStop(1, 'rgba(170,245,255,0.72)'); c.fillStyle = gr; c.fillRect(x, y, w * k, h); }
+    if (k >= 1) { c.shadowColor = '#7fe8ff'; c.shadowBlur = 12 + 6 * Math.sin(now / 160); }
+    c.strokeStyle = k >= 1 ? 'rgba(200,250,255,0.95)' : 'rgba(225,245,255,0.8)'; c.lineWidth = 1.6; c.strokeRect(x, y, w, h);
+    c.shadowBlur = 0;
+    c.font = `11px ${FONT}`; c.textAlign = 'center'; c.lineJoin = 'round';
+    c.strokeStyle = 'rgba(16,46,86,0.85)'; c.lineWidth = 3; c.strokeText('CURRENT', x + w / 2, y + h - 2.5); c.fillStyle = '#ffffff'; c.fillText('CURRENT', x + w / 2, y + h - 2.5);
+    for (const q of [25, 50, 75, 100]) {
+      const tx = x + (w * q) / 100, lit = cur >= q;
+      if (lit) { c.shadowColor = '#bff6ff'; c.shadowBlur = 9; }
+      c.strokeStyle = lit ? '#ffffff' : 'rgba(205,232,255,0.6)'; c.lineWidth = lit ? 2.4 : 1.4;
+      c.beginPath(); c.moveTo(tx, y - 2); c.lineTo(tx, y + h + 2); c.stroke();
+      c.shadowBlur = 0;
+      c.font = `9px ${FONT}`; c.fillStyle = lit ? '#eafcff' : 'rgba(205,232,255,0.8)'; c.strokeStyle = 'rgba(16,46,86,0.7)'; c.lineWidth = 2.5;
+      const lx = q === 100 ? tx - 8 : tx; c.strokeText(q + '%', lx, y + h + 11); c.fillText(q + '%', lx, y + h + 11);
+    }
+    if (k >= 1) for (let j = 0; j < 7; j++) {
+      const px = x + ((now / 9 + j * 37) % w), py = y - 2 - ((now / 22 + j * 5) % 11);
+      c.fillStyle = `rgba(190,246,255,${0.4 + 0.4 * ((j * 13) % 7) / 7})`; c.beginPath(); c.arc(px, py, 1.7, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+  }
   function paperHUD(c, view) {
     // up to four cards fit at full size; with more fighters (up to 8) every card shrinks to fit the screen
     const fs = view.fighters || [], n = fs.length, pw = 236, gap = 16, full = n * pw + (n - 1) * gap, sc = Math.min(1, 1240 / full);
@@ -1080,6 +1202,7 @@ const V3D = (() => {
       // lives left (a timed match has endless lives, so it shows the KO count instead)
       if (timed) { c.font = `18px ${FONT}`; c.textAlign = 'right'; c.fillStyle = '#6a4a34'; c.fillText(f.kos + (f.kos === 1 ? ' KO' : ' KOs'), x + pw - 10, y + 79); }
       else for (let s = 0; s < Math.min(f.sk, 5); s++) { const sx = x + pw - 18 - s * 18, sy = y + 72; c.fillStyle = '#f6ecd6'; c.fillRect(sx - 3, sy - 2, 6, 6); c.fillStyle = col; c.beginPath(); c.moveTo(sx - 8, sy - 1); c.lineTo(sx - 5, sy - 7); c.lineTo(sx, sy - 9); c.lineTo(sx + 5, sy - 7); c.lineTo(sx + 8, sy - 1); c.closePath(); c.fill(); }
+      if (CH[f.ch] && CH[f.ch].current) currentBar(c, x + 14, y - 38, pw - 40, f.cur || 0);
       if (f.sk > 5 && !timed) { c.font = `14px ${FONT}`; c.textAlign = 'right'; c.fillStyle = '#6a4a34'; c.fillText('x' + f.sk, x + pw - 104, y + 77); }
       c.restore();
     });

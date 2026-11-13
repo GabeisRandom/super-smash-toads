@@ -11,7 +11,7 @@ const AI_SHOOT = { turnip: 1, iceball: 1, fireball: 1, boomerang: 1, poison: 1, 
 // side specials that can hook the ledge from this far away (px)
 const AI_TETHER = { lasso: 160, canehook: 105, venomlash: 140 };
 // finales that reach most of the stage, fine to fire right away
-const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1, storm: 1 };
+const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1, storm: 1, heal: 1 };
 
 // CPU levels. 1 to 9 get steadily better (there used to be only 1 to 3: the old 1, 2 and 3 are about the new 2, 5
 // and 8), 10 is GOD, and 0 is a Dummy that never moves. Each level has a skill q on the old scale (1 = the old
@@ -164,6 +164,26 @@ function aiBits(g, f) {
       Math.abs(p.y - (f.y - f.h / 2)) < 90 && (p.x - f.x) * p.vx < 0 && (p.x - f.x) * f.fc > 0)) return out(B_B | B_D);
   }
 
+  // Water Yoshi: build Current while nobody is close (hold Special), then spend it on the Release that suits the
+  // range (turning to face the foe first), or on the Cradle when someone closes in
+  // (while charging he keeps holding Special until he has the Current he wanted, and lets go if a foe gets close)
+  if (C.current && f.st === 'spc' && f.sp === 'ebbflow' && f.ebv === 'charge') {
+    if (!a.wantCur || f.cur >= a.wantCur || bd < 150) { a.wantCur = 0; return out(0); }
+    a.prev = B_B; return B_B;
+  }
+  if (C.current && f.st !== 'atk' && f.st !== 'spc') {
+    const dx0 = tg.x - f.x, adx0 = Math.abs(dx0), ady0 = Math.abs(tg.y - f.y), facing = (dx0 > 0) === (f.fc > 0);
+    if (f.cur <= 0 && bd > 230 && f.gi >= 0 && RND() < 0.03 + 0.01 * q) { a.wantCur = [25, 50, 75, 100][Math.min(3, Math.floor(RND() * (1 + q)))]; return out(B_B); }
+    if (f.cur > 0) {
+      const tier = waterTier(f.cur), sw = STG[g.stage].solids[0].w;
+      // (a little Current: spout it at range, or when nobody's near so he can charge again; up close he just fights)
+      const ok = tier === 'spout' ? adx0 > 280 || (adx0 > 110 && adx0 < 230 && ady0 < 60) : tier === 'blast' ? adx0 < 380 && ady0 < 70 : tier === 'beam' ? adx0 < 600 && ady0 < 45
+        : tier === 'whirl' ? adx0 < 170 && ady0 < 40 && f.gi >= 0 : adx0 < sw * 1.1 && ady0 < 110;
+      if (ok && RND() < 0.06 * q) { if (!facing && tier !== 'whirl') return out(dx0 > 0 ? B_R : B_L); return out(B_B); }
+    }
+    if (f.gi >= 0 && f.cd.d <= 0 && bd < 170 && RND() < 0.008 * q) return out(B_B | B_D);
+  }
+
   // stage hazards: hop over Wiggler and karts, step off spike tiles
   if (f.gi >= 0 && g.haz) {
     const W = g.haz.wig;
@@ -264,9 +284,9 @@ function aiBits(g, f) {
     else if (dy > 40 && f.gi < 0) b |= B_D | B_A;
     else if (r < 0.3) b |= B_A | toward;
     else if (r < 0.5) b |= B_A;
-    else if (r < 0.62) b |= B_B | B_D;
+    else if (r < 0.62) b |= C.current ? B_A | B_D : B_B | B_D; // (Water Yoshi saves the Cradle for when he means it)
     else if (r < 0.76) b |= B_B | toward;
-    else if (r < 0.84) b |= B_B;
+    else if (r < 0.84) b |= C.current ? B_A : B_B; // (Water Yoshi saves his neutral special for Ebb & Flow)
     else if (r < 0.92 && f.gi < 0 && (dx > 0) !== (f.fc > 0)) b |= B_A | toward;
     else b |= B_A | B_D;
   } else if (adx > 200 && Math.abs(dy) < 120 && AI_SHOOT[C.sp.n] && RND() < 0.012 * q) {

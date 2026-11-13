@@ -1266,8 +1266,26 @@ const M3D = (() => {
   // ---------- rigs registry ----------
   const RIGS = {}, MINIONS = {};
   const CROWD = [], YCROWD = [], CHOIR = [];
+  // Water Yoshi's things: the Sea Dragon's Cradle (a ring on the floor, its round water wall in two halves so the front
+  // can fade by itself, and a roof) and his whirlpool (three arms of water spiralling into a dark middle). All radius 1
+  function buildWater() {
+    const arc = (a0, a1) => { const A = []; for (let k = 0; k <= 16; k++) A.push(a0 + ((a1 - a0) * k) / 16); return A; };
+    const prof = [[1, 0], [1, 0.33], [1, 0.66], [1, 1]], band = (m, i) => (i === 2 ? '#bff4ff' : i === 1 ? '#6fd8f4' : '#4fc4ec');
+    // (both halves face the camera, so the back one shows its inside and the front one its outside)
+    FXM.cradleBack = mesh(() => B.lathe(prof, 16, { angles: arc(Math.PI, Math.PI * 2), center: [0, 0.5, -6], mat: band }), { ink: false, crease: false });
+    FXM.cradleFront = mesh(() => B.lathe(prof, 16, { angles: arc(0, Math.PI), center: [0, 0.5, -6], mat: band }), { ink: false, crease: false });
+    FXM.cradleRing = mesh(() => B.lathe([[0.86, 0.03], [1.04, 0.03], [1.04, 0], [0.86, 0]], 28, { col: '#7fe8ff' }), { ink: false, crease: false });
+    FXM.cradleRoof = mesh(() => B.lathe([[0, 0.05], [1.02, 0.05], [1.02, -0.03], [0, -0.03]], 28, { col: '#8fe0ff' }), { ink: false, crease: false });
+    FXM.whirl = mesh(() => {
+      B.lathe([[0, 0.012], [0.34, 0.012], [0.34, 0], [0, 0]], 16, { col: '#1d4f8a' });
+      for (let arm = 0; arm < 3; arm++) for (let k = 0; k < 10; k++) {
+        const q = k / 9, a = arm * ((Math.PI * 2) / 3) + q * 3.6, r = 0.22 + 0.78 * q;
+        B.ellipsoid([Math.cos(a) * r, 0.025, Math.sin(a) * r], [0.07 + 0.04 * q, 0.025, 0.13 + 0.08 * q], 2, 6, { col: k % 2 ? '#7fd8ff' : '#e6fbff', frame: B.frameFor([-Math.sin(a), 0, Math.cos(a)]) });
+      }
+    }, { ink: false });
+  }
   function build() {
-    buildProps(); buildItems(); buildFx(); buildNew(); buildIce();
+    buildProps(); buildItems(); buildFx(); buildNew(); buildIce(); buildWater();
     // Emilia Toad's Ice Soldiers: Subaru Toad without Beatrice's backpack (drawn tinted to ice)
     MINIONS.icesoldier = toadRig('subaru', { beako: false });
     // Beatrice (in Subaru Toad's backpack): a mini Toadette with cream drills, a crown and butterfly eyes
@@ -1529,6 +1547,28 @@ const M3D = (() => {
     const roll = sp => { P.tumble = -fc * t * sp; P.sy = 0.82; ARMS_UP(P, 0.6); P.slY = 0.2; P.srY = 0.2; };
     const plunge = () => { if (t < 14) { P.tumble = -fc * (t / 14) * Math.PI * 2; P.sy = 0.9; } else { P.slY = -0.12; P.srY = -0.12; ARMS_UP(P, 2.5); } };
     switch (f.sp) {
+      // --- Water Yoshi ---
+      case 'ebbflow': {
+        const v = f.ebv;
+        // charging: his hands sweep out in front of him like the tide
+        if (v === 'charge') { const w = Math.sin(fr * 0.12); P.af = [-1.3 + w * 0.25, 0.3 + w * 0.15, -0.3, 0]; P.an = [-1.3 - w * 0.25, -0.3 + w * 0.15, -0.3, 0]; P.lean = 0.05 + w * 0.04; P.yaw = fc * 1.2; P.bob = Math.abs(w) * 0.03; }
+        // the big beam: hands drawn back to his right hip for the wind-up, then both palms thrust forward
+        else if (v === 'kame') {
+          if (t < 90) { const k = clamp01(t / 18); P.af = [lerp(-0.6, 0.95, k), lerp(0.2, -0.55, k), -0.6, 0]; P.an = [lerp(-0.6, 0.95, k), lerp(-0.2, -0.95, k), -0.6, 0]; P.lean = -0.12 * k; P.yaw = fc * 1.4; P.sy = 0.95; }
+          else { P.af = [-1.55, 0.18, 0, 0]; P.an = [-1.55, -0.18, 0, 0]; P.lean = 0.2; P.yaw = fc * 1.25; F.mouthO = true; P.hz = Math.sin(fr * 1.3) * 0.03; }
+        }
+        // the high-pressure jet: one hand drawn back, then thrust straight out
+        else if (v === 'beam') { if (t < 12) { P.af = [0.4, 0.5, -0.4, 0]; P.an = [0.4, -0.4, -0.5, 0]; P.lean = -0.1; } else { P.af = [-1.6, 0.08, 0, 0]; P.an = [0.4, -0.4, -0.5, 0]; P.lean = 0.14; } P.yaw = fc * 1.3; P.grip = 0.15; }
+        // the whirlpool: arms sweep down and round
+        else if (v === 'whirl') { const k = clamp01(t / 12); P.an = [lerp(-1, 0.5, k), -0.6, -0.3, 0]; P.af = [lerp(-1, 0.5, k), 0.6, -0.3, 0]; P.spin = fc * k * 0.8; P.sy = 1 - 0.06 * k; }
+        // the water blast: a two-handed push; the spout: spat from his mouth
+        else if (v === 'blast') { const k = clamp01((t - 4) / 6); P.af = [lerp(0.3, -1.5, k), 0.15, 0, 0]; P.an = [lerp(0.3, -1.5, k), -0.15, 0, 0]; P.lean = 0.15 * k; P.yaw = fc * 1.25; }
+        else spit(8);
+        break;
+      }
+      case 'undertow': { const k = clamp01(t / 9); P.af = [lerp(-0.3, -1.4, k), 0.4, lerp(-0.6, 0.2, k), 0]; P.an = [0.4, -0.5, -0.4, 0]; P.lean = 0.15 * k; P.yaw = fc * 1.25; break; }
+      case 'geyserrise': ARMS_UP(P, 2.8); P.sy = 1.06; P.slY = 0.1; P.srY = 0.1; break;
+      case 'cradle': { const k = clamp01(t / 10); ARMS_UP(P, lerp(0.8, 2.6, k)); P.sy = 1 + 0.04 * k; break; }
       // --- the original crew ---
       case 'turnip': if (t < 12) { P.sy = 0.86; P.sx = 1.08; P.af = [-0.6, 0.15, -0.2, 0]; P.an = [-0.5, -0.15, -0.2, 0]; F.props.turnipLow = t > 6; } else throwArm(-2.6, -1.2, 18); break;
       case 'turnips': case 'iceball': case 'fireball': case 'poison': case 'boomerang': throwArm(-2.7, -1.1, 9); break;
@@ -1825,7 +1865,8 @@ const M3D = (() => {
         break;
       case 'dodge': P.spin = (f.t || 0) * 0.6; break;
       case 'ledge': ARMS_UP(P, 2.85); P.slY = -0.05; P.slZ = 0.12 + Math.sin(fr * 0.1) * 0.08; P.srZ = 0.1 - Math.sin(fr * 0.1) * 0.08; P.lean = 0.15; break;
-      case 'stun': P.hz = Math.sin(fr * 0.2) * 0.25; P.an = [0, -0.3, 0, 0]; P.af = [0, 0.3, 0, 0]; F.hurt = true; break;
+      // (slipped in Water Yoshi's puddle: flat on their face for a while)
+      case 'stun': if (f.flat > 0) { P.tumble = (f.fc || 1) * 1.5; P.bob = -0.42; ARMS_UP(P, 2.8); F.hurt = true; break; } P.hz = Math.sin(fr * 0.2) * 0.25; P.an = [0, -0.3, 0, 0]; P.af = [0, 0.3, 0, 0]; F.hurt = true; break;
       case 'hit':
         F.hurt = true; F.mouthO = true;
         if (f.hs > 18) { ARMS_UP(P, 1.8); P.slY = 0.12; P.slZ = 0.1; P.srY = 0.12; P.srZ = -0.1; P.tumble = fr * 0.35 * (f.fc || 1); }
@@ -2082,6 +2123,9 @@ const M3D = (() => {
     if (f.frz > 0) F.tint = [0.7, 0.92, 1, 0.5];
     if (f.bfz > 0 && !(f.frz > 0)) F.tint = [0.7, 0.92, 1, 0.12 + 0.5 * f.bfz]; // frosting over in the Beast of the End's storm
     if (f.slow > 0 && !F.tint) F.tint = [0.72, 0.9, 1, 0.2 + 0.08 * Math.sin(fr * 0.3)]; // chilled by Emilia Toad's ice
+    // Water Yoshi's statuses: Scalded glows a hot red, Sunk a soaked blue
+    if (f.scald > 0 && !F.tint) F.tint = [1, 0.42, 0.28, 0.2 + 0.07 * Math.sin(fr * 0.35)];
+    if (f.sunk > 0 && !F.tint) F.tint = [0.28, 0.52, 1, 0.24];
     if (f.prT > 0) F.tint = [0.8, 0.97, 1, 0.65 * (f.prT / 16)]; // a parry flashes white-blue
     if (rig.ghost && F.alpha == null) F.alpha = 0.88;
     if (f.hide > 0) F.alpha = 0.07; // haunting: all but invisible
@@ -2107,6 +2151,13 @@ const M3D = (() => {
       if (F.egg >= 1) return;
     }
     drawRig(rig, rootMatrix(X, Y, P, scale), P, F, fr);
+    // Water Yoshi's Current: a thin water aura that starts to glow at 20%, glows brighter as it builds, and shines at 100%
+    if (f.cur > 0) {
+      const k = clamp01(f.cur / 100), full = k >= 1, s = 1 + 0.03 * Math.sin(fr * 0.15);
+      const glow = full ? 0.9 + 0.1 * Math.sin(fr * 0.4) : k < 0.2 ? 0.04 : 0.15 + 0.7 * ((k - 0.2) / 0.8);
+      G3.draw(PROJ.ball, M4.chain(M4.T(X, Y + f.h * 0.5 * PX, 0), M4.S(f.w * 0.95 * PX * s, f.h * 0.62 * PX * s, 0.95 * s)),
+        { alpha: 0.08 + 0.16 * k + (full ? 0.08 * Math.sin(fr * 0.3) : 0), tint: [0.45, 0.85, 1, 0.9], self: glow });
+    }
     // Emilia Toad's spirit Puck floats behind her
     if (rig.look && rig.look.puck && f.pkx != null) drawPuck(f, fr);
     if (f.rp > 0) G3.draw(PROJ.halo, M4.chain(M4.T(X, Y - 0.06, 0), M4.S(1.15, 1, 0.7)), { self: 0.3 });

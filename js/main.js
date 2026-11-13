@@ -346,7 +346,7 @@ function showCharInfo(id) {
   box.appendChild(el('h3', '', C.name));
   box.appendChild(el('div', '', C.blurb));
   // (Emilia Toad's Attack button is her ice volley, and Puck fights on his own)
-  const atk = C.volley ? 'Attack: Ice Volley (homing pellets)  ·  ' : '', passive = C.puck ? '  ·  Puck fires on his own' : '';
+  const atk = C.volley ? 'Attack: Ice Volley (homing pellets)  ·  ' : '', passive = C.puck ? '  ·  Puck fires on his own' : C.current ? '  ·  Hold Special to build Current, press it to Release' : '';
   box.appendChild(el('div', 'moves', `${atk}Special: ${SPNAME[C.sp.n]}  ·  Side: ${SPNAME[C.sp.s]}  ·  Up: ${SPNAME[C.sp.u]}  ·  Down: ${SPNAME[C.sp.d]}${passive}`));
   const fsl = el('div', 'fsname', `Smash Mushroom finale: ${FSNAME[C.id]}`);
   const E = C.elemInfo || ELEM_INFO[C.elem];
@@ -1122,7 +1122,32 @@ function handleEvents(evs) {
       case 'pluck': Snd.play('pluck'); burst(e.x, e.y - 4, 7, '#8a5a2b', 3, 'dot', 4, 20); if (e.s) say(e.s, e.x, e.y - 90, 20, '#ffe866'); break;
       case 'pop': Snd.play('pop'); burst(e.x, e.y, 8, { ice: '#9fe4ff', fire: '#ff8a1f', coin: '#ffd23a', psn: '#9b4fd6', gust: '#ffffff', rock: '#a08a6a', heart: '#ff5aa8', bubble: '#c890ff', shade: '#8a7ad8', lightbolt: '#fff6c8', seed: '#5a4a30', melon: '#5fd04a' }[e.k] || '#f6f2ff', 4, 'dot', 4, 20); break;
       case 'throw': if (e.k) { Snd.play('throwfx'); addP({ type: 'ring', x: e.x, y: e.y, size: 34, color: '#ffe0a8', life: 12 }); } else Snd.play('shoot'); break;
-      case 'shoot': Snd.play('shoot'); break;
+      case 'shoot': Snd.play(e.k === 'wspout' || e.k === 'wblast' || (e.k === 'boom' && e.sub === 'wave') ? 'squirt' : 'shoot'); break;
+      // ---- Water Yoshi ----
+      case 'wrelease': {
+        Snd.play({ spout: 'squirt', blast: 'pop', beam: 'laser', whirl: 'wind', kame: 'charge' }[e.k] || 'squirt');
+        burst(e.x + (e.dir || 1) * 20, e.y, e.k === 'kame' ? 14 : 8, '#9fe6ff', e.k === 'kame' ? 5 : 3, 'dot', 4, 20);
+        if (e.k === 'kame') say('Riptide... BLAST!', e.x, e.y - 70, 26, '#bff4ff');
+        break;
+      }
+      case 'wtick': Snd.play('chime'); addP({ type: 'ring', x: e.x, y: e.y, size: 30 + e.q * 0.3, color: '#9fe6ff', life: 16 }); if (e.q >= 100) say('Full Current!', e.x, e.y - 50, 20, '#bff4ff'); break;
+      case 'splash': Snd.play('squirt'); burst(e.x, e.y - 4, 9, '#9fe6ff', 4, 'dot', 4, 20); addP({ type: 'ring', x: e.x, y: e.y - 2, size: 26, color: '#bff4ff', life: 12 }); break;
+      case 'slip': Snd.play('bounce'); Snd.play('ko'); say('SLIPPED!', e.x, e.y - 40, 34, '#9fe6ff'); burst(e.x, e.y + 20, 14, '#bff4ff', 6, 'dot', 5, 26); cam.shake = Math.max(cam.shake, 8); break;
+      case 'whirlpool': Snd.play('wind'); addP({ type: 'ring', x: e.x, y: e.y - 4, size: 90, color: '#7fd8ff', life: 20 }); break;
+      case 'kamefire': Snd.play('laser'); Snd.play('boom'); cam.shake = Math.max(cam.shake, 14); burst(e.x + (e.dir || 1) * 30, e.y, 18, '#e8fbff', 9, 'dot', 6, 26); break;
+      case 'execute': Snd.play('ko'); say('WASHED OUT!', e.x, e.y - 50, 36, '#bff4ff'); burst(e.x, e.y, 24, '#9fe6ff', 10, 'star', 6, 30); cam.shake = Math.max(cam.shake, 16); break;
+      case 'scald': for (let k = 0; k < 3; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 20, y: e.y, vy: -1.2, size: 7, tint: 'rgba(255,240,235,0.75)', life: 26 }); break;
+      case 'cradle': Snd.play('squirt'); addP({ type: 'ring', x: e.x, y: e.y - 4, size: 70, color: '#7fe8ff', life: 22 }); if (e.lv) say(['', '+10 HP', 'Sunk on touch', 'With a roof', '+30 HP', 'Healing water'][e.lv], e.x, e.y - 130, 18, '#bff4ff'); break;
+      case 'cradleheal': Snd.play('chime'); burst(e.x, e.y, 6, '#bff4ff', 3, 'spark', 4, 16); say('+2', e.x, e.y - 20, 16, '#9fe6ff'); break;
+      case 'cradlecrack': Snd.play('crystal'); burst(e.x, e.y, 10, '#c8a0ff', 5, 'spark', 5, 22); break;
+      case 'cradleend':
+        if (e.how === 'crystal') { Snd.play('shatter'); burst(e.x, e.y - (e.h || 60) / 2, 26, '#c8a0ff', 9, 'spark', 7, 32); burst(e.x, e.y - (e.h || 60) / 2, 12, '#efe2ff', 6, 'dot', 6, 26); }
+        else if (e.how === 'drain') { Snd.play('squirt'); burst(e.x, e.y - 10, 12, '#9fe6ff', 4, 'dot', 4, 22); }
+        else { Snd.play('break'); burst(e.x, e.y - (e.h || 60) / 2, 20, '#9fe6ff', 8, 'dot', 6, 26); }
+        break;
+      case 'wgeyser': Snd.play('squirt'); for (let k = 0; k < 8; k++) addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 30, y: e.y, vx: (Math.random() - 0.5) * 3, vy: -5 - Math.random() * 5, g: 0.3, size: 5, color: k % 2 ? '#9fe6ff' : '#ffffff', life: 28 }); break;
+      case 'wtrail': addP({ type: 'dot', x: e.x + (Math.random() - 0.5) * 14, y: e.y, vx: 0, vy: 2, g: 0.2, size: 4, color: '#9fe6ff', life: 16 }); break;
+      case 'fsheal': Snd.play('heal'); Snd.play('chime'); burst(e.x, e.y, 20, '#9fffd0', 5, 'star', 6, 34); say('+70% healed!', e.x, e.y - 40, 24, '#9fffd0'); break;
       case 'grabbreak': Snd.play('breakfree'); for (let k = 0; k < 5; k++) addP({ type: 'puff', x: e.x + (k - 2) * 10, y: e.y, vy: -1, size: 7, life: 18 }); say('Broke free!', e.x, e.y - 40, 18, '#bff4ff'); break;
       // Moo Toad
       case 'moo': Snd.play('moo'); say('Moo!', e.x, e.y - 70, 22, '#ffffff'); break;
@@ -1345,6 +1370,16 @@ function ambientFx(view) {
     if (f.psn > 0) addP({ type: 'dot', x: f.x + (Math.random() - 0.5) * 30, y: f.y - f.h * 0.8, vy: -1.2, size: 4, color: '#b06ee0', life: 26 });
     if (f.star > 0) addP({ type: 'star', x: f.x + (Math.random() - 0.5) * 50, y: f.y - f.h * Math.random(), size: 5, color: `hsl(${(frameCount * 14) % 360},100%,65%)`, life: 20 });
     if (f.ch === 'toadette' && f.glide > 0) addP({ type: 'heart', x: f.x, y: f.y - 10, vy: 1, size: 4, color: '#ff8cc6', life: 24 });
+    // Water Yoshi: Scalded foes steam, Sunk ones drip; a full Current sparkles; the big beam's wind-up swirls and the
+    // beam itself throws off steam
+    if (f.scald > 0) addP({ type: 'puff', x: f.x + (Math.random() - 0.5) * 26, y: f.y - f.h * (0.4 + Math.random() * 0.6), vy: -1.3, size: 6, tint: 'rgba(255,238,232,0.7)', life: 22 });
+    if (f.sunk > 0) addP({ type: 'dot', x: f.x + (Math.random() - 0.5) * 26, y: f.y - f.h * Math.random(), vy: 1.6, g: 0.15, size: 4, color: '#6fb8ff', life: 20 });
+    if (f.cur >= 100) addP({ type: 'spark', x: f.x + (Math.random() - 0.5) * 50, y: f.y - f.h * Math.random(), vy: -0.8, size: 4, color: '#bff6ff', life: 18 });
+    if (f.st === 'spc' && f.sp === 'ebbflow' && f.ebv === 'kame') {
+      const t = f.t || 0, K = WATER.kame;
+      if (t < K.wind) { const a = Math.random() * Math.PI * 2; addP({ type: 'dot', x: f.x - (f.fc || 1) * 16 + Math.cos(a) * 46, y: f.y - 34 + Math.sin(a) * 46, vx: -Math.cos(a) * 3, vy: -Math.sin(a) * 3, size: 4, color: '#bff6ff', life: 14 }); }
+      else if (t < K.wind + K.fire) { const B = kameBox(view, f); for (let k = 0; k < 3; k++) addP({ type: 'puff', x: B.x + Math.random() * B.w, y: B.y + Math.random() * 20, vy: -1.6, size: 9, tint: 'rgba(240,252,255,0.6)', life: 26 }); }
+    }
   }
 }
 

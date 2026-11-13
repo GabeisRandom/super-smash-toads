@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611111528';
+const GAME_BUILD = '202611131504';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -221,6 +221,12 @@ const CHARS = [
     weight: 1.25, run: 6.6, air: 5.6, jump: 14.5, djump: 15, h: 66, pow: 1.06, sp: { n: 'blaster', s: 'airdash', u: 'booster', d: 'bomblob' },
     blurb: 'Yoshi inside a battle robot. A rapid blaster, air dashes, a booster jump and lobbed bombs, like a real robo battle.',
     quote: 'Yoshi. (Systems online. Robo battle... GO!)' }),
+  // Water Yoshi (Early Access: the player's own kit, still being built; the side and up specials and the finale are
+  // placeholders). `current`: his Ebb & Flow builds Current, shown on a meter over his card
+  defChar({ id: 'wateryoshi', name: 'Water Yoshi', yoshi: true, look: { body: '#22b3c9', saddle: '#1c4fa8', shoe: '#ffffff', spines: '#7fe8ff', belly: '#e6fbff', spots: '#a8ecff' },
+    badge: 'ea', current: true, weight: 1.0, run: 7.0, air: 5.5, jump: 15.5, djump: 16, h: 66, sp: { n: 'ebbflow', s: 'undertow', u: 'geyserrise', d: 'cradle' },
+    blurb: 'Calm as the tide. Hold Special to build Current, then release it as anything from a water spout to a giant steaming beam.',
+    quote: 'Yoshi... (Go with the flow.)' }),
 ];
 const CH = {};
 for (const c of CHARS) CH[c.id] = c;
@@ -269,6 +275,7 @@ const SPNAME = {
   icesoldiers: 'Ice Soldiers', icebrand: 'Ice Brand Arts', icepillar: 'Ice Pillar', icebarrier: 'Ice Barrier',
   boomkick: 'Boom Kick', blitzdash: 'Blitz Dash', cycloneclimb: 'Cyclone Climb', afterimage: 'Afterimage',
   blaster: 'Ray Blaster', airdash: 'Air Dash', booster: 'Booster Jump', bomblob: 'Bomb Lob',
+  ebbflow: 'Ebb & Flow', undertow: 'Undertow', geyserrise: 'Geyser Rise', cradle: "Sea Dragon's Cradle",
   kingsgift: "Three Kings' Gift", bellring: 'Bell Ring', partypopper: 'Party Popper', pinata: 'Piñata',
   colorthrow: 'Color Throw', dandiya: 'Dandiya Dance', kitefly: 'Kite Flight', pichkari: 'Pichkari Splash',
 };
@@ -285,7 +292,7 @@ const FSNAME = {
   samurai: 'Cherry Blossom Storm', viking: 'Longship Raid', pharaoh: 'Great Pyramid', gladiator: 'Legion March',
   buddhist: 'Lotus Bloom', muslim: 'Lantern Night', mormon: 'Grand Choir', hasidic: 'Mazel Tov!', subaru: 'El Minya', emilia: 'Absolute Zero',
   catholic: 'Christmas Parranda', hindu: 'Festival of Colors',
-  dashyoshi: 'Supersonic Lap', mechyoshi: 'Full Burst',
+  dashyoshi: 'Supersonic Lap', mechyoshi: 'Full Burst', wateryoshi: 'Healing Tide',
 };
 // how each fighter sounds: a voice kind (toad, yoshi, girl, old, ghost, robot) and a pitch (1 = normal)
 const VOICE = {
@@ -295,7 +302,7 @@ const VOICE = {
   samurai: { p: 0.86 }, viking: { p: 0.72 }, pharaoh: { p: 0.95 }, gladiator: { p: 0.8 }, buddhist: { p: 0.9 }, muslim: { p: 0.96 },
   mormon: { p: 1.02 }, hasidic: { p: 0.84 }, catholic: { p: 0.98 }, hindu: { p: 1.04 }, subaru: { p: 0.92 }, emilia: { k: 'girl', p: 1.06 },
   redyoshi: { p: 0.95 }, blueyoshi: { p: 1.05 }, yellowyoshi: { p: 0.85 }, pinkyoshi: { p: 1.12 }, blackyoshi: { p: 0.8 }, whiteyoshi: { p: 1.08 },
-  orangeyoshi: { p: 1.02 }, babyyoshi: { p: 1.35 }, dashyoshi: { p: 1.06 }, mechyoshi: { k: 'robot', p: 0.95 },
+  orangeyoshi: { p: 1.02 }, babyyoshi: { p: 1.35 }, dashyoshi: { p: 1.06 }, mechyoshi: { k: 'robot', p: 0.95 }, wateryoshi: { p: 0.98 },
 };
 function voiceOf(id) { const C = CH[id] || {}, V = VOICE[id] || {}; return { k: V.k || (C.yoshi ? 'yoshi' : 'toad'), p: V.p || 1, yo: !!C.yoshi }; }
 
@@ -474,6 +481,8 @@ const FIGHT = {
   // Dash Yoshi: all speed. Blurring kicks, and every attack plays out a quarter faster (aspd)
   dashyoshi:   { style: 'yoshi', elem: 'speed', gait: 'ninja', aspd: 1.25, moves: { jab3: 'rapidkick', side: 'blitzkick', up: 'flipup', fsmash: 'jetkick', usmash: 'cyclone', dsmash: 'spinsweep', nair: 'spin', fair: 'airkick', bair: 'backkick', dair: 'stomp' } },
   mechyoshi:   { style: 'yoshi', elem: 'plasma', idle: 'robot', gait: 'heavy', moves: { jab: 'punch', jab2: 'punch2', jab3: 'flurry', side: 'zapside', up: 'antiair', fsmash: 'haymaker', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura', fair: 'drill', bair: 'backkick', uair: 'scissor', dair: 'stomp' } },
+  // Water Yoshi: flowing palms, a tidal shove, a geyser and a whirl of water
+  wateryoshi:  { style: 'yoshi', elem: 'water', moves: { jab3: 'palm3', side: 'shove', up: 'flipup', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'spinsweep', nair: 'aura', fair: 'drill', bair: 'backkick', dair: 'stomp' } },
 };
 for (const c of CHARS) Object.assign(c, { style: c.yoshi ? 'yoshi' : 'toad', elem: 'none', idle: c.yoshi ? 'dino' : 'calm', gait: c.yoshi ? 'dino' : 'normal' }, FIGHT[c.id] || {});
 // what an element does to normal attacks (the rest only change the look of the hits)
