@@ -1145,7 +1145,7 @@ function handleEvents(evs) {
       case 'mattress': Snd.play('boing'); say('boing', e.x, e.y - 16, 18, '#ffffff'); for (const s of [-1, 1]) addP({ type: 'puff', x: e.x + s * 30, y: e.y - 4, vx: s * 2, size: 8, color: 'rgba(255,255,255,0.8)', life: 18 }); break;
       case 'bed': Snd.play('creak'); Snd.play('poof2'); for (let k = 0; k < 6; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 80, y: e.y - 6, vy: -0.5, size: 8, tint: 'rgba(200,190,170,0.75)', life: 24 }); break;
       case 'bedfind':
-        if (e.k === 'chips') { Snd.play('crunch'); say('Spicy chips! +5%', e.x, e.y - 30, 20, '#ffb347'); burst(e.x, e.y, 8, '#e88a2a', 3, 'dot', 4, 20); }
+        if (e.k === 'chips') { Snd.play('crunch'); say('Spicy chips! +' + NOLAN.bed.heal + '%', e.x, e.y - 30, 20, '#ffb347'); burst(e.x, e.y, 8, '#e88a2a', 3, 'dot', 4, 20); }
         else if (e.k === 'controller') { Snd.play('creak'); say('A broken controller!', e.x, e.y - 30, 20, '#c8ccd8'); }
         else { Snd.play('splat'); say('Old leftovers...', e.x, e.y - 30, 20, '#b4cc4e'); }
         break;

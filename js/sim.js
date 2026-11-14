@@ -1858,12 +1858,12 @@ const FXU = {
     return e.t >= 50;
   },
   // Nolan Toad's finale, the gap year that never ends: the stage turns into his room for 8 seconds. The stink in there
-  // wears every foe down (1% every 40 frames: 1.5% a second, no flinching) and slows them 20%; he heals 1% a second
-  // (he's at home). Then the title card: GAP YEAR: DAY 1,096
+  // wears every foe down (1% every 24 frames: 20% in all, no flinching) and slows them 30%; he heals 16% (he's at
+  // home). Then the title card: GAP YEAR: DAY 1,096
   room(g, e, own) {
     const R = NOLAN.room;
     if (e.t < R.life) {
-      // (from its first frame on: 12% over the 8 seconds, and 8% healed)
+      // (from its first frame on: 20% over the 8 seconds, and 16% healed)
       for (const v of fsFoes(g, e)) {
         v.reek = 2;
         if ((e.t - 1) % R.every === 0) applyHit(g, v, own, R.d, 0, 0, 0, e.dir, { proj: true, fs: true, chip: true });
@@ -2942,25 +2942,31 @@ function crystalCradle(g, s) {
 // keep holding past that and the mold starts growing onto him. Mattress Launch springs him up off his old mattress.
 // Under the Bed: he dives under it and pops out with whatever he finds down there. Everyone he KOs gets stamped
 // LOW-TIER HUMAN. His finale turns the stage into his room
+// (v1.21: buffed all round at the player's ask; the numbers below are before his 1.12 power, which every hit gets)
 const NOLAN = {
-  rot: { vx: 7, vy: -7.5, grav: 0.42, d: 5, kb: 4, gr: 0.05, ang: 45, r: 13, life: 160 },
-  // a stink cloud: 1% every half second to foes inside (no flinching), and they move 15% slower in it
-  cloud: { r: 46, life: 240, every: 30, d: 1, slow: 0.85 },
+  rot: { vx: 7, vy: -7.5, grav: 0.42, d: 7, kb: 5, gr: 0.06, ang: 45, r: 14, life: 160, cd: 90 },
+  // a stink cloud: 1.5% every half second to foes inside (no flinching) for 5 seconds, and they move 20% slower in it
+  cloud: { r: 50, life: 300, every: 30, d: 1.5, slow: 0.8 },
   // the Shirt: `full` frames of holding for full mold, `max` frames at the most (it's thrown by itself then); past full
-  // mold he takes 1% every `self` frames (2% a second). The full-mold burst: radius `burst`, 1% a second for 3 seconds
-  shirt: { full: 120, max: 240, self: 30, vx: 13.5, grav: 0.04, ang: 35, r: 16, life: 56, cd: 180, burst: 155, burstLife: 180, burstEvery: 60 },
+  // mold he takes 1% every `self` frames (2% a second). Damage `dmg`: a tap, 1 second, full mold (2 s), the most (4 s).
+  // The full-mold burst: radius `burst`, 1% every `burstEvery` frames (2% a second) for 3 seconds
+  shirt: { full: 120, max: 240, self: 30, vx: 14.5, grav: 0.04, ang: 35, r: 17, life: 56, cd: 150, burst: 160, burstLife: 180, burstEvery: 30,
+    dmg: [6, 12, 19, 24], kb: [5, 9], gr: [0.07, 0.19] },
   // Under the Bed: hidden (can't be touched) from `hide[0]` to `hide[1]`, pops out at `pop`; the finds' odds
-  bed: { hide: [4, 34], pop: 34, end: 52, cd: 360, heal: 5, odds: [0.4, 0.75],
-    ctrl: { vx: 10, vy: -4, grav: 0.32, d: 8, kb: 6, gr: 0.1, ang: 40, r: 14, life: 90 } },
-  // the finale: 8 seconds in his room (1% every 40 frames to foes = 1.5% a second, 20% slower; he heals 1% a second),
-  // then the title card for `card` frames
-  room: { life: 480, card: 100, every: 40, d: 1, heal: 60, slow: 0.8 },
+  bed: { hide: [4, 34], pop: 34, end: 50, cd: 270, heal: 8, odds: [0.4, 0.75],
+    ctrl: { vx: 11, vy: -4, grav: 0.32, d: 11, kb: 7, gr: 0.11, ang: 40, r: 15, life: 90 } },
+  // Mattress Launch: how hard he springs up, and what anyone underneath takes
+  mattress: { vy: 16.5, d: 10, k: 8, g: 0.09 },
+  // the finale: 8 seconds in his room (1% every 24 frames to foes = 20% in all, 30% slower; he heals 1% every half
+  // second = 16%), then the title card for `card` frames
+  room: { life: 480, card: 100, every: 24, d: 1, heal: 30, slow: 0.7 },
 };
-// the Shirt's damage and knockback for m frames of mold: a tap 5%, 1 second 10%, full mold (2 s) 16%, up to 20% at 4 s
+// the Shirt's damage and knockback for m frames of mold (dmg: a tap, 1 second, full mold at 2 s, the most at 4 s)
 function shirtHit(m) {
-  const N = NOLAN.shirt, d = m <= 60 ? 5 + (5 * m) / 60 : m <= N.full ? 10 + (6 * (m - 60)) / (N.full - 60) : 16 + 4 * Math.min(1, (m - N.full) / (N.max - N.full));
+  const N = NOLAN.shirt, D = N.dmg, lerp = (a, b, q) => a + (b - a) * q;
+  const d = m <= 60 ? lerp(D[0], D[1], m / 60) : m <= N.full ? lerp(D[1], D[2], (m - 60) / (N.full - 60)) : lerp(D[2], D[3], Math.min(1, (m - N.full) / (N.max - N.full)));
   const k = Math.min(1, m / N.full);
-  return { d, kb: 4 + 4 * k, gr: 0.06 + 0.1 * k };
+  return { d, kb: lerp(N.kb[0], N.kb[1], k), gr: lerp(N.gr[0], N.gr[1], k) };
 }
 // a stink cloud on the floor at (x, y) (or, `big`, the Shirt's burst, round the point where it hit)
 function spawnStink(g, own, x, y, big) {
@@ -3678,11 +3684,11 @@ const SP = {
     upd(g, f, c) { if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2); return f.t >= 20 ? 1 : 0; },
   },
   // --- Nolan Toad ---
-  // Rot Toss: he lobs a rotten leftover from under his bed (5%); where it lands it leaves a stink cloud for 4 seconds
-  rottoss: spShot({ slot: 'n', cd: 120, at: 9, end: 22, p: Object.assign({ k: 'rot', ox: 18, oy: 0.75 }, NOLAN.rot) }),
+  // Rot Toss: he lobs a rotten leftover from under his bed (7%); where it lands it leaves a stink cloud for 5 seconds
+  rottoss: spShot({ slot: 'n', cd: NOLAN.rot.cd, at: 9, end: 20, p: Object.assign({ k: 'rot', ox: 18, oy: 0.75 }, NOLAN.rot) }),
   // The Shirt (side special). Hold Special to grow mold on it (f.mold counts the frames), let go to throw it: a tap
-  // hits for 5%, a second for 10%, full mold (2 s) for 16% and a burst of stink. Past full mold it keeps growing (up to
-  // 20%), but it creeps onto him too: 2% a second until he throws it (at 4 seconds he throws it anyway)
+  // hits for 6%, a second for 12%, full mold (2 s) for 19% and a burst of stink. Past full mold it keeps growing (up to
+  // 24%), but it creeps onto him too: 2% a second until he throws it (at 4 seconds he throws it anyway)
   forbidden: {
     start(g, f, c) {
       if (f.cd.s > 0) return false;
@@ -3711,10 +3717,10 @@ const SP = {
       return f.t2 >= 16 ? 1 : 0;
     },
   },
-  // Mattress Launch: his old mattress flops down under him and he springs high off it (anyone under it takes 7%). In the
-  // air the mattress falls away beneath him
+  // Mattress Launch: his old mattress flops down under him and he springs high off it (anyone under it takes 10%). In
+  // the air the mattress falls away beneath him
   mattress: (() => {
-    const R = spRise({ vy: 15.5, hold: 8, drift: 5, end: 30, ev: 'mattress', hb: { a: 0, b: 6, y: 0.08, r: 38, d: 7, k: 7, g: 0.08, ang: 82 } });
+    const M = NOLAN.mattress, R = spRise({ vy: M.vy, hold: 8, drift: 5.5, end: 30, ev: 'mattress', hb: { a: 0, b: 6, y: 0.08, r: 40, d: M.d, k: M.k, g: M.g, ang: 82 } });
     return {
       fall: R.fall, upd: R.upd,
       start(g, f, c) {
@@ -3724,8 +3730,8 @@ const SP = {
     };
   })(),
   // Under the Bed: his bed appears, he dives under it (nothing can touch him for half a second) and pops out with
-  // whatever he finds down there: old leftovers (a stink cloud), a broken controller (he throws it, 8%) or a
-  // half-eaten bag of spicy chips (he eats them: 5% healed)
+  // whatever he finds down there: old leftovers (a stink cloud), a broken controller (he throws it, 11%) or a
+  // half-eaten bag of spicy chips (he eats them: 8% healed)
   underbed: {
     start(g, f, c) {
       if (!c.onG) return fizzle(g, f, 'No bed up here!');
