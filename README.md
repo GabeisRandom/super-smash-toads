@@ -1,6 +1,6 @@
 # Super Smash Toads
 
-A free, fan-made **platform fighter** you play right in your web browser. Forty-six fighters, thirty-two Toads (one riding a cow, one carrying a tiny spirit in his backpack, one with a spirit cat floating behind her) and fourteen Yoshis, brawl across twelve stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 8 players**.
+A free, fan-made **platform fighter** you play right in your web browser. Forty-seven fighters, thirty-three Toads (one riding a cow, one carrying a tiny spirit in his backpack, one with a spirit cat floating behind her) and fourteen Yoshis, brawl across twelve stages built in a folded-paper 3D style. Knock your rivals off the stage to win. You can play against CPUs, with a friend on the same keyboard, or **online with up to 8 players**.
 
 ### ▶ [Play now in your browser](https://gabeisrandom.github.io/super-smash-toads/)
 
@@ -55,7 +55,7 @@ These are the default keys. Change them in **Settings** on the main menu (saved 
 ## Every fighter fights differently
 
 - **Their own moves:** each fighter has their own set of normal attacks, built from about 85 different moves (every Yoshi has its own too: Red Yoshi breathes fire, Yellow Yoshi kicks with its boots, Purple Yoshi whips its tongue, Yoshi smashes eggs, Baby Yoshi throws a tantrum): punches, flurries, drop kicks, sword slashes and thrusts, tail whips, tongue lashes, head bonks, energy palms, drills, geysers and more. Every move has its own animation and its own swoosh.
-- **Elements:** every fighter's hits carry an element you can see (and sometimes feel). Fire hits hit harder, Ice smash attacks freeze, Poison smashes and combo finishers poison, Electric hits shock, Wind sends foes flying flatter and farther, Rock smash attacks are heavier, Music gives longer reach, Shadow and Light hit a little harder, and Steel hits are tough and solid. The lobby shows each fighter's element.
+- **Elements:** every fighter's hits carry an element you can see (and sometimes feel). Fire hits hit harder, Ice smash attacks freeze, Poison (and Stink) smashes and combo finishers poison, Electric hits shock, Wind sends foes flying flatter and farther, Rock smash attacks are heavier, Music gives longer reach, Shadow and Light hit a little harder, and Steel hits are tough and solid. The lobby shows each fighter's element.
 - **Voices:** every Toad yelps "hup!", "hyah!" and "WAAAH!", and every Yoshi chirps and cheers "Yo-shi!", each in their own pitch (Toadsworth is old and wobbly, Baby Yoshi squeaks, Robo Toad and Mech Yoshi beep). They shout on big attacks, grunt when hit, cheer on taunts and wins, and say hi when you pick them.
 - **Animated:** fighters breathe, blink and look around, and each has their own way of standing (Toad bounces like a boxer, Toadsworth leans on his cane, Ninja Toad crouches low, Rocker Toad nods to the beat) and running (Captain Toad and Robo Toad stomp, Ninja Toad sprints with his arms back, Yoshis scamper). They squash when they land, stretch when they jump, flip on double jumps, and flail when they fall.
 
@@ -142,6 +142,7 @@ The title screen, lobby and results screen each have their own music too.
 | **Hindu Toad** (celebrating Holi) | Holi colors | Color Throw | Dandiya Dance | Kite Flight | Pichkari Splash | Festival of Colors |
 | **Subaru Toad** (with Beatrice) | Beatrice's magic | Minya | Shamac | Murak | Unseen Hand | El Minya |
 | **Emilia Toad** (with Puck) | Ice | Ice Soldiers | Ice Brand Arts | Ice Pillar | Ice Barrier | Absolute Zero |
+| **Nolan Toad** (a deadbeat after college) | Stink | Rot Toss | Forbidden Dagger | Mattress Launch | Under the Bed | The Gap Year That Never Ends |
 | **Yoshi** | Egg | Egg Toss | Egg Roll | Flutter Jump | Yoshi Bomb | Egg Storm |
 | **Red Yoshi** | Fire | Fire Spit | Flame Rush | Blaze Jump | Magma Pound | Volcano Rain |
 | **Blue Yoshi** (wings) | Wind | Wing Gust | Sky Swoop | Wing Flight | Dive Bomb | Feather Cyclone |
@@ -168,6 +169,16 @@ The title screen, lobby and results screen each have their own music too.
 - **100%:** he winds up at his hip for a second and a half, then fires a huge steaming beam for four seconds that hits again and again (up to 50%), launches hard at the end, and **washes out** anyone still above 150%.
 
 His down special, **Sea Dragon's Cradle**, raises a bubble of water around him (twice his size) for ten seconds. Attacks from outside can't get through, so it soaks them up (10 HP), shots that hit it heal it instead, and El Minya crystallizes and shatters it like a platform. When someone is inside, the front of the bubble fades so you can still see them. Current makes it better, and each level keeps the ones before it: extra HP, then foes who touch it are **Sunk**, then a roof you can stand on, then 30 more HP, and at 100% the water heals him 4% a second while he's inside. **Scalded** (from the big beam) burns 2% a second for ten seconds and makes the victim hit 20% softer; **Sunk** makes a foe 25% slower and take 10% more damage for five seconds. His side special (**Undertow**, a wave that rolls out and comes back, bigger if he has 25% Current to spend), up special (**Geyser Rise**, a big water jump) and finale (**Healing Tide**, which heals 70%) are placeholders for now.
+
+**Nolan Toad** is a deadbeat after college who hasn't left his room since graduation, and he's sure he's better than you. He slouches with his hands in his hoodie pocket, a faint stink follows him around, and everyone he KOs gets stamped **LOW-TIER HUMAN**. His taunts are things he says ("low-tier human", "are you implying i'm not a high tier human?", "i'm not mad").
+
+- **Rot Toss:** he lobs a rotten slice of pizza from under his bed. Where it lands it leaves a stink cloud for four seconds that wears down anyone inside (1% every half second) and slows them 15%.
+- **Forbidden Dagger:** he throws the Shirt, an old T-shirt that spent a year at the bottom of his backpack. Hold Side Special and he holds it out at arm's length while it grows mold: a tap hits for 5%, a second for 10%, two seconds for 16%, and at full mold it bursts into a stink you can smell from 10 feet away. Keep holding past that and it hits harder (up to 20%), but the mold creeps onto him: 2% a second until he lets go.
+- **Mattress Launch:** he springs high off his old mattress (7% to anyone underneath).
+- **Under the Bed:** he dives under his bed (nothing can touch him for half a second) and pops out with whatever he finds: old leftovers (a stink cloud), a broken controller (he throws it, 8%) or a half-eaten bag of spicy chips (5% healed).
+- **The Gap Year That Never Ends** (his finale): the stage turns into his room for eight seconds. The stink wears every foe down (12% in all) and slows them 20%, while he heals 8% (he's at home). Then the title card: GAP YEAR: DAY 1,096.
+
+After a match he played, the results show his stats: 41,382 blitz games played, a rating of 767, and zero job applications sent.
 
 ## Playing online with friends
 

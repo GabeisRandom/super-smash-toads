@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611131504';
+const GAME_BUILD = '202611132317';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -167,6 +167,15 @@ const CHARS = [
     elemInfo: 'Ice: her weapons chill foes, her spear can freeze them',
     blurb: 'An ice mage with the great spirit Puck floating behind her. Homing ice pellets, ice weapons made on the spot, ice soldiers, and pillars and walls of ice.',
     quote: 'I\'m Emilia. Just Emilia! (Puck: "That\'s my girl!")' }),
+  // Nolan Toad (the player's own character): a deadbeat after college in a stained hoodie, sweatpants and slides, with
+  // bedhead under his cap. `stinky`: a faint stink follows him round; `lowtier`: everyone he KOs gets stamped LOW-TIER
+  // HUMAN, and his taunts are insults (`lines`)
+  defChar({ id: 'nolan', name: 'Nolan Toad', look: { cap: '#ece6d2', spot: '#7d8f3c', vest: '#8f9298', trim: '#7d8087', shirt: '#8f9298', pants: '#474a54', sleeves: '#8f9298', cuff: '#7d8087',
+    hood: true, stains: true, hair: '#2a1d14', bedhead: true, eyes: 'tired', slides: '#1d1d22' },
+    weight: 1.12, run: 6.0, air: 4.8, jump: 14, djump: 13, pow: 1.0, stinky: true, lowtier: true, swoosh: '#d4e0a0', sp: { n: 'rottoss', s: 'forbidden', u: 'mattress', d: 'underbed' },
+    lines: ['low-tier human', "are you implying i'm not a high tier human?", "i'm not mad"],
+    blurb: "A deadbeat after college who hasn't left his room since graduation, and he's sure he's better than you. Rotten leftovers, the Shirt, an old mattress and whatever's under his bed.",
+    quote: 'Low-tier human.' }),
   // ---- the Yoshi clan ----
   defChar({ id: 'yoshi', name: 'Yoshi', yoshi: true, look: { body: '#3dbb3d', saddle: '#e8262b', shoe: '#ff8a1f' },
     weight: 1.05, run: 7.0, air: 5.4, jump: 15.5, djump: 16.5, h: 66, sp: { n: 'egg', s: 'eggroll', u: 'flutter', d: 'yoshipound' },
@@ -276,6 +285,7 @@ const SPNAME = {
   boomkick: 'Boom Kick', blitzdash: 'Blitz Dash', cycloneclimb: 'Cyclone Climb', afterimage: 'Afterimage',
   blaster: 'Ray Blaster', airdash: 'Air Dash', booster: 'Booster Jump', bomblob: 'Bomb Lob',
   ebbflow: 'Ebb & Flow', undertow: 'Undertow', geyserrise: 'Geyser Rise', cradle: "Sea Dragon's Cradle",
+  rottoss: 'Rot Toss', forbidden: 'Forbidden Dagger', mattress: 'Mattress Launch', underbed: 'Under the Bed',
   kingsgift: "Three Kings' Gift", bellring: 'Bell Ring', partypopper: 'Party Popper', pinata: 'Piñata',
   colorthrow: 'Color Throw', dandiya: 'Dandiya Dance', kitefly: 'Kite Flight', pichkari: 'Pichkari Splash',
 };
@@ -292,7 +302,7 @@ const FSNAME = {
   samurai: 'Cherry Blossom Storm', viking: 'Longship Raid', pharaoh: 'Great Pyramid', gladiator: 'Legion March',
   buddhist: 'Lotus Bloom', muslim: 'Lantern Night', mormon: 'Grand Choir', hasidic: 'Mazel Tov!', subaru: 'El Minya', emilia: 'Absolute Zero',
   catholic: 'Christmas Parranda', hindu: 'Festival of Colors',
-  dashyoshi: 'Supersonic Lap', mechyoshi: 'Full Burst', wateryoshi: 'Healing Tide',
+  dashyoshi: 'Supersonic Lap', mechyoshi: 'Full Burst', wateryoshi: 'Healing Tide', nolan: 'The Gap Year That Never Ends',
 };
 // how each fighter sounds: a voice kind (toad, yoshi, girl, old, ghost, robot) and a pitch (1 = normal)
 const VOICE = {
@@ -300,7 +310,7 @@ const VOICE = {
   pirate: { p: 0.9 }, ninja: { p: 0.95 }, knight: { p: 0.84 }, chef: { p: 0.88 }, wizard: { p: 0.96 }, doctor: { p: 0.96 }, rocker: { p: 0.9 },
   cowboy: { p: 0.88 }, ghost: { k: 'ghost' }, robo: { k: 'robot', p: 0.8 }, cowtoad: { p: 0.92 },
   samurai: { p: 0.86 }, viking: { p: 0.72 }, pharaoh: { p: 0.95 }, gladiator: { p: 0.8 }, buddhist: { p: 0.9 }, muslim: { p: 0.96 },
-  mormon: { p: 1.02 }, hasidic: { p: 0.84 }, catholic: { p: 0.98 }, hindu: { p: 1.04 }, subaru: { p: 0.92 }, emilia: { k: 'girl', p: 1.06 },
+  mormon: { p: 1.02 }, hasidic: { p: 0.84 }, catholic: { p: 0.98 }, hindu: { p: 1.04 }, subaru: { p: 0.92 }, emilia: { k: 'girl', p: 1.06 }, nolan: { p: 0.8 },
   redyoshi: { p: 0.95 }, blueyoshi: { p: 1.05 }, yellowyoshi: { p: 0.85 }, pinkyoshi: { p: 1.12 }, blackyoshi: { p: 0.8 }, whiteyoshi: { p: 1.08 },
   orangeyoshi: { p: 1.02 }, babyyoshi: { p: 1.35 }, dashyoshi: { p: 1.06 }, mechyoshi: { k: 'robot', p: 0.95 }, wateryoshi: { p: 0.98 },
 };
@@ -478,6 +488,8 @@ const FIGHT = {
   hindu:       { style: 'toad', elem: 'holi', idle: 'groove', moves: { jab3: 'flurry', side: 'roundhouse', usmash: 'geyser', nair: 'spin', fair: 'drill' } },
   subaru:      { style: 'toad', elem: 'yin', moves: { jab3: 'kick3', fsmash: 'energypalm', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura' } },
   emilia:      { style: 'toad', elem: 'ice', idle: 'grace' },
+  // Nolan Toad: lazy slaps and shoves, a big haymaker; he slouches with his hands in his hoodie pocket and shuffles in his slides
+  nolan:       { style: 'toad', elem: 'stink', idle: 'slouch', gait: 'shuffle', moves: { jab: 'chop', jab3: 'palm3', fsmash: 'haymaker' } },
   // Dash Yoshi: all speed. Blurring kicks, and every attack plays out a quarter faster (aspd)
   dashyoshi:   { style: 'yoshi', elem: 'speed', gait: 'ninja', aspd: 1.25, moves: { jab3: 'rapidkick', side: 'blitzkick', up: 'flipup', fsmash: 'jetkick', usmash: 'cyclone', dsmash: 'spinsweep', nair: 'spin', fair: 'airkick', bair: 'backkick', dair: 'stomp' } },
   mechyoshi:   { style: 'yoshi', elem: 'plasma', idle: 'robot', gait: 'heavy', moves: { jab: 'punch', jab2: 'punch2', jab3: 'flurry', side: 'zapside', up: 'antiair', fsmash: 'haymaker', usmash: 'geyser', dsmash: 'groundslam', nair: 'aura', fair: 'drill', bair: 'backkick', uair: 'scissor', dair: 'stomp' } },
@@ -489,6 +501,7 @@ for (const c of CHARS) Object.assign(c, { style: c.yoshi ? 'yoshi' : 'toad', ele
 const ELEM = {
   fire: { kb: 1.1 }, ice: { frz: 1 }, poison: { psn: 1 }, electric: { stun: 6 }, wind: { kb: 1.06, flat: 10 },
   rock: { kb: 1.12, smashOnly: 1 }, music: { reach: 1.12 }, shadow: { dmg: 1 }, light: { dmg: 1 }, steel: { dmg: 0.5, kb: 1.04 },
+  stink: { psn: 1 }, // (Nolan Toad's smell: smash attacks and combo finishers poison, like Poison)
 };
 // hit colours per element: [main, accent]
 const ELEM_COL = {
@@ -501,7 +514,7 @@ const ELEM_COL = {
   sakura: ['#ffc0d8', '#ffffff'], storm: ['#bfe0ff', '#fff36a'], sand: ['#f0d290', '#ffd23a'], bronze: ['#e0a050', '#fff0c8'],
   chi: ['#ffe28a', '#ffffff'], lantern: ['#ffcf5a', '#fff6c8'], hymn: ['#9fc8ff', '#ffffff'], joy: ['#ffe066', '#7dbbff'],
   yin: ['#b07dff', '#ff9cd0'], speed: ['#ff8a1f', '#ffe066'], plasma: ['#7dff9a', '#d8fff0'],
-  fiesta: ['#ff4fa0', '#ffd23a'], holi: ['#ff4fa0', '#3fbf4a'],
+  fiesta: ['#ff4fa0', '#ffd23a'], holi: ['#ff4fa0', '#3fbf4a'], stink: ['#b4cc4e', '#6e7e2c'],
 };
 const ATK = {};
 for (const c of CHARS) {

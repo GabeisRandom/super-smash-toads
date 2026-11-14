@@ -81,6 +81,9 @@ function makeFighter(s, sp, stocks) {
     // Water Yoshi: his Current (0-100) and which Ebb & Flow move he's doing; anyone's Scalded / Sunk timers, a puddle's
     // slipperiness, and lying flat after slipping in one
     cur: 0, ebv: '', ebc: 0, scald: 0, sunk: 0, slick: 0, flat: 0,
+    // Nolan Toad: how moldy the Shirt in his hand is (frames held; -1 once thrown) and what he found under his bed;
+    // anyone's time left in his stink (a cloud) or his room's reek (his finale)
+    mold: 0, find: '', stink: 0, reek: 0,
     // grabs: gv = the foe I'm holding, gby = who holds me, gt = how long the hold lasts, pmT = pummel cooldown, thr = throw
     gv: -1, gby: -1, gt: 0, pmT: 0, thr: '',
     // anti-spam: parry cooldown, tiring dodges, and the queue of recent moves that landed (stale moves hit softer)
@@ -217,6 +220,9 @@ function updateFighter(g, f, bits) {
   if (f.sunk > 0) f.sunk--;
   if (f.slick > 0) f.slick--;
   if (f.flat > 0 && f.st !== 'stun') f.flat = 0;
+  // standing in Nolan Toad's stink (a cloud, or his room in his finale) slows you down while you're in it
+  if (f.stink > 0) f.stink--;
+  if (f.reek > 0) f.reek--;
   // Beatrice's follow-up spark (Subaru Toad), a moment after his hit lands; it fizzles if he gets hit first.
   // It only adds damage (it never knocks anyone, so it can't cut short the launch his hit just gave them)
   if (f.echo && --f.echo.t <= 0) {
@@ -302,7 +308,7 @@ function control(g, f, c) {
   const help = f.st === 'help', slip = !onG ? 0 : g.surf[f.gi] && g.surf[f.gi].icy ? 2 : f.slick > 0 ? 1 : 0;
   if (pr & (B_L | B_R | B_U | B_D)) f.dirAt = g.frame;
   // Super Mushroom: slow and mighty; Mini Mushroom: quick and fragile; chilled by ice: slowed down
-  const spd = (f.small ? 1.35 : 1) * (f.star ? 1.2 : 1) * (f.big ? 0.72 : 1) * (f.slow > 0 ? 0.55 : 1) * (f.sunk > 0 ? 0.75 : 1);
+  const spd = (f.small ? 1.35 : 1) * (f.star ? 1.2 : 1) * (f.big ? 0.72 : 1) * (f.slow > 0 ? 0.55 : 1) * (f.sunk > 0 ? 0.75 : 1) * (f.reek > 0 ? NOLAN.room.slow : f.stink > 0 ? NOLAN.cloud.slow : 1);
   if (onG) {
     if (!help) for (let n = 0; n < 4; n++) if (pr & B_TAUNTS[n]) { startTaunt(g, f, n + 1); return; }
     if (f.boostT > 0) { f.vx += dirX * 0.3; f.st = 'run'; } // riding a dash panel keeps its speed
@@ -488,7 +494,8 @@ function updCharge(g, f, c) {
 
 function startTaunt(g, f, n) {
   f.st = 'taunt'; f.tn = n; f.t = 0; f.vx *= 0.3;
-  g.ev.push({ t: 'taunt', i: f.i, n, ch: f.ch, x: f.x, y: f.y - f.h });
+  // (k picks a line for a fighter whose taunts are things they say, the same on every screen)
+  g.ev.push({ t: 'taunt', i: f.i, n, ch: f.ch, x: f.x, y: f.y - f.h, k: g.frame % 3 });
 }
 function updTaunt(g, f, c) {
   f.t++;
@@ -753,13 +760,19 @@ function respawn(g, f) {
 }
 
 function ko(g, f) {
-  g.ev.push({ t: 'ko', x: clamp(f.x, BLAST.l + 60, BLAST.r - 60), y: clamp(f.y - f.h / 2, BLAST.t + 60, BLAST.b - 60), i: f.i, ch: f.ch });
+  const kx = clamp(f.x, BLAST.l + 60, BLAST.r - 60), ky = clamp(f.y - f.h / 2, BLAST.t + 60, BLAST.b - 60);
+  g.ev.push({ t: 'ko', x: kx, y: ky, i: f.i, ch: f.ch });
   const a = f.lastHit >= 0 && g.frame - f.lastHitT < 600 ? fighterBy(g, f.lastHit) : null;
-  if (a && a !== f) a.kos++; else f.sds = (f.sds || 0) + 1; // (no one to credit: a self-destruct)
+  if (a && a !== f) {
+    a.kos++;
+    // Nolan Toad stamps everyone he KOs: LOW-TIER HUMAN
+    if (CH[a.ch] && CH[a.ch].lowtier) g.ev.push({ t: 'lowtier', x: kx, y: ky, i: f.i, by: a.i });
+  } else f.sds = (f.sds || 0) + 1; // (no one to credit: a self-destruct)
   // (in a timed match lives never run out)
   f.falls++; if (g.mode !== 'time') f.sk--; f.st = 'dead'; f.dead = 100; f.vx = 0; f.vy = 0;
   f.big = f.small = f.star = f.pe = f.frz = f.psn = f.pick = 0; f.hold = null; f.glide = 0; f.lastHit = -1;
   f.fs = 0; f.fsLock = 0; f.hide = 0; f.ig = 0; f.tn = 0; f.boostT = 0; f.slow = 0; f.scald = 0; f.sunk = 0; f.slick = 0; f.flat = 0;
+  f.stink = 0; f.reek = 0; f.mold = 0; f.find = '';
   f.x = 0; f.y = -2000;
   if (f.sk <= 0) {
     f.out = true; f.outAt = g.frame;
@@ -1049,6 +1062,8 @@ function updateProj(g) {
                 if (own) spawnProj(g, own, { k: 'trap', sub: 'wpuddle', x: p.x, y: s.y, vx: 0, vy: 0, d: 0, kb: 0, gr: 0, ang: 0, r: WATER.puddle.r, life: WATER.puddle.life, landed: 1, in: {}, quiet: 1 });
                 g.ev.push({ t: 'splash', x: p.x, y: s.y });
               }
+              // Nolan Toad's rotten leftover goes splat and leaves a stink cloud where it lands (4 seconds)
+              if (p.k === 'rot') { const own = fighterBy(g, p.o); if (own) spawnStink(g, own, p.x, s.y, 0); }
             }
           }
         }
@@ -1082,6 +1097,8 @@ function updateProj(g) {
       // (a finale's raining drop bursts in its own colours: El Minya's crystals in pink and lavender, melons, lanterns, fire)
       if (boom && p.explode) { const E = p.explode; g.ev.push({ t: 'boom', x: p.x, y: p.y, s: E.r / 55, k: p.k === 'fsdrop' ? p.sub : p.k }); blastAt(g, p.x, p.y, p.o, E.r, E.d * p.pm, E.k, E.g, 55); }
       else if (boom && (p.k === 'bomb' || p.k === 'egg')) explode(g, p);
+      // the Shirt at full mold bursts into a stink you can smell from 10 feet away, wherever it ends up
+      else if (boom && p.k === 'shirt' && p.burst) { const own = fighterBy(g, p.o); if (own) spawnStink(g, own, p.x, p.y, 1); }
       else if (boom) g.ev.push({ t: 'pop', x: p.x, y: p.y, k: p.k });
       const idx = g.proj.indexOf(p);
       if (idx >= 0) g.proj.splice(idx, 1);
@@ -1124,6 +1141,20 @@ function updTrap(g, p) {
   }
   if (p.sub === 'amp') {
     if (p.t === 20 || p.t === 50 || p.t === 80) { blastAt(g, p.x, p.y - 24, p.o, 110, 5 * p.pm, 7, 0.07, 55); g.ev.push({ t: 'amp', x: p.x, y: p.y - 24 }); }
+    return false;
+  }
+  // Nolan Toad's mattress and bed are just for show (his moves do the work)
+  if (p.sub === 'mattress' || p.sub === 'bed') return false;
+  // ... and his stink: a cloud of rotten smell round (x, cy). Foes inside get worn down (1% every `every` frames, no
+  // flinching) and move slower while they're in it
+  if (p.sub === 'stink') {
+    const own = fighterBy(g, p.o);
+    for (const v of g.fighters) {
+      if (mineI(g, p.o, v.i) || !alive(v) || v.rp > 0) continue;
+      if (Math.hypot(v.x - p.x, v.y - v.h / 2 - p.cy) > p.r + v.w / 2) continue;
+      v.stink = 2;
+      if (p.hits[v.i] === undefined || g.frame - p.hits[v.i] >= p.every) { p.hits[v.i] = g.frame; applyHit(g, v, own, p.d, 0, 0, 0, 1, { proj: true, chip: true }); }
+    }
     return false;
   }
   // Water Yoshi's puddle: slippery underfoot for everyone; a foe who steps in has a 1 in 100 chance to slip and fall
@@ -1687,6 +1718,8 @@ const FSDEF = {
   emilia: { k: 'storm', sub: 'absolute' },
   // Water Yoshi's finale is a placeholder for now: a healing tide (70%)
   wateryoshi: { k: 'heal', sub: 'tide' },
+  // Nolan Toad's finale: the gap year that never ends (the stage turns into his room)
+  nolan: { k: 'room', sub: 'gapyear' },
   catholic: { k: 'wave', sub: 'parranda' }, hindu: { k: 'vortex', sub: 'color', move: 2.6, life: 210, r: 240 },
 };
 // finales that keep their user busy until they finish (the Beast of the End only for its opening)
@@ -1722,6 +1755,7 @@ function fsLaunch(g, f) {
     case 'storm': e.life = 320; e.ox = f.x; e.oy = f.y; break;
     case 'beast': e.life = BEAST.gone + 20; e.ox = f.x; e.oy = f.y; e.x = s.x + s.w / 2; e.y = s.y; e.pos = {}; break;
     case 'heal': e.life = 60; break;
+    case 'room': e.life = NOLAN.room.life + NOLAN.room.card; break;
   }
   g.fx.push(e);
   if (FS_LOCK[D.k]) f.fsLock = e.id;
@@ -1822,6 +1856,22 @@ const FXU = {
   heal(g, e, own) {
     if (e.t === 2 && own && alive(own)) { own.dm = Math.max(0, own.dm - 70); g.ev.push({ t: 'fsheal', x: own.x, y: own.y - own.h, i: own.i }); }
     return e.t >= 50;
+  },
+  // Nolan Toad's finale, the gap year that never ends: the stage turns into his room for 8 seconds. The stink in there
+  // wears every foe down (1% every 40 frames: 1.5% a second, no flinching) and slows them 20%; he heals 1% a second
+  // (he's at home). Then the title card: GAP YEAR: DAY 1,096
+  room(g, e, own) {
+    const R = NOLAN.room;
+    if (e.t < R.life) {
+      // (from its first frame on: 12% over the 8 seconds, and 8% healed)
+      for (const v of fsFoes(g, e)) {
+        v.reek = 2;
+        if ((e.t - 1) % R.every === 0) applyHit(g, v, own, R.d, 0, 0, 0, e.dir, { proj: true, fs: true, chip: true });
+      }
+      if (own && alive(own) && (e.t - 1) % R.heal === 0 && own.dm > 0) { own.dm = Math.max(0, own.dm - 1); g.ev.push({ t: 'heal', x: own.x, y: own.y - own.h }); }
+    }
+    if (e.t === R.life) g.ev.push({ t: 'gapyear', i: e.o });
+    return e.t >= R.life + R.card;
   },
   // everyone else freezes solid, then shatters
   freeze(g, e) {
@@ -2885,6 +2935,41 @@ function crystalCradle(g, s) {
   else g.ev.push({ t: 'cradlecrack', x: s.x, y: s.y - s.h, n: s.cr });
 }
 
+// ---------- Nolan Toad (the player's own character: a deadbeat after college) ----------
+// Rot Toss lobs a rotten leftover from under his bed; where it lands it leaves a stink cloud. Forbidden Dagger throws
+// the Shirt (a year at the bottom of his backpack hardened it with mold): hold Special and it grows more mold and hits
+// harder; at full mold it bursts into a stink you can smell from 10 feet away (about two and a half Toads round), but
+// keep holding past that and the mold starts growing onto him. Mattress Launch springs him up off his old mattress.
+// Under the Bed: he dives under it and pops out with whatever he finds down there. Everyone he KOs gets stamped
+// LOW-TIER HUMAN. His finale turns the stage into his room
+const NOLAN = {
+  rot: { vx: 7, vy: -7.5, grav: 0.42, d: 5, kb: 4, gr: 0.05, ang: 45, r: 13, life: 160 },
+  // a stink cloud: 1% every half second to foes inside (no flinching), and they move 15% slower in it
+  cloud: { r: 46, life: 240, every: 30, d: 1, slow: 0.85 },
+  // the Shirt: `full` frames of holding for full mold, `max` frames at the most (it's thrown by itself then); past full
+  // mold he takes 1% every `self` frames (2% a second). The full-mold burst: radius `burst`, 1% a second for 3 seconds
+  shirt: { full: 120, max: 240, self: 30, vx: 13.5, grav: 0.04, ang: 35, r: 16, life: 56, cd: 180, burst: 155, burstLife: 180, burstEvery: 60 },
+  // Under the Bed: hidden (can't be touched) from `hide[0]` to `hide[1]`, pops out at `pop`; the finds' odds
+  bed: { hide: [4, 34], pop: 34, end: 52, cd: 360, heal: 5, odds: [0.4, 0.75],
+    ctrl: { vx: 10, vy: -4, grav: 0.32, d: 8, kb: 6, gr: 0.1, ang: 40, r: 14, life: 90 } },
+  // the finale: 8 seconds in his room (1% every 40 frames to foes = 1.5% a second, 20% slower; he heals 1% a second),
+  // then the title card for `card` frames
+  room: { life: 480, card: 100, every: 40, d: 1, heal: 60, slow: 0.8 },
+};
+// the Shirt's damage and knockback for m frames of mold: a tap 5%, 1 second 10%, full mold (2 s) 16%, up to 20% at 4 s
+function shirtHit(m) {
+  const N = NOLAN.shirt, d = m <= 60 ? 5 + (5 * m) / 60 : m <= N.full ? 10 + (6 * (m - 60)) / (N.full - 60) : 16 + 4 * Math.min(1, (m - N.full) / (N.max - N.full));
+  const k = Math.min(1, m / N.full);
+  return { d, kb: 4 + 4 * k, gr: 0.06 + 0.1 * k };
+}
+// a stink cloud on the floor at (x, y) (or, `big`, the Shirt's burst, round the point where it hit)
+function spawnStink(g, own, x, y, big) {
+  const N = NOLAN, S = N.shirt;
+  spawnProj(g, own, { k: 'trap', sub: 'stink', x, y, vx: 0, vy: 0, d: N.cloud.d, kb: 0, gr: 0, ang: 0, r: big ? S.burst : N.cloud.r, life: big ? S.burstLife : N.cloud.life,
+    every: big ? S.burstEvery : N.cloud.every, big: big ? 1 : 0, cy: big ? y : y - 28, landed: 1, quiet: 1 });
+  g.ev.push({ t: big ? 'shirtburst' : 'stinkcloud', x, y, r: big ? S.burst : N.cloud.r });
+}
+
 // ---------- Specials ----------
 const SP = {
   // --- Toad ---
@@ -3592,6 +3677,78 @@ const SP = {
     },
     upd(g, f, c) { if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2); return f.t >= 20 ? 1 : 0; },
   },
+  // --- Nolan Toad ---
+  // Rot Toss: he lobs a rotten leftover from under his bed (5%); where it lands it leaves a stink cloud for 4 seconds
+  rottoss: spShot({ slot: 'n', cd: 120, at: 9, end: 22, p: Object.assign({ k: 'rot', ox: 18, oy: 0.75 }, NOLAN.rot) }),
+  // Forbidden Dagger: the Shirt. Hold Special to grow mold on it (f.mold counts the frames), let go to throw it: a tap
+  // hits for 5%, a second for 10%, full mold (2 s) for 16% and a burst of stink. Past full mold it keeps growing (up to
+  // 20%), but it creeps onto him too: 2% a second until he throws it (at 4 seconds he throws it anyway)
+  forbidden: {
+    start(g, f, c) {
+      if (f.cd.s > 0) return false;
+      if (!c.onG) { if (f.sUsed) return false; f.sUsed = true; }
+      f.mold = 0; f.vx *= 0.4;
+      g.ev.push({ t: 'shirtout', x: f.x, y: f.y - f.h * 0.75, i: f.i });
+    },
+    upd(g, f, c) {
+      const N = NOLAN.shirt;
+      if (c.onG) f.vx *= 0.8; else f.vy = Math.min(f.vy, 2.5);
+      if (f.mold >= 0) {
+        if (c.bits & B_B && f.mold < N.max) {
+          f.mold++;
+          if (f.mold === N.full) g.ev.push({ t: 'moldfull', x: f.x, y: f.y - f.h * 0.9, i: f.i });
+          if (f.mold > N.full && (f.mold - N.full) % N.self === 0) { f.dm = Math.min(999, f.dm + 1); f.taken = (f.taken || 0) + 1; g.ev.push({ t: 'moldme', x: f.x, y: f.y - f.h * 0.6, i: f.i }); }
+          f.t2 = 0;
+          return 0;
+        }
+        // let go (or it's as moldy as it gets): throw it. (mold -1 = his hand is empty now)
+        const H = shirtHit(f.mold), full = f.mold >= N.full ? 1 : 0;
+        spawnProj(g, f, { k: 'shirt', x: f.x + f.fc * 24 * f.sc, y: f.y - f.h * 0.65, vx: f.fc * N.vx, vy: -0.5, grav: N.grav, d: H.d, kb: H.kb, gr: H.gr, ang: N.ang,
+          r: N.r + 6 * Math.min(1, f.mold / N.full), life: N.life, mold: f.mold, burst: full, fuse: full, fc: f.fc });
+        f.mold = -1; f.t2 = 0; f.cd.s = N.cd;
+      }
+      f.t2++;
+      return f.t2 >= 16 ? 1 : 0;
+    },
+  },
+  // Mattress Launch: his old mattress flops down under him and he springs high off it (anyone under it takes 7%). In the
+  // air the mattress falls away beneath him
+  mattress: (() => {
+    const R = spRise({ vy: 15.5, hold: 8, drift: 5, end: 30, ev: 'mattress', hb: { a: 0, b: 6, y: 0.08, r: 38, d: 7, k: 7, g: 0.08, ang: 82 } });
+    return {
+      fall: R.fall, upd: R.upd,
+      start(g, f, c) {
+        if (R.start(g, f, c) === false) return false;
+        spawnProj(g, f, { k: 'trap', sub: 'mattress', x: f.x, y: f.y + 2, vx: 0, vy: 0, d: 0, kb: 0, gr: 0, ang: 0, r: 40, life: 44, landed: c.onG ? 1 : 0, quiet: 1, fc: f.fc });
+      },
+    };
+  })(),
+  // Under the Bed: his bed appears, he dives under it (nothing can touch him for half a second) and pops out with
+  // whatever he finds down there: old leftovers (a stink cloud), a broken controller (he throws it, 8%) or a
+  // half-eaten bag of spicy chips (he eats them: 5% healed)
+  underbed: {
+    start(g, f, c) {
+      if (!c.onG) return fizzle(g, f, 'No bed up here!');
+      if (!useCd(f, 'd', NOLAN.bed.cd)) return false;
+      f.vx = 0; f.find = '';
+      spawnProj(g, f, { k: 'trap', sub: 'bed', x: f.x, y: f.y, vx: 0, vy: 0, d: 0, kb: 0, gr: 0, ang: 0, r: 50, life: NOLAN.bed.end + 16, landed: 1, quiet: 1, fc: f.fc });
+      g.ev.push({ t: 'bed', x: f.x, y: f.y });
+    },
+    upd(g, f) {
+      const B = NOLAN.bed;
+      f.vx *= 0.6;
+      if (f.t >= B.hide[0] && f.t < B.hide[1]) f.ig = Math.max(f.ig, 2);
+      if (f.t === B.pop) {
+        const r = RND(), find = r < B.odds[0] ? 'leftovers' : r < B.odds[1] ? 'controller' : 'chips';
+        f.find = find;
+        if (find === 'leftovers') spawnStink(g, f, f.x + f.fc * 34, f.y, 0);
+        else if (find === 'controller') spawnProj(g, f, Object.assign({ k: 'controller', x: f.x + f.fc * 22 * f.sc, y: f.y - f.h * 0.6, fc: f.fc }, B.ctrl, { vx: f.fc * B.ctrl.vx }));
+        else f.dm = Math.max(0, f.dm - B.heal);
+        g.ev.push({ t: 'bedfind', k: find, x: f.x, y: f.y - f.h, i: f.i });
+      }
+      return f.t >= B.end ? 1 : 0;
+    },
+  },
   // --- the Smash Mushroom finale (every fighter; see FSDEF) ---
   fs: {
     fall: 2,
@@ -3618,7 +3775,9 @@ const FKEYS = ['i', 'ch', 'nm', 'tag', 'fc', 'st', 't', 'at', 'sp', 'sk', 'h', '
   // team mode: which team a fighter is on (-1 = none)
   'team',
   // Water Yoshi: his Current and Ebb & Flow move, and anyone's Scalded / Sunk / flat-on-their-face timers
-  'cur', 'ebv', 'scald', 'sunk', 'flat'];
+  'cur', 'ebv', 'scald', 'sunk', 'flat',
+  // Nolan Toad: the Shirt's mold, what he found under the bed, and anyone's time in his stink or his room's reek
+  'mold', 'find', 'stink', 'reek'];
 const r1 = v => Math.round(v * 10) / 10;
 function snapshot(g, ev) {
   const Hz = g.haz;
@@ -3633,7 +3792,7 @@ function snapshot(g, ev) {
     }),
     // (vy aims Emilia's icicles; ms/mt/wp/hp are an ice soldier's state, timer, weapon and hits left)
     proj: g.proj.map(p => ({ id: p.id, k: p.k, x: Math.round(p.x), y: Math.round(p.y), vx: r1(p.vx), vy: r1(p.vy || 0), t: p.t, o: p.o, sub: p.sub, face: p.face, fc: p.fc, life: p.life, r: Math.round(p.r),
-      ms: p.ms, mt: p.mt, wp: p.wp, hp: p.hp, vic: p.vic })),
+      ms: p.ms, mt: p.mt, wp: p.wp, hp: p.hp, vic: p.vic, mold: p.mold, big: p.big })),
     items: g.items.map(it => ({ k: it.k, x: Math.round(it.x), y: Math.round(it.y), t: it.t, sprout: it.sprout, life: it.life, hp: it.hp })),
     clouds: g.clouds.map(c => ({ x: Math.round(c.x), y: Math.round(c.y), w: c.w, life: c.life })),
     brk: g.brk, php: g.php,

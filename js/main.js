@@ -346,7 +346,8 @@ function showCharInfo(id) {
   box.appendChild(el('h3', '', C.name));
   box.appendChild(el('div', '', C.blurb));
   // (Emilia Toad's Attack button is her ice volley, and Puck fights on his own)
-  const atk = C.volley ? 'Attack: Ice Volley (homing pellets)  ·  ' : '', passive = C.puck ? '  ·  Puck fires on his own' : C.current ? '  ·  Hold Special to build Current, press it to Release' : '';
+  const atk = C.volley ? 'Attack: Ice Volley (homing pellets)  ·  ' : '', passive = C.puck ? '  ·  Puck fires on his own' : C.current ? '  ·  Hold Special to build Current, press it to Release'
+    : C.lowtier ? '  ·  Hold Side Special to grow mold on the Shirt  ·  He stamps his KOs LOW-TIER HUMAN' : '';
   box.appendChild(el('div', 'moves', `${atk}Special: ${SPNAME[C.sp.n]}  ·  Side: ${SPNAME[C.sp.s]}  ·  Up: ${SPNAME[C.sp.u]}  ·  Down: ${SPNAME[C.sp.d]}${passive}`));
   const fsl = el('div', 'fsname', `Smash Mushroom finale: ${FSNAME[C.id]}`);
   const E = C.elemInfo || ELEM_INFO[C.elem];
@@ -362,7 +363,7 @@ const ELEM_INFO = {
   magic: 'Magic sparkles', cosmic: 'Cosmic power', dust: 'Desert dust', spirit: 'Spirit power', spark: 'Spark power', egg: 'Egg power', fruit: 'Fruit power',
   sakura: 'Cherry blossoms', storm: 'Northern storm', sand: 'Desert sand', bronze: 'Arena bronze', chi: 'Inner calm', lantern: 'Lantern glow', hymn: 'Choir power',
   joy: 'Pure joy', yin: "Beatrice's magic (her spark follows every hit)", speed: 'Pepper speed', plasma: 'Robo energy',
-  fiesta: 'Fiesta confetti', holi: 'Holi colors',
+  fiesta: 'Fiesta confetti', holi: 'Holi colors', stink: 'Stink: smash attacks and combo finishers poison',
 };
 
 function renderLobby() {
@@ -695,6 +696,12 @@ function showResults(res, winner, info) {
     for (const [t, r, v] of [['Most KOs', K, K.kos], ['Most damage', D, D.dealt + '%'], ['Fewest falls', F, F.falls]]) aw.appendChild(el('span', '', `${t}: ${nm(r)} (${v})`));
     box.appendChild(aw);
   }
+  // Nolan Toad's stat card, whenever he played
+  if (res.some(r => r.ch === 'nolan')) {
+    const nc = el('div', 'awards nolanCard');
+    for (const s of ['Nolan Toad', 'Blitz games played: 41,382', 'Rating: 767', 'Job applications sent: 0', 'Days the Shirt spent in his backpack: 365']) nc.appendChild(el('span', '', s));
+    box.appendChild(nc);
+  }
   const rowB = el('div'); rowB.style.cssText = 'display:flex;gap:14px';
   if (role === 'client') {
     rowB.appendChild(el('div', '', 'Waiting for the host…'));
@@ -1019,7 +1026,7 @@ const ELEM_FX = {
   wind: ['puff'], rock: ['dot', 'fall'], dust: ['puff'], music: ['note', 'rise'], heart: ['heart', 'rise'], shadow: ['puff'], spirit: ['puff'],
   light: ['star'], gold: ['star'], magic: ['star'], cosmic: ['star'], leaf: ['dot', 'fall'], spore: ['dot', 'fall'], egg: ['star'], fruit: ['dot', 'fall'], steel: ['spark'],
   sakura: ['dot', 'fall'], storm: ['spark'], sand: ['puff'], bronze: ['spark'], chi: ['star'], lantern: ['star', 'rise'], hymn: ['note', 'rise'], joy: ['star', 'rise'],
-  yin: ['star'], speed: ['spark'], plasma: ['spark'], fiesta: ['dot', 'fall'], holi: ['puff'],
+  yin: ['star'], speed: ['spark'], plasma: ['spark'], fiesta: ['dot', 'fall'], holi: ['puff'], stink: ['puff', 'rise'],
 };
 function elemBurst(el, x, y, p, n0) {
   const F = ELEM_FX[el], C = ELEM_COL[el];
@@ -1120,9 +1127,38 @@ function handleEvents(evs) {
       case 'splashfx': Snd.play('squirt'); for (let k = 0; k < 6; k++) addP({ type: 'dot', x: e.x + (e.dir || 1) * (Math.random() * 30), y: e.y + (Math.random() - 0.5) * 20, vx: (e.dir || 1) * (2 + Math.random() * 3), vy: -1 - Math.random() * 2, g: 0.2, size: 5, color: ['#ff4fa0', '#3fbf4a', '#ffd23a', '#2f7cf6'][k % 4], life: 26 }); break;
       case 'yinfx': addP({ type: 'star', x: e.x + (Math.random() - 0.5) * 30, y: e.y + 10, vy: 0.8, size: 5, color: Math.random() < 0.5 ? '#c890ff' : '#ff9cd0', life: 22 }); break;
       case 'pluck': Snd.play('pluck'); burst(e.x, e.y - 4, 7, '#8a5a2b', 3, 'dot', 4, 20); if (e.s) say(e.s, e.x, e.y - 90, 20, '#ffe866'); break;
-      case 'pop': Snd.play('pop'); burst(e.x, e.y, 8, { ice: '#9fe4ff', fire: '#ff8a1f', coin: '#ffd23a', psn: '#9b4fd6', gust: '#ffffff', rock: '#a08a6a', heart: '#ff5aa8', bubble: '#c890ff', shade: '#8a7ad8', lightbolt: '#fff6c8', seed: '#5a4a30', melon: '#5fd04a' }[e.k] || '#f6f2ff', 4, 'dot', 4, 20); break;
+      case 'pop': Snd.play(e.k === 'rot' ? 'splat' : 'pop'); burst(e.x, e.y, 8, { ice: '#9fe4ff', fire: '#ff8a1f', coin: '#ffd23a', psn: '#9b4fd6', gust: '#ffffff', rock: '#a08a6a', heart: '#ff5aa8', bubble: '#c890ff', shade: '#8a7ad8', lightbolt: '#fff6c8', seed: '#5a4a30', melon: '#5fd04a',
+        rot: '#9ab84a', shirt: '#c4bca6', controller: '#3a3a44' }[e.k] || '#f6f2ff', 4, 'dot', 4, 20); break;
       case 'throw': if (e.k) { Snd.play('throwfx'); addP({ type: 'ring', x: e.x, y: e.y, size: 34, color: '#ffe0a8', life: 12 }); } else Snd.play('shoot'); break;
-      case 'shoot': Snd.play(e.k === 'wspout' || e.k === 'wblast' || (e.k === 'boom' && e.sub === 'wave') ? 'squirt' : 'shoot'); break;
+      case 'shoot': Snd.play(e.k === 'wspout' || e.k === 'wblast' || (e.k === 'boom' && e.sub === 'wave') ? 'squirt' : e.k === 'rot' || e.k === 'shirt' || e.k === 'controller' ? 'throwfx' : 'shoot'); break;
+      // ---- Nolan Toad ----
+      case 'stinkcloud': Snd.play('splat'); Snd.play('stink'); for (let k = 0; k < 6; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 60, y: e.y - 10 - Math.random() * 30, vy: -0.6, size: 9, tint: 'rgba(160,190,70,0.65)', life: 30 }); break;
+      case 'shirtout': Snd.play('poof2'); say('The Shirt', e.x, e.y - 34, 18, '#d8e0a0'); break;
+      case 'moldfull': Snd.play('stink'); Snd.play('chime'); say('FULL MOLD!', e.x, e.y - 30, 24, '#b4cc4e'); burst(e.x, e.y, 10, '#9ab84a', 4, 'dot', 4, 22); break;
+      case 'moldme': Snd.play('splat'); addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 20, y: e.y, vy: -0.8, size: 7, tint: 'rgba(130,170,60,0.75)', life: 22 }); say('ew', e.x, e.y - 44, 16, '#b4cc4e'); break;
+      case 'shirtburst':
+        Snd.play('splat'); Snd.play('stink'); Snd.play('boom'); cam.shake = Math.max(cam.shake, 10);
+        addP({ type: 'ring', x: e.x, y: e.y, size: (e.r || 155) * 1.1, color: '#b4cc4e', life: 22 }); addP({ type: 'ring', x: e.x, y: e.y, size: (e.r || 155) * 0.7, color: '#e6f0b0', life: 18 });
+        for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; addP({ type: 'puff', x: e.x, y: e.y, vx: Math.cos(a) * 5, vy: Math.sin(a) * 4 - 1, size: 11, tint: 'rgba(150,185,60,0.7)', life: 34, drag: 0.92 }); }
+        say('You can smell it from 10 feet away', e.x, e.y - 80, 20, '#d8e8a0');
+        break;
+      case 'mattress': Snd.play('boing'); say('boing', e.x, e.y - 16, 18, '#ffffff'); for (const s of [-1, 1]) addP({ type: 'puff', x: e.x + s * 30, y: e.y - 4, vx: s * 2, size: 8, color: 'rgba(255,255,255,0.8)', life: 18 }); break;
+      case 'bed': Snd.play('creak'); Snd.play('poof2'); for (let k = 0; k < 6; k++) addP({ type: 'puff', x: e.x + (Math.random() - 0.5) * 80, y: e.y - 6, vy: -0.5, size: 8, tint: 'rgba(200,190,170,0.75)', life: 24 }); break;
+      case 'bedfind':
+        if (e.k === 'chips') { Snd.play('crunch'); say('Spicy chips! +5%', e.x, e.y - 30, 20, '#ffb347'); burst(e.x, e.y, 8, '#e88a2a', 3, 'dot', 4, 20); }
+        else if (e.k === 'controller') { Snd.play('creak'); say('A broken controller!', e.x, e.y - 30, 20, '#c8ccd8'); }
+        else { Snd.play('splat'); say('Old leftovers...', e.x, e.y - 30, 20, '#b4cc4e'); }
+        break;
+      // everyone Nolan Toad KOs gets stamped LOW-TIER HUMAN (kept on screen, near where they went out)
+      case 'lowtier': {
+        Snd.play('stamp');
+        // (the stamp is about 400 px wide on screen at any zoom, so it's kept that far in from the edges)
+        const z = cam.z || 0.8, x = clamp(e.x, cam.x - 380 / z, cam.x + 380 / z), y = clamp(e.y, cam.y - 240 / z, cam.y + 170 / z);
+        addP({ type: 'stamp', text: 'LOW-TIER HUMAN', x, y, vy: 0, size: 46 / z, color: '#d8262b', rot: -0.12 + (Math.random() - 0.5) * 0.1, life: 110 });
+        cam.shake = Math.max(cam.shake, 10);
+        break;
+      }
+      case 'gapyear': Snd.play('horn'); break;
       // ---- Water Yoshi ----
       case 'wrelease': {
         Snd.play({ spout: 'squirt', blast: 'pop', beam: 'laser', whirl: 'wind', kame: 'charge' }[e.k] || 'squirt');
@@ -1211,7 +1247,15 @@ function handleEvents(evs) {
         addP({ type: 'ring', x: e.x, y: e.y, size: 70, color: '#ffffff', life: 16 }); burst(e.x, e.y, 10, '#bff4ff', 8, 'spark', 5, 16);
         say('PARRY!', e.x, e.y - 50, 26, '#bff4ff');
         break;
-      case 'taunt': Snd.play(['booty', 'laugh', 'yawn', 'flip'][e.n - 1]); if (e.n === 1) for (let k = 0; k < 3; k++) say('♪', e.x + (k - 1) * 22, e.y - 10 - k * 8, 20, '#ffe866'); if (e.n === 1 || e.n === 4) voiceLine(e.i, e.ch, 'taunt'); break;
+      case 'taunt': {
+        Snd.play(['booty', 'laugh', 'yawn', 'flip'][e.n - 1]);
+        // (a fighter whose taunts are things they say, Nolan Toad's insults, gets a speech bubble instead of the notes)
+        const L = CH[e.ch] && CH[e.ch].lines;
+        if (L) addP({ type: 'speech', text: L[e.n <= L.length ? e.n - 1 : (e.k || 0) % L.length], x: e.x, y: e.y - 14, vy: -0.2, size: 17, life: 110 });
+        else if (e.n === 1) for (let k = 0; k < 3; k++) say('♪', e.x + (k - 1) * 22, e.y - 10 - k * 8, 20, '#ffe866');
+        if (e.n === 1 || e.n === 4 || L) voiceLine(e.i, e.ch, 'taunt');
+        break;
+      }
       case 'grab': Snd.play('grab'); addP({ type: 'ring', x: e.x, y: e.y, size: 26, color: '#ffe0a8', life: 12 }); break;
       case 'poof':
         if (e.k === 'speed') { Snd.play('dodge'); for (let k = 0; k < 6; k++) addP({ type: 'spark', x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 10, vy: 0, size: 4, color: k % 2 ? '#ffe066' : '#ff8a1f', life: 14 }); break; }
@@ -1373,6 +1417,9 @@ function ambientFx(view) {
     // Water Yoshi: Scalded foes steam, Sunk ones drip; a full Current sparkles; the big beam's wind-up swirls and the
     // beam itself throws off steam
     if (f.scald > 0) addP({ type: 'puff', x: f.x + (Math.random() - 0.5) * 26, y: f.y - f.h * (0.4 + Math.random() * 0.6), vy: -1.3, size: 6, tint: 'rgba(255,238,232,0.7)', life: 22 });
+    // Nolan Toad: a faint stink follows him round, and anyone standing in his stink gives some off too
+    if (CH[f.ch] && CH[f.ch].stinky && Math.random() < 0.6) addP({ type: 'puff', x: f.x + (Math.random() - 0.5) * 34, y: f.y - f.h * (0.2 + Math.random() * 0.7), vy: -0.5, size: 5, tint: 'rgba(170,195,90,0.32)', life: 30 });
+    if ((f.stink > 0 || f.reek > 0) && Math.random() < 0.7) addP({ type: 'puff', x: f.x + (Math.random() - 0.5) * 26, y: f.y - f.h * Math.random(), vy: -0.9, size: 5, tint: 'rgba(150,185,60,0.5)', life: 22 });
     if (f.sunk > 0) addP({ type: 'dot', x: f.x + (Math.random() - 0.5) * 26, y: f.y - f.h * Math.random(), vy: 1.6, g: 0.15, size: 4, color: '#6fb8ff', life: 20 });
     if (f.cur >= 100) addP({ type: 'spark', x: f.x + (Math.random() - 0.5) * 50, y: f.y - f.h * Math.random(), vy: -0.8, size: 4, color: '#bff6ff', life: 18 });
     if (f.st === 'spc' && f.sp === 'ebbflow' && f.ebv === 'kame') {

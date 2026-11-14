@@ -7,11 +7,11 @@ const AI_DASH = { toaddash: 1, iceslide: 1, firedash: 1, cutlass: 1, shadowdash:
 // fighters whose neutral special is a projectile worth throwing from range
 const AI_SHOOT = { turnip: 1, iceball: 1, fireball: 1, boomerang: 1, poison: 1, turnips: 1, egg: 1, cannon: 1, shuriken: 1, pancake: 1, starbolt: 1, raygun: 1, vitamin: 1, powerchord: 1, cork: 1, boo: 1, rocketfist: 1,
   firespit: 1, gust: 1, rockspit: 1, heartkiss: 1, sporespit: 1, shadowball: 1, lightbolt: 1, seedspit: 1, milkshot: 1,
-  windslash: 1, axethrow: 1, scarab: 1, tridenttoss: 1, chipalm: 1, datetoss: 1, jelly: 1, latke: 1, minya: 1, boomkick: 1, blaster: 1, kingsgift: 1, colorthrow: 1 };
+  windslash: 1, axethrow: 1, scarab: 1, tridenttoss: 1, chipalm: 1, datetoss: 1, jelly: 1, latke: 1, minya: 1, boomkick: 1, blaster: 1, kingsgift: 1, colorthrow: 1, rottoss: 1 };
 // side specials that can hook the ledge from this far away (px)
 const AI_TETHER = { lasso: 160, canehook: 105, venomlash: 140 };
 // finales that reach most of the stage, fine to fire right away
-const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1, storm: 1, heal: 1 };
+const AI_FS_WIDE = { wave: 1, freeze: 1, rain: 1, flood: 1, sweep: 1, pulses: 1, swarm: 1, clone: 1, meteor: 1, storm: 1, heal: 1, room: 1 };
 
 // CPU levels. 1 to 9 get steadily better (there used to be only 1 to 3: the old 1, 2 and 3 are about the new 2, 5
 // and 8), 10 is GOD, and 0 is a Dummy that never moves. Each level has a skill q on the old scale (1 = the old
@@ -182,6 +182,18 @@ function aiBits(g, f) {
       if (ok && RND() < 0.06 * q) { if (!facing && tier !== 'whirl') return out(dx0 > 0 ? B_R : B_L); return out(B_B); }
     }
     if (f.gi >= 0 && f.cd.d <= 0 && bd < 170 && RND() < 0.008 * q) return out(B_B | B_D);
+  }
+
+  // Nolan Toad: with room to spare, grow mold on the Shirt (hold Special: better CPUs wait for full mold) and let it fly,
+  // letting go early if a foe gets close; dive under his bed when someone swings at him up close
+  if (C.lowtier && f.st === 'spc' && f.sp === 'forbidden' && f.mold >= 0) {
+    if (!a.wantMold || f.mold >= a.wantMold || bd < 110) { a.wantMold = 0; return out(0); }
+    a.prev = B_B; return B_B;
+  }
+  if (C.lowtier && f.st !== 'atk' && f.st !== 'spc') {
+    const dx0 = tg.x - f.x, adx0 = Math.abs(dx0), ady0 = Math.abs(tg.y - f.y);
+    if (f.cd.s <= 0 && adx0 > 190 && adx0 < 620 && ady0 < 70 && RND() < 0.02 * q) { a.wantMold = [20, 70, 125][Math.min(2, Math.floor(RND() * (1 + q * 0.8)))]; return out((dx0 > 0 ? B_R : B_L) | B_B); }
+    if (f.gi >= 0 && f.cd.d <= 0 && tg.st === 'atk' && adx0 < 110 && ady0 < 60 && RND() < 0.06 * q) return out(B_B | B_D);
   }
 
   // stage hazards: hop over Wiggler and karts, step off spike tiles

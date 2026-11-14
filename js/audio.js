@@ -191,6 +191,14 @@ const Snd = (() => {
     },
     squirt() { noise(0.3, 0.22, 3200, 0, 1.2); },
     poof2() { noise(0.25, 0.25, 1100, 0, 0.6); tone(600, 300, 0.12, 'sine', 0.08); },
+    // Nolan Toad: a rotten leftover going splat, a stink rising, crunching spicy chips, his old mattress springing,
+    // his bed creaking, and the LOW-TIER HUMAN stamp coming down
+    splat() { noise(0.2, 0.34, 520, 0, 0.7); tone(210, 80, 0.18, 'sine', 0.2); },
+    stink() { noise(0.6, 0.12, 380, 0, 0.5); tone(120, 95, 0.5, 'sawtooth', 0.025); },
+    crunch() { [0, 0.07, 0.15, 0.24].forEach((d, i) => noise(0.05, 0.3 - i * 0.04, 3400 - i * 300, d, 1.1)); },
+    boing() { tone(150, 560, 0.12, 'sine', 0.32); tone(560, 260, 0.3, 'triangle', 0.12, 0.11); tone(300, 330, 0.25, 'sine', 0.06, 0.18); },
+    creak() { tone(150, 190, 0.22, 'sawtooth', 0.045); tone(190, 125, 0.26, 'sawtooth', 0.04, 0.2); },
+    stamp() { noise(0.12, 0.42, 650, 0, 1); tone(120, 55, 0.22, 'square', 0.13); noise(0.18, 0.16, 2400, 0.04, 0.9); },
   };
 
   // ---------- character voices: a little formant synth for Toad yelps and Yoshi chirps ----------

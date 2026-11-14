@@ -226,6 +226,22 @@ const M3D = (() => {
       if (L.holi) for (const [a, y, c] of [[2.2, 0.36, '#ff4fa0'], [0.9, 0.3, '#3fbf4a'], [3.6, 0.32, '#2f7cf6'], [4.9, 0.4, '#ffd23a'], [1.5, 0.42, '#a05ad8']]) dab([Math.cos(a) * 0.5 * wd, y, Math.sin(a) * 0.5 * wd], [Math.cos(a), 0, Math.sin(a)], 0.11, c);
       // Subaru Toad: a zipped tracksuit with a stand-up collar
       if (L.zip) { B.lathe([[0.19, 1.02], [0.23, 1.0], [0.25, 0.93], [0.21, 0.92]], 12, { col: vest }); B.lathe([[0.19, 1.035], [0.235, 1.02], [0.23, 1.0], [0.19, 1.015]], 12, { col: trim }); for (let k = 0; k < 5; k++) onShirt(0, 0.88 - k * 0.09, [0.012, 0.05, 0.01], '#5a5a64'); }
+      // Nolan Toad: a grey hoodie, its hood bunched up behind his neck, drawstrings, a kangaroo pocket and old stains
+      if (L.hood) {
+        B.ellipsoid([0, 0.99, -0.26 * wd], [0.34 * wd, 0.15, 0.2], 3, 10, { col: vest, seed: 71, jit: 0.015 });
+        B.ellipsoid([0, 1.03, -0.2 * wd], [0.2 * wd, 0.06, 0.1], 2, 8, { col: trim, seed: 72 });
+        const zr = y => profR(SHIRT_P, y) * wd + 0.025;
+        for (const sx of [-1, 1]) {
+          B.capsule([0.07 * sx, 0.95, zr(0.95) - 0.02], [0.085 * sx, 0.74, zr(0.74)], 0.011, 3, { col: '#ece6d6' });
+          B.ellipsoid([0.085 * sx, 0.72, zr(0.72)], [0.017, 0.03, 0.017], 2, 5, { col: '#b8b2a2' });
+        }
+        onShirt(0, 0.6, [0.2, 0.085, 0.02], trim);
+        onShirt(0, 0.665, [0.18, 0.011, 0.012], '#55585f', 0.026);
+      }
+      if (L.stains) for (const [x, y, s, c] of [[-0.17, 0.79, 0.07, '#a4834c'], [0.22, 0.7, 0.055, '#b39a54'], [0.05, 0.86, 0.04, '#8c6e3e'], [-0.27, 0.6, 0.05, '#95834c'], [0.08, 0.52, 0.035, '#a07c46']]) {
+        const r = profR(Math.abs(x) < 0.13 ? SHIRT_P : VEST_P, y) * wd + 0.016, z = Math.sqrt(Math.max(0.001, r * r - x * x));
+        dab([x, y, z], [x, 0, z], s, c);
+      }
       // Emilia Toad: a fluffy white capelet and a gold brooch (her long cape is a part of its own, below)
       if (L.cape) {
         B.lathe([[0.2, 1.01], [0.36, 0.96], [0.45, 0.87], [0.41, 0.82], [0.22, 0.9]], 14, { sx: wd, sz: wd, jit: 0.025, seed: 31, col: L.cape });
@@ -309,12 +325,18 @@ const M3D = (() => {
       if (L.hair) {
         const spike = (base, dir, len, r) => sub(() => B.cone([0, 0, 0], r, len, 5, { col: L.hair }), p => { const F = B.frameFor(dir); return v.add(base, v.add(v.mul(F.r, p[0]), v.add(v.mul(F.n, p[1]), v.mul(F.u, p[2])))); },
           n => { const F = B.frameFor(dir); return v.add(v.mul(F.r, n[0]), v.add(v.mul(F.n, n[1]), v.mul(F.u, n[2]))); });
-        for (const [x, len, tilt] of [[-0.27, 0.13, -0.35], [-0.14, 0.17, -0.15], [0, 0.15, 0.08], [0.13, 0.18, 0.2], [0.26, 0.12, 0.4]]) {
+        // (Nolan Toad's bedhead: messier bangs, and tufts sticking out every which way from under his cap)
+        const bangs = L.bedhead ? [[-0.29, 0.15, -0.7], [-0.14, 0.21, 0.45], [0.0, 0.13, -0.3], [0.14, 0.22, 0.75], [0.28, 0.15, -0.2]]
+          : [[-0.27, 0.13, -0.35], [-0.14, 0.17, -0.15], [0, 0.15, 0.08], [0.13, 0.18, 0.2], [0.26, 0.12, 0.4]];
+        for (const [x, len, tilt] of bangs) {
           const z = HC[2] + HR[2] * Math.sqrt(Math.max(0.05, 1 - (x / HR[0]) ** 2 - ((1.21 - HC[1]) / HR[1]) ** 2));
           spike([x, 1.22, z - 0.02], [tilt, -1, 0.55], len, 0.06);
         }
         for (const sx of [-1, 1]) { spike([0.39 * sx, 1.15, 0.1], [0.35 * sx, -1, 0.15], 0.14, 0.055); spike([0.36 * sx, 1.2, -0.12], [0.5 * sx, -0.6, -0.4], 0.13, 0.05); }
-        for (const sx of [-1, 1]) headDecal([0.31 * sx, 0.2, 0.93], [0.095, 0.02, 0.012], L.hair, { spin: 0.2 * sx });
+        if (L.bedhead) for (const [p, d, len, r] of [[[0.38, 1.13, -0.08], [0.9, -0.12, -0.35], 0.22, 0.065], [[-0.38, 1.15, -0.04], [-0.9, 0.05, -0.3], 0.2, 0.06],
+          [[0.12, 1.14, -0.3], [0.3, 0.05, -1], 0.19, 0.06], [[-0.15, 1.11, -0.29], [-0.5, -0.3, -1], 0.17, 0.055], [[0.28, 1.08, -0.24], [0.65, -0.5, -0.7], 0.15, 0.05]]) spike(p, d, len, r);
+        // (his brows droop: bored)
+        for (const sx of [-1, 1]) headDecal([0.31 * sx, L.bedhead ? 0.17 : 0.2, 0.93], [0.095, 0.02, 0.012], L.hair, { spin: (L.bedhead ? -0.12 : 0.2) * sx });
       }
       const headTris = B.take();
       // a striped cap (nemes) uses a finer outline so each band is thin; Pharaoh Toad has no spots
@@ -363,6 +385,14 @@ const M3D = (() => {
           headDecal(c, [0.016, 0.021, 0.012], PAPER.eye, { off: [-0.006 * sx, 0.012, 0.03] });
           headDecal(c, [0.007, 0.008, 0.01], '#ffffff', { off: [-0.014 * sx, 0.026, 0.034] });
           headDecal(c, [0.084, 0.02, 0.016], PAPER.eye, { off: [0, 0.064, 0.034], spin: -0.16 * sx });
+        } else if (L.eyes === 'tired') {
+          // Nolan Toad's eyes: half shut under heavy lids, unimpressed, with bags under them
+          const c = [0.32 * sx, -0.02, 0.95];
+          headDecal(c, er, PAPER.eye);
+          headDecal(c, [er[0] * 0.36, er[1] * 0.3, 0.012], '#ffffff', { off: [-0.016, -er[1] * 0.12, 0.03] });
+          headDecal(c, [er[0] * 1.35, er[1] * 0.62, 0.034], skin, { off: [0, er[1] * 0.6, 0.034] });
+          headDecal(c, [er[0] * 1.3, 0.017, 0.012], PAPER.eye, { off: [0, er[1] * 0.02, 0.04] });
+          headDecal(c, [er[0] * 0.95, 0.013, 0.01], '#b48a6c', { off: [0, -er[1] * 1.28, 0.02] });
         } else if (L.eyes === 'violet') {
           // Emilia's big violet eyes, darker at the bottom, with a bright highlight
           const c = [0.32 * sx, -0.02, 0.95];
@@ -413,7 +443,14 @@ const M3D = (() => {
     const shoeC = L.shoe || PAPER.shoe, soleC = L.sole || PAPER.sole;
     for (const [nm, x, z, seed] of [['shoeL', -0.22, 0.08, 12], ['shoeR', 0.22, 0.03, 13]]) {
       const c = [x * wd, 0.115, z];
-      part(rig, nm, c, () => B.ellipsoid(c, [0.17, 0.115, 0.28], 4, 9, { seed, jit: 0.01, mat: m => (rig.robo ? (m[1] < 0.05 ? '#4a525e' : metal) : m[1] < 0.05 ? soleC : shoeC) }));
+      // (Nolan Toad's slides: bare feet on flat black soles, a strap across the top)
+      if (L.slides) part(rig, nm, c, () => {
+        B.ellipsoid([c[0], c[1] + 0.01, c[2]], [0.155, 0.1, 0.26], 4, 9, { seed, jit: 0.01, col: skin });
+        B.box([c[0], 0.03, c[2] + 0.015], [0.18, 0.03, 0.3], { col: L.slides });
+        B.box([c[0], 0.135, c[2] + 0.07], [0.168, 0.05, 0.085], { col: L.slides });
+        B.decalAt([c[0], 0.15, c[2] + 0.157], [0, 0, 1], [0.09, 0.016, 0.01], '#f2f2f2');
+      });
+      else part(rig, nm, c, () => B.ellipsoid(c, [0.17, 0.115, 0.28], 4, 9, { seed, jit: 0.01, mat: m => (rig.robo ? (m[1] < 0.05 ? '#4a525e' : metal) : m[1] < 0.05 ? soleC : shoeC) }));
     }
     for (const [k, sx] of [['N', -1], ['F', 1]]) {
       const s = [0.36 * sx * wd, 0.84, 0.02], e = [s[0], s[1] - rig.LU, s[2]], h = [e[0], e[1] - 0.27, e[2]];
@@ -1284,8 +1321,89 @@ const M3D = (() => {
       }
     }, { ink: false });
   }
+  // which of the Shirt's mold meshes it wears after m frames of mold (-1: not moldy yet)
+  function moldStage(m) { m = m || 0; return m >= NOLAN.shirt.full ? 2 : m >= 60 ? 1 : m >= 20 ? 0 : -1; }
+  // Nolan Toad's things: a moldy old pizza slice (Rot Toss), the Shirt (with its mold in three stages), a broken game
+  // controller, his old mattress, his bed (its blanket hangs down so nobody sees what's under it) and a bag of spicy chips
+  function buildNolan() {
+    // a flat piece facing the camera: a convex outline in x-y, h thick
+    const prism = (pts, h, top, bot, side) => {
+      const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy = pts.reduce((s, p) => s + p[1], 0) / pts.length, C0 = [cx, cy, 0];
+      for (let k = 1; k < pts.length - 1; k++) {
+        B.addTri([pts[0][0], pts[0][1], h], [pts[k][0], pts[k][1], h], [pts[k + 1][0], pts[k + 1][1], h], top, [cx, cy, -1]);
+        B.addTri([pts[0][0], pts[0][1], -h], [pts[k + 1][0], pts[k + 1][1], -h], [pts[k][0], pts[k][1], -h], bot, [cx, cy, 1]);
+      }
+      for (let k = 0; k < pts.length; k++) {
+        const a = pts[k], b = pts[(k + 1) % pts.length];
+        B.addTri([a[0], a[1], h], [b[0], b[1], h], [b[0], b[1], -h], side, C0);
+        B.addTri([a[0], a[1], h], [b[0], b[1], -h], [a[0], a[1], -h], side, C0);
+      }
+    };
+    const fuzz = (x, y, z, r, col, seed) => B.ellipsoid([x, y, z], [r, r * 0.9, r * 0.55], 2, 6, { col, jit: r * 0.35, seed });
+    // the slice: point forward (+x), crust at the back, cheese with pepperoni, gone green in spots
+    PROJ.rot = mesh(() => {
+      prism([[0.25, 0], [-0.15, 0.16], [-0.15, -0.16]], 0.028, '#e8c868', '#d8a456', '#e0b45a');
+      B.capsule([-0.17, -0.165, 0], [-0.17, 0.165, 0], 0.045, 6, { col: '#b8783a' });
+      for (const [x, y, r] of [[0.03, 0.05, 0.035], [-0.07, -0.06, 0.04]]) B.decalAt([x, y, 0.03], [0, 0, 1], [r, r, 0.01], '#b8402c');
+      fuzz(0.07, -0.04, 0.03, 0.034, '#7d9a3c', 161); fuzz(-0.06, 0.08, 0.03, 0.028, '#9ab84a', 162); fuzz(-0.17, -0.06, 0.035, 0.03, '#6a8a30', 163); fuzz(0.13, 0.01, 0.026, 0.02, '#a8c450', 164);
+    });
+    // the Shirt: an old T-shirt (a year at the bottom of his backpack), stained and stiff, facing the camera
+    PROJ.shirt = mesh(() => {
+      const C = '#c4bca6', S = '#b2aa94';
+      prism([[-0.12, 0.135], [0.12, 0.135], [0.135, -0.17], [-0.135, -0.17]], 0.026, C, S, S);
+      for (const sx of [-1, 1]) prism([[0.11 * sx, 0.14], [0.125 * sx, 0.03], [0.255 * sx, 0.005], [0.245 * sx, 0.1]], 0.024, C, S, S);
+      B.decalAt([0, 0.128, 0.028], [0, 0, 1], [0.05, 0.028, 0.01], '#6e6656');
+      for (const [x, y, r, c] of [[0.045, -0.06, 0.055, '#a8894c'], [-0.065, 0.04, 0.036, '#9a7c42'], [0.19, 0.06, 0.025, '#a28448'], [-0.02, -0.13, 0.03, '#8c7040']]) B.decalAt([x, y, 0.028], [0, 0, 1], [r, r * 0.85, 0.01], c);
+    });
+    // its mold: a few spots, then patches, then fuzz all over (front and back)
+    const M1 = [[0.05, -0.08, 0.03], [-0.07, 0.05, 0.025], [0.09, 0.07, 0.022], [-0.2, 0.06, 0.02]];
+    const M2 = M1.concat([[-0.02, -0.02, 0.045], [0.2, 0.05, 0.032], [0.0, 0.1, 0.03], [-0.09, -0.12, 0.035], [0.11, -0.13, 0.032]]);
+    const M3 = M2.concat([[0.07, -0.02, 0.055], [-0.06, -0.06, 0.05], [-0.05, 0.1, 0.042], [0.12, 0.1, 0.04], [-0.22, 0.02, 0.035], [0.23, 0.01, 0.035], [0.0, -0.16, 0.04]]);
+    const MC = ['#7d9a3c', '#9ab84a', '#5e7a2a', '#b4c85c'];
+    PROJ.mold = [M1, M2, M3].map((L, n) => mesh(() => L.forEach(([x, y, r], k) => { fuzz(x, y, 0.03, r, MC[k % 4], 170 + k); if (n === 2 && k % 2) fuzz(x * 0.9, y, -0.03, r * 0.9, MC[(k + 1) % 4], 190 + k); })));
+    // a broken controller: a dark gamepad with a cracked shell and a dangling cord
+    PROJ.controller = mesh(() => {
+      B.ellipsoid([0, 0, 0], [0.2, 0.085, 0.05], 3, 10, { col: '#3a3a44', seed: 171 });
+      for (const sx of [-1, 1]) B.ellipsoid([0.135 * sx, -0.07, 0], [0.07, 0.085, 0.05], 3, 8, { col: '#34343e', seed: 172 + sx });
+      B.box([-0.1, 0.01, 0.045], [0.034, 0.01, 0.008], { col: '#1d1d22' }); B.box([-0.1, 0.01, 0.045], [0.01, 0.034, 0.008], { col: '#1d1d22' });
+      for (const [x, y, c] of [[0.1, 0.04, '#e8453a'], [0.13, 0.01, '#ffd23a'], [0.1, -0.02, '#3fbf4a'], [0.07, 0.01, '#3a7cf0']]) B.ellipsoid([x, y, 0.045], [0.014, 0.014, 0.008], 2, 6, { col: c });
+      B.decalAt([0.01, 0.025, 0.05], [0, 0, 1], [0.05, 0.006, 0.006], '#e8e8ee', { spin: 0.7 }); B.decalAt([0.045, -0.005, 0.05], [0, 0, 1], [0.035, 0.006, 0.006], '#e8e8ee', { spin: -0.5 });
+      B.capsule([0, 0.08, 0], [0.04, 0.24, 0.01], 0.009, 3, { col: '#26262c' });
+    });
+    // his old mattress (y = 0 at the floor): striped ticking, a stain on top, button tufts
+    TRAP.mattress = mesh(() => {
+      B.box([0, 0.22, 0], [1.6, 0.21, 0.7], { col: '#f2eee2' });
+      for (let k = -7; k <= 7; k++) B.box([k * 0.21, 0.22, 0.705], [0.035, 0.19, 0.004], { col: '#8fb0de' });
+      B.decalAt([0.4, 0.435, 0.1], [0, 1, 0], [0.38, 0.3, 0.012], '#cdb77c');
+      for (const [x, z] of [[-1.0, -0.3], [-0.3, 0.25], [0.5, -0.3], [1.1, 0.25], [-1.1, 0.3], [0.1, -0.35]]) B.ellipsoid([x, 0.43, z], [0.05, 0.02, 0.05], 2, 6, { col: '#d8d2c0' });
+    });
+    // his bed (y = 0 at the floor, the headboard at -x): legs, a mattress with a crumpled blue blanket that hangs down
+    // the front to the floor, a pillow, and junk poking out from underneath
+    TRAP.bed = mesh(() => {
+      const W = '#8a5a2b', Wd = '#6e4520';
+      for (const [x, z] of [[-1.85, -0.7], [1.85, -0.7], [-1.85, 0.7], [1.85, 0.7]]) B.box([x, 0.25, z], [0.08, 0.25, 0.08], { col: Wd });
+      B.box([-1.95, 1.05, 0], [0.09, 1.05, 0.8], { col: W }); B.box([-1.95, 2.12, 0], [0.12, 0.06, 0.84], { col: Wd });
+      B.box([1.95, 0.7, 0], [0.08, 0.7, 0.8], { col: W });
+      B.box([0, 0.62, 0], [1.88, 0.12, 0.78], { col: Wd });
+      B.box([0, 0.92, 0], [1.84, 0.18, 0.76], { col: '#f2eee2' });
+      B.ellipsoid([-1.45, 1.18, 0], [0.4, 0.17, 0.55], 3, 9, { col: '#ffffff', seed: 175 });
+      B.ellipsoid([0.35, 1.13, 0.02], [1.5, 0.17, 0.82], 3, 11, { col: '#5a70aa', jit: 0.06, seed: 176 });
+      B.box([0.35, 0.58, 0.83], [1.5, 0.5, 0.03], { col: '#4f649c' });
+      for (let k = 0; k < 6; k++) B.box([-1.05 + k * 0.56, 0.11, 0.86], [0.24, 0.05, 0.012], { col: k % 2 ? '#4a5e94' : '#566ca4' });
+      B.box([-1.35, 0.04, 1.0], [0.4, 0.035, 0.3], { col: '#e6cf98' }); B.decalAt([-1.35, 0.08, 1.0], [0, 1, 0], [0.12, 0.1, 0.01], '#c84a30');
+      B.ellipsoid([1.55, 0.12, 1.02], [0.2, 0.13, 0.08], 3, 8, { col: '#e8452a', seed: 177 }); B.decalAt([1.55, 0.13, 1.1], [0, 0, 1], [0.1, 0.05, 0.01], '#ffd23a');
+      B.ellipsoid([0.95, 0.07, 1.04], [0.11, 0.07, 0.07], 2, 7, { col: '#a8acb4', jit: 0.03, seed: 178 });
+    });
+    // a bag of spicy chips (held in a fist): red, with a yellow label and chips peeking out the top
+    PROPS.chipbag = mesh(() => {
+      B.ellipsoid([0, 0.12, 0], [0.11, 0.15, 0.05], 3, 9, { col: '#e8452a', seed: 179 });
+      for (const y of [-0.025, 0.265]) B.box([0, y, 0], [0.105, 0.012, 0.012], { col: '#c2341e' });
+      B.decalAt([0, 0.12, 0.05], [0, 0, 1], [0.065, 0.045, 0.01], '#ffd23a');
+      for (const [x, z] of [[-0.04, 0.01], [0.02, -0.01], [0.05, 0.02]]) B.ellipsoid([x, 0.28, z], [0.03, 0.012, 0.022], 2, 5, { col: '#e88a2a' });
+    });
+  }
   function build() {
-    buildProps(); buildItems(); buildFx(); buildNew(); buildIce(); buildWater();
+    buildProps(); buildItems(); buildFx(); buildNew(); buildIce(); buildWater(); buildNolan();
     // Emilia Toad's Ice Soldiers: Subaru Toad without Beatrice's backpack (drawn tinted to ice)
     MINIONS.icesoldier = toadRig('subaru', { beako: false });
     // Beatrice (in Subaru Toad's backpack): a mini Toadette with cream drills, a crown and butterfly eyes
@@ -1547,6 +1665,36 @@ const M3D = (() => {
     const roll = sp => { P.tumble = -fc * t * sp; P.sy = 0.82; ARMS_UP(P, 0.6); P.slY = 0.2; P.srY = 0.2; };
     const plunge = () => { if (t < 14) { P.tumble = -fc * (t / 14) * Math.PI * 2; P.sy = 0.9; } else { P.slY = -0.12; P.srY = -0.12; ARMS_UP(P, 2.5); } };
     switch (f.sp) {
+      // --- Nolan Toad ---
+      // Rot Toss: a lazy lob of a rotten slice
+      case 'rottoss': throwArm(-2.2, -0.7, 9); F.rotHand = t < 9; P.lean = t >= 9 ? 0.12 : -0.08; break;
+      // Forbidden Dagger: he holds the Shirt out at arm's length (leaning away from it) while the mold grows; past full
+      // mold he starts to shake and go green as it creeps onto him. Then he throws it like a dagger
+      case 'forbidden': {
+        const m = f.mold === undefined ? 0 : f.mold, S = NOLAN.shirt;
+        if (m >= 0) {
+          const over = clamp01((m - S.full) / (S.max - S.full));
+          P.af = [-1.45, 0.25, -0.15, 0]; P.an = [0.3, -0.45, -0.5, 0]; P.lean = -0.1; P.hx = -0.12; P.yaw = fc * 1.25; P.grip = 0.4;
+          F.shirtHand = 1; F.mold = m;
+          if (over > 0) { P.hz = Math.sin(fr * 1.1) * 0.05 * (0.4 + over); F.tint = [0.55, 0.85, 0.3, 0.12 + 0.3 * over]; F.hurt = fr % 20 < 10; }
+        } else { P.af = [-1.15, 0.2, 0, 0]; P.an = [0.35, -0.45, -0.5, 0]; P.lean = 0.25; P.yaw = fc * 1.3; }
+        break;
+      }
+      // Mattress Launch: sprung up off the mattress, flailing a bit
+      case 'mattress': ARMS_UP(P, 2.3 + Math.sin(t * 0.45) * 0.35); P.sy = t < 10 ? 1.08 : 1; P.slY = 0.16; P.srY = 0.1; F.mouthO = t < 14; break;
+      // Under the Bed: a dive under it (gone while he's under), then out again with what he found
+      case 'underbed': {
+        const Bd = NOLAN.bed;
+        if (t < Bd.hide[0]) { P.lean = 0.5; P.sy = 0.8; ARMS_UP(P, 1.2); P.hx = 0.2; }
+        else if (t < Bd.pop) F.hidden = 1;
+        else {
+          const k = clamp01((t - Bd.pop) / 6);
+          if (f.find === 'chips') { P.af = [-1.3, 0.35, -1.1, 0]; P.an = [-0.9, -0.25, -1.2, 0]; F.chipsHand = 1; F.mouthO = t % 10 < 5; P.hx = 0.1; P.yaw = fc * 1.2; }
+          else if (f.find === 'controller') { P.af = [lerp(-2.6, -1.0, k), 0.2, 0, 0]; P.an = [0.3, -0.4, -0.4, 0]; P.lean = 0.2 * k; P.yaw = fc * 1.25; }
+          else { ARMS_UP(P, 2.4); F.mouthO = true; P.sy = 1 + 0.05 * (1 - k); }
+        }
+        break;
+      }
       // --- Water Yoshi ---
       case 'ebbflow': {
         const v = f.ebv;
@@ -1820,6 +1968,7 @@ const M3D = (() => {
       case 'robot': P.bob = 0; P.sy = 1; P.sx = 1; P.hz = Math.round(Math.sin(fr * 0.02) * 2) * 0.06; P.an = [0, -0.2, -0.3, 0]; P.af = [0, 0.2, -0.3, 0]; break; // stiff, head clicking round
       case 'dino': P.side = Math.sin(fr * 0.1 + f.i) * 0.04; P.bob = Math.abs(Math.sin(fr * 0.1)) * 0.03; P.an = [-0.3, -0.3, -0.8, 0]; P.af = [-0.3, 0.3, -0.8, 0]; P.hx = Math.sin(fr * 0.05) * 0.05; break; // shifting weight
       case 'grace': P.an = [-0.75, -0.45, -1.45, 0]; P.af = [-0.75, 0.45, -1.45, 0]; P.hz += Math.sin(fr * 0.03 + f.i) * 0.04; break; // hands together at her chest
+      case 'slouch': P.lean = 0.07; P.hx = 0.12 + s * 0.02; P.sy = 0.985 + s * 0.012; P.an = [-0.3, -0.32, -1.0, 0]; P.af = [-0.3, 0.32, -1.0, 0]; P.side = Math.sin(fr * 0.03 + f.i) * 0.02; break; // slouching, hands stuffed in his hoodie pocket
       default: P.an = [0.08, -0.25, -0.25, 0]; P.af = [0.08, 0.25, -0.25, 0];
     }
   }
@@ -1833,6 +1982,8 @@ const M3D = (() => {
       case 'float': P.lean = 0.3; P.slY = P.srY = 0; P.slZ = P.srZ = 0; P.slR = P.srR = 0; P.bob = Math.sin(ph * 0.5) * 0.04; P.an = [0.6, -0.4, -0.3, 0]; P.af = [0.6, 0.4, -0.3, 0]; break;
       case 'heavy': P.lean = 0.12; P.bob = Math.abs(s) * 0.1; P.side = s * 0.05; P.an = [s * 0.6, -0.25, -0.5, 0]; P.af = [-s * 0.6, 0.25, -0.5, 0]; break; // stomping
       case 'dino': P.lean = 0.3; P.hx = -0.1; P.bob = Math.abs(s) * 0.06; P.side = s * 0.04; P.an = [s * 0.4 - 0.4, -0.3, -0.8, 0]; P.af = [-s * 0.4 - 0.4, 0.3, -0.8, 0]; break; // a scampering trot
+      // shuffling along in his slides (feet low, short steps), hands still in his pocket
+      case 'shuffle': P.lean = 0.08; P.hx = 0.08; P.bob = Math.abs(s) * 0.025; P.side = s * 0.035; P.sy = 1; P.slY = Math.max(0, c) * 0.04; P.srY = Math.max(0, -c) * 0.04; P.slZ = s * 0.17; P.srZ = -s * 0.17; P.slR = 0; P.srR = 0; P.an = [-0.3, -0.32, -1.0, 0]; P.af = [-0.3, 0.32, -1.0, 0]; break;
     }
   }
   // anim: render-side extras from drawFighter { vy (estimated), flip, land, lag }
@@ -2022,6 +2173,14 @@ const M3D = (() => {
         if (F.gulalHand) G3.draw(PROJ.haze, M4.chain(Mhand, M4.T(0, 0.08, 0), M4.S(0.18, 0.18, 0.18)), { tint: [1, 0.3, 0.65, 0.9], alpha: 0.85 });
         if (F.dandiya) G3.draw(PROPS.dandiya, M4.chain(Mhand, M4.S(1.4, 1.4, 1.4)), d);
         if (F.pichkari) G3.draw(PROPS.pichkari, M4.chain(Mhand, M4.S(1.4, 1.4, 1.4)), d);
+        // Nolan Toad: a rotten slice, the Shirt (moldier the longer he holds it) and a bag of spicy chips
+        if (F.rotHand) G3.draw(PROJ.rot, M4.chain(Mhand, M4.T(0, 0.06, 0), M4.RZ(1.4), M4.S(1.3, 1.3, 1.3)), d);
+        if (F.shirtHand) {
+          const Ms = M4.chain(Mhand, M4.T(0, 0.2, 0), M4.RZ(0.3), M4.S(1.45, 1.45, 1.45)), st = moldStage(F.mold);
+          G3.draw(PROJ.shirt, Ms, d);
+          if (st >= 0) G3.draw(PROJ.mold[st], Ms, d);
+        }
+        if (F.chipsHand) G3.draw(PROPS.chipbag, M4.chain(Mhand, M4.T(0, 0.04, 0.04), M4.S(1.4, 1.4, 1.4)), d);
         if (HELD[rig.prop] && !F.props.pick && !F.noProp) {
           G3.draw(PROPS[rig.prop], Mw, d);
           if (rig.prop === 'wand') G3.draw(PROPS.wandStar, M4.chain(Mw, M4.T(0, 0.44, 0), M4.RZ(fr * 0.08), M4.S(0.26, 0.26, 0.26), M4.T(0, -0.42, 0)), { self: F.wandGlow ? 1 : 0.45 });
@@ -2126,6 +2285,8 @@ const M3D = (() => {
     // Water Yoshi's statuses: Scalded glows a hot red, Sunk a soaked blue
     if (f.scald > 0 && !F.tint) F.tint = [1, 0.42, 0.28, 0.2 + 0.07 * Math.sin(fr * 0.35)];
     if (f.sunk > 0 && !F.tint) F.tint = [0.28, 0.52, 1, 0.24];
+    // standing in Nolan Toad's stink turns you a little green
+    if ((f.stink > 0 || f.reek > 0) && !F.tint) F.tint = [0.62, 0.8, 0.3, 0.16 + 0.05 * Math.sin(fr * 0.25)];
     if (f.prT > 0) F.tint = [0.8, 0.97, 1, 0.65 * (f.prT / 16)]; // a parry flashes white-blue
     if (rig.ghost && F.alpha == null) F.alpha = 0.88;
     if (f.hide > 0) F.alpha = 0.07; // haunting: all but invisible
@@ -2150,6 +2311,8 @@ const M3D = (() => {
       G3.draw(PROJ.egg, M4.chain(M4.T(X, Y + 0.22 * s, 0.1), M4.RZ(-(f.t || 0) * 0.22 * (f.fc || 1)), M4.S(s, s, s)), F.egg < 1 ? { alpha: 0.5 + 0.5 * F.egg } : null);
       if (F.egg >= 1) return;
     }
+    // (Nolan Toad hiding under his bed)
+    if (F.hidden) return;
     drawRig(rig, rootMatrix(X, Y, P, scale), P, F, fr);
     // Water Yoshi's Current: a thin water aura that starts to glow at 20%, glows brighter as it builds, and shines at 100%
     if (f.cur > 0) {
@@ -2347,5 +2510,5 @@ const M3D = (() => {
     if (rig.mount) drawCow(M4.chain(M0, M4.T(0, -COW_SADDLE * COW_K, 0.05), M4.RY(0.95), M4.S(COW_K, COW_K, COW_K)), 0, 'idle', fr, {});
     drawRig(rig, M4.chain(M0, M4.RY(P.spin), M4.T(0, P.bob, 0)), Object.assign(P, { yaw: 0 }), F, fr);
   }
-  return { PX, build, RIGS, ITEM, PROJ, PROPS, KARTS, TRAP, FXM, drawFighter, drawMinion, drawBeast, drawCrowd, drawChoir, drawHora, drawRig, drawPreview, rootMatrix, pose0, targetPose, MEM, hexF, hueTint, CAP_TOP };
+  return { PX, build, RIGS, ITEM, PROJ, PROPS, KARTS, TRAP, FXM, drawFighter, drawMinion, drawBeast, drawCrowd, drawChoir, drawHora, drawRig, drawPreview, rootMatrix, pose0, targetPose, MEM, hexF, hueTint, CAP_TOP, moldStage };
 })();

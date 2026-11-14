@@ -37,7 +37,8 @@ const V3D = (() => {
   const PSCALE = { turnip: 2.4, bomb: 1.9, ice: 1.9, fire: 1.9, boom: 2.3, psn: 1.5, egg: 2.1, coin: 2.2,
     cannon: 2.6, shuriken: 1.8, pancake: 2.2, star: 1.4, laser: 1.5, pill: 2.2, cork: 2.0, tumble: 2.1, boo: 2.2, fist: 2.4, pie: 2.3,
     gust: 2.4, rock: 2.2, heart: 2.4, bubble: 2.4, shade: 2.6, lightbolt: 2.0, seed: 2.6, melon: 2.4, milk: 2.4,
-    dbomb: 1.8, gift: 2.4, crescent: 2.4, axe: 2.0, scarab: 2.9, sandwave: 2.3, trident: 1.8, chi: 2.6, date: 2.9, lantern: 2.3, jelly: 2.3, latke: 2.1, pepper: 2.1, plasma: 1.5, crystal: 1.8, mbomb: 2.5 };
+    dbomb: 1.8, gift: 2.4, crescent: 2.4, axe: 2.0, scarab: 2.9, sandwave: 2.3, trident: 1.8, chi: 2.6, date: 2.9, lantern: 2.3, jelly: 2.3, latke: 2.1, pepper: 2.1, plasma: 1.5, crystal: 1.8, mbomb: 2.5,
+    rot: 2.4, controller: 2.6 };
   const FSDROP = { egg: 3.8, cannon: 3.6, pill: 3.4, fire: 4.4, melon: 3.4, lantern: 4.2, crystal: 3.8 };
   const fighterOf = (view, i) => (view.fighters || []).find(f => f.i === i);
   const clamp01 = x => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -45,6 +46,35 @@ const V3D = (() => {
   const ink = (s, o) => Object.assign({ inkW: 0.06 / s }, o || {});
   function drawProj(p, fr) {
     const X = p.x * PX, Y = -p.y * PX, dir = p.vx >= 0 ? 1 : -1, t = p.t || 0, P = M3D.PROJ;
+    // ---- Nolan Toad ----
+    if (p.k === 'trap' && p.sub === 'stink') {
+      // a stink cloud: a sickly green haze that churns (the Shirt's burst makes a huge one), fading at the end
+      const k = clamp01(((p.life || 240) - t) / 40) * clamp01(t / 8), R = (p.r || 46) * PX, Yc = -(p.big ? p.y : p.y - 28) * PX;
+      for (let q = 0; q < (p.big ? 3 : 2); q++) {
+        const a = fr * 0.02 + q * 2.1 + (p.id || 0), s = R * (0.75 + 0.2 * q) * (1 + 0.05 * Math.sin(fr * 0.12 + q));
+        G3.draw(P.haze, M4.chain(M4.T(X + Math.cos(a) * R * 0.18, Yc + Math.sin(a * 1.3) * R * 0.1, 0.3 + q * 0.05), M4.RZ(a), M4.S(s, s * 0.78, s * 0.6)), { alpha: (0.36 - q * 0.06) * k, tint: [0.55 + q * 0.08, 0.72, 0.22, 0.92], self: 0.15 });
+      }
+      return;
+    }
+    if (p.k === 'trap' && p.sub === 'mattress') {
+      // his old mattress squashes as he springs off it, wobbles back, then fades
+      const sq = t < 4 ? 1 - t * 0.1 : t < 16 ? 0.6 + 0.4 * Math.min(1, (t - 4) / 5) + Math.sin((t - 4) * 0.9) * 0.08 * ((16 - t) / 12) : 1, k = clamp01(((p.life || 44) - t) / 12);
+      G3.draw(M3D.TRAP.mattress, M4.chain(M4.T(X, Y, 0.3), M4.S(0.9, 0.9 * sq, 0.9)), ink(0.9, k < 0.99 ? { alpha: Math.max(0.05, k) } : null));
+      return;
+    }
+    if (p.k === 'trap' && p.sub === 'bed') {
+      // his bed pops up just behind him, shakes while he rummages around underneath, then sinks away
+      const life = p.life || 68, k = Math.min(clamp01(t / 6), clamp01((life - t) / 10)), wob = t > 6 && t < 34 ? Math.sin(t * 1.3) * 0.025 : 0;
+      G3.draw(M3D.TRAP.bed, M4.chain(M4.T(X, Y, -1.25), M4.RZ(wob), M4.S(0.8 * (0.6 + 0.4 * k), 0.8 * Math.max(0.05, k), 0.8)), ink(0.8, k < 0.99 ? { alpha: Math.max(0.05, k) } : null));
+      return;
+    }
+    if (p.k === 'shirt') {
+      // the Shirt spins like a thrown dagger, with as much mold on it as it had when he let go
+      const s = 2.7, st = M3D.moldStage(p.mold), M = M4.chain(M4.T(X, Y, 0.3), M4.RZ(-t * 0.45 * dir), M4.S(s, s, s));
+      G3.draw(P.shirt, M, ink(s));
+      if (st >= 0) G3.draw(P.mold[st], M, ink(s, st === 2 ? { self: 0.15 + 0.1 * Math.sin(fr * 0.3) } : null));
+      return;
+    }
     // ---- Water Yoshi ----
     if (p.k === 'trap' && p.sub === 'wpuddle') {
       // a puddle: a flat, shiny splash of water that shrinks as it dries
@@ -172,6 +202,8 @@ const V3D = (() => {
       case 'latke': R = M4.chain(M4.RX(0.5), M4.RY(t * 0.5)); break;
       case 'crystal': R = M4.chain(M4.RY(dir > 0 ? 0 : Math.PI), M4.RX(t * 0.3)); o = { self: 0.45 }; break;
       case 'gift': R = M4.RZ(-t * 0.2 * dir); break;
+      // Nolan Toad's rotten slice and broken controller tumble through the air
+      case 'rot': case 'controller': R = M4.RZ(-t * 0.25 * dir); break;
     }
     G3.draw(m, M4.chain(M4.T(X, Y, 0.3), R, M4.T(0, dy, 0), M4.S(s, s, s)), ink(s, o));
   }
@@ -708,6 +740,75 @@ const V3D = (() => {
         c.restore();
       }
     }
+    // Nolan Toad's finale: the stage turns into his room
+    const RM = (view.fx || []).find(e => e.k === 'room');
+    if (RM) nolanRoom(c, RM, fr);
+  }
+  // Nolan Toad's room (screen space): stale dim air with green stink rising off the floor, dingy wallpaper at the
+  // sides with a chess poster and shut blinds, a bare bulb on its cord, his desk with the monitor glowing (a chess game
+  // on it), pizza boxes and chip bags piled in the corner, and the days of his gap year ticking up. When it ends, the
+  // title card: GAP YEAR: DAY 1,096
+  function nolanRoom(c, e, fr) {
+    const R = NOLAN.room, t = e.t || 0, k = clamp01(t / 20) * clamp01((R.life - t) / 20);
+    const box = (x, y, w, h, fill, line) => { c.fillStyle = fill; c.fillRect(x, y, w, h); if (line !== false) { c.strokeStyle = INKC; c.lineWidth = 2.5; c.strokeRect(x, y, w, h); } };
+    if (k > 0) {
+      c.save();
+      c.fillStyle = `rgba(38,27,18,${0.38 * k})`; c.fillRect(0, 0, 1280, 720);
+      const g = c.createLinearGradient(0, 720, 0, 250); g.addColorStop(0, `rgba(150,182,60,${0.34 * k})`); g.addColorStop(1, 'rgba(150,182,60,0)');
+      c.fillStyle = g; c.fillRect(0, 0, 1280, 720);
+      c.globalAlpha = k;
+      // the walls: dingy striped wallpaper
+      for (const x0 of [0, 1186]) { box(x0, -4, 94, 728, '#7c6c50'); c.fillStyle = '#6c5e44'; for (let x = x0 + 8; x < x0 + 94; x += 18) c.fillRect(x, 0, 7, 720); }
+      // a chess poster (a little crooked, taped up) and the shut blinds
+      c.save(); c.translate(48, 210); c.rotate(-0.06); box(-34, -48, 68, 96, '#efe8d6');
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if ((i + j) % 2) { c.fillStyle = '#2a2a30'; c.fillRect(-26 + i * 13, -36 + j * 13, 13, 13); }
+      c.fillStyle = '#2a2a30'; c.font = `13px ${FONT}`; c.textAlign = 'center'; c.fillText('BLITZ', 0, 36);
+      c.fillStyle = 'rgba(240,235,200,0.85)'; c.fillRect(-12, -54, 24, 10); c.restore();
+      box(1200, 120, 70, 110, '#2a2420');
+      for (let y = 124; y < 228; y += 9) { c.fillStyle = '#d8cfb8'; c.fillRect(1203, y, 64, 6); }
+      // the bare bulb on its cord, flickering
+      const fl = 0.75 + 0.25 * Math.sin(fr * 0.7) * Math.sin(fr * 0.13);
+      c.strokeStyle = INKC; c.lineWidth = 3; c.beginPath(); c.moveTo(640, 0); c.lineTo(640, 54); c.stroke();
+      const lg = c.createRadialGradient(640, 66, 4, 640, 66, 260); lg.addColorStop(0, `rgba(255,236,160,${0.28 * fl})`); lg.addColorStop(1, 'rgba(255,236,160,0)');
+      c.fillStyle = lg; c.fillRect(380, 0, 520, 330);
+      c.fillStyle = `rgba(255,${220 + 30 * fl | 0},140,1)`; c.beginPath(); c.ellipse(640, 68, 11, 14, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = INKC; c.lineWidth = 2; c.stroke();
+      // his desk and the monitor glowing in the corner, a blitz game on the screen
+      box(1060, 596, 230, 30, '#6e4a2a'); box(1080, 626, 16, 100, '#5a3a20'); box(1250, 626, 16, 100, '#5a3a20');
+      const mg = c.createRadialGradient(1170, 520, 20, 1170, 520, 210); mg.addColorStop(0, 'rgba(140,200,255,0.3)'); mg.addColorStop(1, 'rgba(140,200,255,0)');
+      c.fillStyle = mg; c.fillRect(940, 300, 340, 420);
+      box(1158, 566, 24, 32, '#26262c'); box(1090, 464, 160, 104, '#1d1d22');
+      for (let i = 0; i < 8; i++) for (let j = 0; j < 6; j++) { c.fillStyle = (i + j) % 2 ? '#7fb0d8' : '#d8ecff'; c.fillRect(1100 + i * 17.5, 472 + j * 15.5, 17.5, 15.5); }
+      // pizza boxes and chip bags piled up in the other corner
+      for (let n = 0; n < 4; n++) { box(18 + n * 6, 690 - n * 22, 168 - n * 12, 22, n % 2 ? '#e0c890' : '#e8d29c'); c.fillStyle = '#c84a30'; c.beginPath(); c.arc(100 + n * 2, 701 - n * 22, 6, 0, Math.PI * 2); c.fill(); }
+      for (const [x, y, a] of [[214, 690, 0.4], [250, 702, -0.3], [182, 612, 0.9]]) { c.save(); c.translate(x, y); c.rotate(a); c.fillStyle = '#e8452a'; c.beginPath(); c.ellipse(0, 0, 18, 26, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = INKC; c.lineWidth = 2; c.stroke(); c.fillStyle = '#ffd23a'; c.fillRect(-9, -6, 18, 12); c.restore(); }
+      // the stink rising in wavy green lines
+      c.lineCap = 'round';
+      for (let q = 0; q < 12; q++) {
+        const x = 130 + ((q * 97) % 1020), y0 = 720 - ((fr * (1.2 + (q % 3) * 0.4) + q * 61) % 560), a = 0.35 + (q % 3) * 0.12;
+        c.globalAlpha = k * a; c.strokeStyle = q % 2 ? '#a8c450' : '#7d9a3c'; c.lineWidth = 3 + (q % 2);
+        c.beginPath(); for (let s = 0; s <= 6; s++) { const yy = y0 - s * 11; c.lineTo(x + Math.sin(yy * 0.05 + q) * 9, yy); } c.stroke();
+      }
+      // the days of his gap year ticking up
+      c.globalAlpha = k;
+      const day = 1000 + Math.min(96, Math.floor(t / 5));
+      c.font = `30px ${FONT}`; c.textAlign = 'left'; c.lineJoin = 'round'; c.strokeStyle = INKC; c.lineWidth = 7;
+      const lbl = 'GAP YEAR · DAY ' + day.toLocaleString('en-US');
+      c.strokeText(lbl, 112, 58); c.fillStyle = '#ffe9a8'; c.fillText(lbl, 112, 58);
+      c.restore();
+    }
+    // the title card at the end
+    if (t >= R.life) {
+      const q = t - R.life, a = clamp01(q / 10) * clamp01((R.card - q) / 14), s = q < 8 ? 1.25 - q * 0.03 : 1;
+      if (a <= 0) return;
+      c.save(); c.globalAlpha = a;
+      c.fillStyle = 'rgba(22,17,12,0.86)'; c.fillRect(0, 262, 1280, 196);
+      c.fillStyle = '#b4cc4e'; c.fillRect(0, 262, 1280, 6); c.fillRect(0, 452, 1280, 6);
+      c.translate(640, 352); c.scale(s, s);
+      c.font = `76px ${FONT}`; c.textAlign = 'center'; c.lineJoin = 'round'; c.strokeStyle = INKC; c.lineWidth = 12;
+      c.strokeText('GAP YEAR: DAY 1,096', 0, 0); c.fillStyle = '#ffe9a8'; c.fillText('GAP YEAR: DAY 1,096', 0, 0);
+      c.font = `28px ${FONT}`; c.lineWidth = 7; c.strokeText('(it never ends)', 0, 62); c.fillStyle = '#d8e0b0'; c.fillText('(it never ends)', 0, 62);
+      c.restore();
+    }
   }
 
   // ---------- paper effects on the overlay (world coordinates, sim pixels) ----------
@@ -1087,6 +1188,28 @@ const V3D = (() => {
           c.font = `${p.size}px ${FONT}`; c.textAlign = 'center'; c.lineJoin = 'round';
           c.strokeStyle = INKC; c.lineWidth = Math.max(3, p.size / 5); c.strokeText(p.text, p.x + 1.5, p.y + 2); c.strokeText(p.text, p.x, p.y);
           c.fillStyle = p.color === '#ffffff' ? PAPER : p.color; c.fillText(p.text, p.x, p.y);
+          break;
+        }
+        // Nolan Toad's LOW-TIER HUMAN stamp: it thumps down big, then sits there crooked in red ink
+        case 'stamp': {
+          const age = p.max - p.life, s = age < 8 ? 1 + (8 - age) * 0.12 : 1;
+          c.globalAlpha = Math.min(1, k * 3) * 0.92; c.translate(p.x, p.y); c.rotate(p.rot || -0.12); c.scale(s, s);
+          c.font = `${p.size}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+          const w = c.measureText(p.text).width + p.size * 0.9, h = p.size * 1.45;
+          c.fillStyle = 'rgba(255,248,236,0.6)'; c.fillRect(-w / 2, -h / 2, w, h);
+          c.strokeStyle = p.color; c.lineWidth = 6; c.strokeRect(-w / 2, -h / 2, w, h); c.lineWidth = 2.5; c.strokeRect(-w / 2 + 7, -h / 2 + 7, w - 14, h - 14);
+          c.fillStyle = p.color; c.fillText(p.text, 0, 3);
+          break;
+        }
+        // a speech bubble (Nolan Toad's taunts): a white rounded box with a tail down to whoever said it
+        case 'speech': {
+          c.font = `${p.size}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+          const w = c.measureText(p.text).width + 24, h = p.size + 16, x = p.x - w / 2, y = p.y - h - 10, r = 10;
+          const bub = () => { c.beginPath(); c.moveTo(x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r); c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            c.lineTo(p.x + 9, y + h); c.lineTo(p.x, y + h + 10); c.lineTo(p.x - 3, y + h); c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.closePath(); };
+          c.translate(1.5, 2); c.fillStyle = 'rgba(58,36,20,.3)'; bub(); c.fill(); c.translate(-1.5, -2);
+          c.fillStyle = '#ffffff'; bub(); c.fill(); c.strokeStyle = INKC; c.lineWidth = 2.5; c.stroke();
+          c.fillStyle = INKC; c.fillText(p.text, p.x, y + h / 2 + 1);
           break;
         }
         case 'ko': {

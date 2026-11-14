@@ -358,9 +358,18 @@ function drawProj(c, p, fr) {
       break;
     }
     default: {
+      // Nolan Toad's stink cloud, mattress and bed
+      if (p.k === 'trap' && p.sub === 'stink') { const cy = p.big ? 0 : -28; E(c, 0, cy, p.r, p.r * 0.75, 'rgba(150,185,60,0.3)'); E(c, 0, cy, p.r * 0.6, p.r * 0.45, 'rgba(175,205,85,0.3)'); break; }
+      if (p.k === 'trap' && p.sub === 'mattress') { RR(c, -45, -13, 90, 13, 3, '#f2eee2', OUT, 2); break; }
+      if (p.k === 'trap' && p.sub === 'bed') {
+        RR(c, -54, -52, 9, 52, 2, '#8a5a2b', OUT, 2); RR(c, 46, -34, 8, 34, 2, '#8a5a2b', OUT, 2);
+        RR(c, -47, -30, 94, 11, 3, '#f2eee2', OUT, 2); RR(c, -42, -38, 82, 12, 5, '#5a70aa', OUT, 2); RR(c, -42, -20, 84, 18, 2, '#4f649c', OUT, 2);
+        break;
+      }
       // the newer projectiles get a simple coloured token in the 2D fallback
       const col = { cannon: '#2b2b34', shuriken: '#c8d0dc', haze: 'rgba(160,90,216,0.5)', pancake: '#e8a64a', star: '#ffe066', laser: '#9ffcff', pill: '#e8343f',
-        note: '#ff4f9a', cork: '#c8935a', tumble: '#a07a44', boo: '#f6f6fb', fist: '#a4adba', pie: '#d8944a', fsdrop: '#ffffff', trap: '#d8b0ff' }[p.k] || '#ffffff';
+        note: '#ff4f9a', cork: '#c8935a', tumble: '#a07a44', boo: '#f6f6fb', fist: '#a4adba', pie: '#d8944a', fsdrop: '#ffffff', trap: '#d8b0ff',
+        rot: '#9ab84a', shirt: '#c4bca6', controller: '#3a3a44' }[p.k] || '#ffffff';
       const r = Math.max(6, p.r || 12);
       if (p.k === 'trap') c.scale(1, 0.3);
       else c.rotate(p.t * 0.2 * s);
@@ -672,6 +681,21 @@ function drawParticles(c) {
       case 'flake': starPath(c, p.x, p.y, p.size, p.size * 0.3, p.life * 0.1); c.fillStyle = p.color; c.fill(); break;
       case 'note': txt(c, '♪', p.x, p.y, p.size * 3, p.color, OUT); break;
       case 'text': txt(c, p.text, p.x, p.y, p.size, p.color, OUT); break;
+      // Nolan Toad's LOW-TIER HUMAN stamp and his taunts' speech bubbles
+      case 'stamp': {
+        c.translate(p.x, p.y); c.rotate(p.rot || -0.12); c.font = `${p.size}px 'Lilita One', sans-serif`;
+        const w = c.measureText(p.text).width + p.size * 0.9, h = p.size * 1.45;
+        c.strokeStyle = p.color; c.lineWidth = 5; c.strokeRect(-w / 2, -h / 2, w, h);
+        c.fillStyle = p.color; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(p.text, 0, 3);
+        break;
+      }
+      case 'speech': {
+        c.font = `${p.size}px 'Lilita One', sans-serif`;
+        const w = c.measureText(p.text).width + 24, h = p.size + 16;
+        RR(c, p.x - w / 2, p.y - h - 10, w, h, 10, '#ffffff', OUT, 2.5);
+        txt(c, p.text, p.x, p.y - 10 - h / 2 + p.size * 0.35, p.size, OUT, null);
+        break;
+      }
       case 'ko': {
         c.globalAlpha = k; const n = 14;
         for (let j = 0; j < n; j++) {
@@ -776,10 +800,21 @@ function renderScene(c, view, cam, fr, bs, noFx) {
   for (const it of view.items || []) drawItem(c, it, fr);
   if (view.kart) drawKart(c, view.kart, fr);
   for (const p of view.proj || []) drawProj(c, p, fr);
-  for (const f of view.fighters || []) if (!(f.hide > 0)) drawFighter(c, f, fr);
+  // (Nolan Toad is out of sight while he's under his bed)
+  for (const f of view.fighters || []) if (!(f.hide > 0) && !(f.st === 'spc' && f.sp === 'underbed' && f.t >= NOLAN.bed.hide[0] && f.t < NOLAN.bed.pop)) drawFighter(c, f, fr);
   drawFx2D(c, view, fr);
   if (!noFx) drawParticles(c);
   c.setTransform(bs, 0, 0, bs, 0, 0);
+  // Nolan Toad's finale: a stale green tint with the days of his gap year counting up, then the title card
+  const RM = (view.fx || []).find(e => e.k === 'room');
+  if (RM) {
+    const t = RM.t || 0, R = NOLAN.room, k = Math.min(1, t / 20, Math.max(0, (R.life - t) / 20));
+    if (k > 0) { c.fillStyle = `rgba(70,80,24,${0.3 * k})`; c.fillRect(0, 0, W, H); txt(c, 'GAP YEAR · DAY ' + (1000 + Math.min(96, Math.floor(t / 5))).toLocaleString('en-US'), 30, 50, 26, '#ffe9a8', OUT, 'left'); }
+    if (t >= R.life && t - R.life < R.card) {
+      c.fillStyle = 'rgba(22,17,12,0.85)'; c.fillRect(0, H / 2 - 80, W, 160);
+      txt(c, 'GAP YEAR: DAY 1,096', W / 2, H / 2 + 10, 60, '#ffe9a8', OUT); txt(c, '(it never ends)', W / 2, H / 2 + 56, 24, '#d8e0b0', OUT);
+    }
+  }
   if (view.kart && view.kart.warn > 0 && Math.floor(fr / 8) % 2) {
     const x = view.kart.dir > 0 ? 70 : W - 70, y = H / 2 + 60;
     c.beginPath(); c.moveTo(x, y - 40); c.lineTo(x + 40, y + 30); c.lineTo(x - 40, y + 30); c.closePath(); c.fillStyle = '#ffd23a'; c.fill(); c.strokeStyle = OUT; c.lineWidth = 4; c.stroke();
