@@ -142,7 +142,7 @@ The title screen, lobby and results screen each have their own music too.
 | **Hindu Toad** (celebrating Holi) | Holi colors | Color Throw | Dandiya Dance | Kite Flight | Pichkari Splash | Festival of Colors |
 | **Subaru Toad** (with Beatrice) | Beatrice's magic | Minya | Shamac | Murak | Unseen Hand | El Minya |
 | **Emilia Toad** (with Puck) | Ice | Ice Soldiers | Ice Brand Arts | Ice Pillar | Ice Barrier | Absolute Zero |
-| **Nolan Toad** (a deadbeat after college) | Stink | Rot Toss | Forbidden Dagger | Mattress Launch | Under the Bed | The Gap Year That Never Ends |
+| **Nolan Toad** (a deadbeat after college) | Stink | Rot Toss | The Shirt | Mattress Launch | Under the Bed | The Gap Year That Never Ends |
 | **Yoshi** | Egg | Egg Toss | Egg Roll | Flutter Jump | Yoshi Bomb | Egg Storm |
 | **Red Yoshi** | Fire | Fire Spit | Flame Rush | Blaze Jump | Magma Pound | Volcano Rain |
 | **Blue Yoshi** (wings) | Wind | Wing Gust | Sky Swoop | Wing Flight | Dive Bomb | Feather Cyclone |
@@ -173,7 +173,7 @@ His down special, **Sea Dragon's Cradle**, raises a bubble of water around him (
 **Nolan Toad** is a deadbeat after college who hasn't left his room since graduation, and he's sure he's better than you. He slouches with his hands in his hoodie pocket, a faint stink follows him around, and everyone he KOs gets stamped **LOW-TIER HUMAN**. His taunts are things he says ("low-tier human", "are you implying i'm not a high tier human?", "i'm not mad").
 
 - **Rot Toss:** he lobs a rotten slice of pizza from under his bed. Where it lands it leaves a stink cloud for four seconds that wears down anyone inside (1% every half second) and slows them 15%.
-- **Forbidden Dagger:** he throws the Shirt, an old T-shirt that spent a year at the bottom of his backpack. Hold Side Special and he holds it out at arm's length while it grows mold: a tap hits for 5%, a second for 10%, two seconds for 16%, and at full mold it bursts into a stink you can smell from 10 feet away. Keep holding past that and it hits harder (up to 20%), but the mold creeps onto him: 2% a second until he lets go.
+- **The Shirt:** he throws the Shirt, an old T-shirt that spent a year at the bottom of his backpack. Hold Side Special and he holds it out at arm's length while it grows mold: a tap hits for 5%, a second for 10%, two seconds for 16%, and at full mold it bursts into a stink you can smell from 10 feet away. Keep holding past that and it hits harder (up to 20%), but the mold creeps onto him: 2% a second until he lets go.
 - **Mattress Launch:** he springs high off his old mattress (7% to anyone underneath).
 - **Under the Bed:** he dives under his bed (nothing can touch him for half a second) and pops out with whatever he finds: old leftovers (a stink cloud), a broken controller (he throws it, 8%) or a half-eaten bag of spicy chips (5% healed).
 - **The Gap Year That Never Ends** (his finale): the stage turns into his room for eight seconds. The stink wears every foe down (12% in all) and slows them 20%, while he heals 8% (he's at home). Then the title card: GAP YEAR: DAY 1,096.

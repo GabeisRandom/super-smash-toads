@@ -2,7 +2,7 @@
 // ===== Super Smash Toads: shared data =====
 // The page and the code have to come from the same update. build.ps1 stamps both with this mark (and the page's
 // script links too). If a browser still serves an old copy of one of them from its cache, reload once from the server.
-const GAME_BUILD = '202611132317';
+const GAME_BUILD = '202611132345';
 (() => {
   const m = document.querySelector('meta[name="sst-build"]');
   if ((m && m.content) === GAME_BUILD || /[?&]fresh=/.test(location.search)) return;
@@ -171,7 +171,7 @@ const CHARS = [
   // bedhead under his cap. `stinky`: a faint stink follows him round; `lowtier`: everyone he KOs gets stamped LOW-TIER
   // HUMAN, and his taunts are insults (`lines`)
   defChar({ id: 'nolan', name: 'Nolan Toad', look: { cap: '#ece6d2', spot: '#7d8f3c', vest: '#8f9298', trim: '#7d8087', shirt: '#8f9298', pants: '#474a54', sleeves: '#8f9298', cuff: '#7d8087',
-    hood: true, stains: true, hair: '#2a1d14', bedhead: true, eyes: 'tired', slides: '#1d1d22' },
+    hood: true, stains: true, hair: '#1f140e', bedhead: true, eyes: 'tired', slides: '#1d1d22', skin: '#764628', blush: '#9c5a46', bags: '#4c2b19' },
     weight: 1.12, run: 6.0, air: 4.8, jump: 14, djump: 13, pow: 1.0, stinky: true, lowtier: true, swoosh: '#d4e0a0', sp: { n: 'rottoss', s: 'forbidden', u: 'mattress', d: 'underbed' },
     lines: ['low-tier human', "are you implying i'm not a high tier human?", "i'm not mad"],
     blurb: "A deadbeat after college who hasn't left his room since graduation, and he's sure he's better than you. Rotten leftovers, the Shirt, an old mattress and whatever's under his bed.",
@@ -285,7 +285,7 @@ const SPNAME = {
   boomkick: 'Boom Kick', blitzdash: 'Blitz Dash', cycloneclimb: 'Cyclone Climb', afterimage: 'Afterimage',
   blaster: 'Ray Blaster', airdash: 'Air Dash', booster: 'Booster Jump', bomblob: 'Bomb Lob',
   ebbflow: 'Ebb & Flow', undertow: 'Undertow', geyserrise: 'Geyser Rise', cradle: "Sea Dragon's Cradle",
-  rottoss: 'Rot Toss', forbidden: 'Forbidden Dagger', mattress: 'Mattress Launch', underbed: 'Under the Bed',
+  rottoss: 'Rot Toss', forbidden: 'The Shirt', mattress: 'Mattress Launch', underbed: 'Under the Bed',
   kingsgift: "Three Kings' Gift", bellring: 'Bell Ring', partypopper: 'Party Popper', pinata: 'Piñata',
   colorthrow: 'Color Throw', dandiya: 'Dandiya Dance', kitefly: 'Kite Flight', pichkari: 'Pichkari Splash',
 };

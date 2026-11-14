@@ -2936,7 +2936,7 @@ function crystalCradle(g, s) {
 }
 
 // ---------- Nolan Toad (the player's own character: a deadbeat after college) ----------
-// Rot Toss lobs a rotten leftover from under his bed; where it lands it leaves a stink cloud. Forbidden Dagger throws
+// Rot Toss lobs a rotten leftover from under his bed; where it lands it leaves a stink cloud. The Shirt (his side special) throws
 // the Shirt (a year at the bottom of his backpack hardened it with mold): hold Special and it grows more mold and hits
 // harder; at full mold it bursts into a stink you can smell from 10 feet away (about two and a half Toads round), but
 // keep holding past that and the mold starts growing onto him. Mattress Launch springs him up off his old mattress.
@@ -3680,7 +3680,7 @@ const SP = {
   // --- Nolan Toad ---
   // Rot Toss: he lobs a rotten leftover from under his bed (5%); where it lands it leaves a stink cloud for 4 seconds
   rottoss: spShot({ slot: 'n', cd: 120, at: 9, end: 22, p: Object.assign({ k: 'rot', ox: 18, oy: 0.75 }, NOLAN.rot) }),
-  // Forbidden Dagger: the Shirt. Hold Special to grow mold on it (f.mold counts the frames), let go to throw it: a tap
+  // The Shirt (side special). Hold Special to grow mold on it (f.mold counts the frames), let go to throw it: a tap
   // hits for 5%, a second for 10%, full mold (2 s) for 16% and a burst of stink. Past full mold it keeps growing (up to
   // 20%), but it creeps onto him too: 2% a second until he throws it (at 4 seconds he throws it anyway)
   forbidden: {

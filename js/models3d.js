@@ -179,7 +179,8 @@ const M3D = (() => {
       ghost: !!L.ghost, robo: !!L.robo, prop: L.prop || null, shield: L.shield || false, look: L,
       blade: ['cutlass', 'sword', 'pan', 'wand'].includes(L.prop), parrot: L.hat === 'tricorn', eyeY: 0.123, mount: L.mount || null };
     const wd = rig.wide, vest = L.vest, trim = paper(L.trim || '#f4c430'), capCol = paper(L.cap), spot = paper(L.spot);
-    const skin = rig.robo ? '#a4adba' : rig.ghost ? '#e2ebfb' : PAPER.skin, metal = '#7a8494';
+    // (a fighter can have their own skin tone: Nolan Toad is Black)
+    const skin = rig.robo ? '#a4adba' : rig.ghost ? '#e2ebfb' : L.skin || PAPER.skin, metal = '#7a8494';
     part(rig, 'body', BODY_PIV, () => {
       if (rig.toadette) B.lathe([[0, 0.6], [0.36, 0.58], [0.46, 0.42], [0.54, 0.24], [0.52, 0.18], [0, 0.18]], 12, { sx: wd, sz: wd, jit: 0.02, seed: 3, mat: m => (m[1] < 0.25 ? PAPER.white : '#ff7ab4') });
       else if (L.robe || L.coat) B.lathe([[0, 0.6], [0.36, 0.58], [0.47, 0.42], [0.54, 0.2], [0.52, 0.15], [0, 0.15]], 12, { sx: wd, sz: wd, jit: 0.02, seed: 3, mat: m => (m[1] < 0.22 ? trim : L.coat ? '#fbfbf8' : L.robeCol || vest) });
@@ -296,7 +297,7 @@ const M3D = (() => {
     }, { ink: false });
     part(rig, 'head', HEAD_PIV, () => {
       B.ellipsoid(HC, HR, 6, 12, { col: skin, jit: 0.01, seed: 9 });
-      if (!rig.robo && !L.mask) for (const sx of [-1, 1]) headDecal([0.6 * sx, -0.42, 0.7], [0.05, 0.028, 0.01], PAPER.blush);
+      if (!rig.robo && !L.mask) for (const sx of [-1, 1]) headDecal([0.6 * sx, -0.42, 0.7], [0.05, 0.028, 0.01], L.blush || PAPER.blush);
       if (rig.old) {
         for (const sx of [-1, 1]) { headDecal([0.17 * sx, -0.3, 0.94], [0.13, 0.065, 0.045], PAPER.white); headDecal([0.32 * sx, 0.2, 0.93], [0.075, 0.03, 0.02], PAPER.white); }
         headDecal([0, -0.14, 1], [0.06, 0.06, 0.05], '#f0b88a');
@@ -386,13 +387,15 @@ const M3D = (() => {
           headDecal(c, [0.007, 0.008, 0.01], '#ffffff', { off: [-0.014 * sx, 0.026, 0.034] });
           headDecal(c, [0.084, 0.02, 0.016], PAPER.eye, { off: [0, 0.064, 0.034], spin: -0.16 * sx });
         } else if (L.eyes === 'tired') {
-          // Nolan Toad's eyes: half shut under heavy lids, unimpressed, with bags under them
+          // Nolan Toad's eyes: half shut under heavy lids, unimpressed, with bags under them (whites round the pupil,
+          // so they read on his dark skin)
           const c = [0.32 * sx, -0.02, 0.95];
-          headDecal(c, er, PAPER.eye);
-          headDecal(c, [er[0] * 0.36, er[1] * 0.3, 0.012], '#ffffff', { off: [-0.016, -er[1] * 0.12, 0.03] });
-          headDecal(c, [er[0] * 1.35, er[1] * 0.62, 0.034], skin, { off: [0, er[1] * 0.6, 0.034] });
-          headDecal(c, [er[0] * 1.3, 0.017, 0.012], PAPER.eye, { off: [0, er[1] * 0.02, 0.04] });
-          headDecal(c, [er[0] * 0.95, 0.013, 0.01], '#b48a6c', { off: [0, -er[1] * 1.28, 0.02] });
+          headDecal(c, [er[0] * 1.25, er[1] * 1.04, 0.028], '#f4efe6');
+          headDecal(c, [er[0] * 0.82, er[1] * 0.86, 0.03], PAPER.eye, { off: [0, -er[1] * 0.08, 0.004] });
+          headDecal(c, [er[0] * 0.3, er[1] * 0.26, 0.012], '#ffffff', { off: [-0.014, -er[1] * 0.18, 0.034] });
+          headDecal(c, [er[0] * 1.45, er[1] * 0.64, 0.034], skin, { off: [0, er[1] * 0.62, 0.038] });
+          headDecal(c, [er[0] * 1.38, 0.017, 0.012], PAPER.eye, { off: [0, er[1] * 0.02, 0.044] });
+          headDecal(c, [er[0] * 0.95, 0.013, 0.01], L.bags || '#b48a6c', { off: [0, -er[1] * 1.3, 0.02] });
         } else if (L.eyes === 'violet') {
           // Emilia's big violet eyes, darker at the bottom, with a bright highlight
           const c = [0.32 * sx, -0.02, 0.95];
@@ -1668,7 +1671,7 @@ const M3D = (() => {
       // --- Nolan Toad ---
       // Rot Toss: a lazy lob of a rotten slice
       case 'rottoss': throwArm(-2.2, -0.7, 9); F.rotHand = t < 9; P.lean = t >= 9 ? 0.12 : -0.08; break;
-      // Forbidden Dagger: he holds the Shirt out at arm's length (leaning away from it) while the mold grows; past full
+      // The Shirt (side special): he holds it out at arm's length (leaning away from it) while the mold grows; past full
       // mold he starts to shake and go green as it creeps onto him. Then he throws it like a dagger
       case 'forbidden': {
         const m = f.mold === undefined ? 0 : f.mold, S = NOLAN.shirt;

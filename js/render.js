@@ -112,7 +112,8 @@ function drawToad(c, L, p) {
   }
   if (L.pigtails) pigtail(c, -22, hy + 2, L);
   E(c, f1, fy, 8, 5, SHOE, OUT, 2);
-  E(c, hb[0], hb[1], 4.5, 4.5, SKIN, OUT, 2);
+  const skin = L.skin || SKIN; // (a fighter can have their own skin tone: Nolan Toad is Black)
+  E(c, hb[0], hb[1], 4.5, 4.5, skin, OUT, 2);
   if (L.dress) {
     c.beginPath(); c.moveTo(-11, by - 4); c.lineTo(11, by - 4); c.lineTo(17, -8); c.quadraticCurveTo(0, -3, -17, -8); c.closePath();
     c.fillStyle = L.vest; c.fill(); c.strokeStyle = OUT; c.lineWidth = 2; c.stroke();
@@ -122,12 +123,14 @@ function drawToad(c, L, p) {
   if (L.dress) { E(c, 0, by + 2, 13, 5, L.vest); }
   c.strokeStyle = L.trim; c.lineWidth = 2.5; c.beginPath(); c.moveTo(7, by - 10); c.lineTo(9, by + 8); c.stroke();
   // head + face
-  E(c, 3, hy, 13.5, 12.5, SKIN, OUT, 2);
-  c.strokeStyle = '#1a1a1a'; c.lineWidth = 2;
+  E(c, 3, hy, 13.5, 12.5, skin, OUT, 2);
+  c.strokeStyle = L.skin ? '#f4efe6' : '#1a1a1a'; c.lineWidth = 2;
   if (p.hurt) {
     c.beginPath(); c.moveTo(4, hy - 5); c.lineTo(8, hy - 2); c.lineTo(4, hy + 1); c.moveTo(15, hy - 5); c.lineTo(11, hy - 2); c.lineTo(15, hy + 1); c.stroke();
   } else {
     const ey = L.old ? 3 : 4.4;
+    // (whites round the eyes so they read on darker skin)
+    if (L.skin) { E(c, 6.5, hy - 2, 3.6, ey + 1.2, '#f4efe6'); E(c, 12.5, hy - 2, 3.4, ey * 0.95 + 1.2, '#f4efe6'); }
     E(c, 6.5, hy - 2, 2.6, ey, '#1a1a1a'); E(c, 12.5, hy - 2, 2.4, ey * 0.95, '#1a1a1a');
     E(c, 7.2, hy - 3.6, 1, 1.4, '#fff'); E(c, 13.1, hy - 3.6, 0.9, 1.3, '#fff');
   }
@@ -142,7 +145,7 @@ function drawToad(c, L, p) {
   if (p.pe) crown(c, 0, cy - 22);
   if (L.lamp) { E(c, 22, cy - 6, 5.5, 5.5, '#ffe866', OUT, 2); E(c, 22, cy - 6, 2.4, 2.4, '#ffffff'); }
   if (p.pick) pickaxe(c, hf[0], hf[1], p.at === 'pick' ? -1.9 + Math.min(1, p.ft / 9) * 2.8 : -0.5);
-  E(c, hf[0], hf[1], 4.5, 4.5, SKIN, OUT, 2);
+  E(c, hf[0], hf[1], 4.5, 4.5, skin, OUT, 2);
   if (L.old && !p.at && !(p.glide || p.sp === 'parasol')) {
     c.strokeStyle = OUT; c.lineWidth = 5.5; c.beginPath(); c.moveTo(hf[0] + 1, hf[1] - 4); c.lineTo(hf[0] + 4, 0); c.stroke();
     c.strokeStyle = '#8a5326'; c.lineWidth = 3; c.stroke();
